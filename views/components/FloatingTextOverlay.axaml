@@ -75,7 +75,7 @@
                             Spacing="20" 
                             VerticalAlignment="Center">
                     <Button Classes="IconBtn" ToolTip.Tip="Phát lại văn bản" Click="Replay_Click">
-                        <Path Data="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5" 
+                        <Path Data="{StaticResource IconReplay}" 
                               Stroke="#A0A0A0" 
                               StrokeThickness="1.5" 
                               StrokeLineCap="Round" 
@@ -85,7 +85,7 @@
                               Stretch="Uniform" />
                     </Button>
                     <Button Classes="IconBtn" ToolTip.Tip="Đóng" Click="Close_Click">
-                        <Path Data="M18 6L6 18 M6 6l12 12" 
+                        <Path Data="{StaticResource IconClose}" 
                               Stroke="#A0A0A0" 
                               StrokeThickness="1.5" 
                               StrokeLineCap="Round" 
