@@ -2,8 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:components="clr-namespace:m_mslc_overlay.views.components"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="m_mslc_overlay.MainWindow"
         Title="m_mslc_overlay">
-    Welcome to Avalonia!
+    <Grid Background="#121212">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
+            <TextBlock Text="Overlays Manager" Foreground="White" FontSize="24" HorizontalAlignment="Center"/>
+            <Button Content="Mở Widget Typewriter Nổi" Click="OpenOverlayBtn_Click" HorizontalAlignment="Center" Padding="15,10" Background="#333333" Foreground="#EAEAEA"/>
+        </StackPanel>
+    </Grid>
 </Window>

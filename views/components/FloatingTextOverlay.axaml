@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.components.FloatingTextOverlay"
+        Width="600" Height="100"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Topmost="True"
+        WindowStartupLocation="CenterScreen">
+    <Window.Styles>
+        <Style Selector="Button.IconBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.IconBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#333333"/>
+        </Style>
+        <Style Selector="Button.IconBtn:pointerover Path">
+            <Setter Property="Stroke" Value="#EAEAEA"/>
+        </Style>
+
+        <!-- Custom thanh cuộn dọc (ScrollViewer) -->
+        <Style Selector="ScrollBar:vertical">
+            <Setter Property="Width" Value="4" />
+        </Style>
+        <Style Selector="ScrollBar /template/ Thumb">
+            <Setter Property="Background" Value="#4A4A4A" />
+            <Setter Property="CornerRadius" Value="2" />
+        </Style>
+        <Style Selector="ScrollBar /template/ Thumb:pointerover">
+            <Setter Property="Background" Value="#888888" />
+        </Style>
+        <!-- Ẩn các nút lên/xuống của ScrollBar -->
+        <Style Selector="ScrollBar /template/ RepeatButton">
+            <Setter Property="IsVisible" Value="False" />
+            <Setter Property="Height" Value="0" />
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <Border Background="#202020"
+                BorderBrush="#333333"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="16, 12"
+                Margin="8"
+                BoxShadow="0 4 16 0 #99000000"
+                PointerPressed="Window_PointerPressed">
+
+            <Grid ColumnDefinitions="*, Auto, Auto">
+                <ScrollViewer x:Name="TextScrollViewer" Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,24,0">
+                    <TextBlock x:Name="DisplayTextBlock"
+                               Foreground="#EAEAEA"
+                               FontSize="16"
+                               FontFamily="Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Left"
+                               TextWrapping="Wrap"/>
+                </ScrollViewer>
+                           
+                <Rectangle Grid.Column="1"
+                           Width="1"
+                           Fill="#383838"
+                           VerticalAlignment="Stretch"
+                           Margin="0,0,24,0"/>
+                           
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal" 
+                            Spacing="20" 
+                            VerticalAlignment="Center">
+                    <Button Classes="IconBtn" ToolTip.Tip="Phát lại văn bản" Click="Replay_Click">
+                        <Path Data="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5" 
+                              Stroke="#A0A0A0" 
+                              StrokeThickness="1.5" 
+                              StrokeLineCap="Round" 
+                              StrokeJoin="Round" 
+                              Width="18" 
+                              Height="18" 
+                              Stretch="Uniform" />
+                    </Button>
+                    <Button Classes="IconBtn" ToolTip.Tip="Đóng" Click="Close_Click">
+                        <Path Data="M18 6L6 18 M6 6l12 12" 
+                              Stroke="#A0A0A0" 
+                              StrokeThickness="1.5" 
+                              StrokeLineCap="Round" 
+                              StrokeJoin="Round" 
+                              Width="18" 
+                              Height="18" 
+                              Stretch="Uniform" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
