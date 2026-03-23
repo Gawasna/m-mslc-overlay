@@ -61,6 +61,7 @@ public partial class FloatingTextOverlay : Window
     private async void StartTypewriterEffect()
     {
         _typewriterCts?.Cancel();
+        _typewriterCts?.Dispose();
         _typewriterCts = new CancellationTokenSource();
         var token = _typewriterCts.Token;
 
@@ -68,12 +69,18 @@ public partial class FloatingTextOverlay : Window
 
         try
         {
-            foreach (char c in LongSampleText)
+            for (int i = 0; i < LongSampleText.Length; i++)
             {
                 if (token.IsCancellationRequested) break;
                 
-                DisplayTextBlock.Text += c;
-                TextScrollViewer.ScrollToEnd(); // Tự động cuộn
+                // Tránh lỗi memory khi cộng chuỗi (+=) liên tục gây cấp phát nhiều object String và Layout update
+                DisplayTextBlock.Text = LongSampleText.Substring(0, i + 1);
+                
+                // Giảm thiểu tải UI: chỉ cuộn định kỳ hoặc cuộn cuối cùng thay vì cuộn cho từng ký tự
+                if (i % 3 == 0 || i == LongSampleText.Length - 1)
+                {
+                    TextScrollViewer.ScrollToEnd();
+                }
                 
                 // Add tiny delay to simulate typewriter logic
                 await Task.Delay(20, token);
