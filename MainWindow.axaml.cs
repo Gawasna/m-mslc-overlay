@@ -34,11 +34,22 @@ namespace m_mslc_overlay
                 await _aiService.TranslateSentenceAsync(txt);
             };
 
-            _aiService.OnTranslationCompleted += (translatedTxt) => {
+            _aiService.OnTranslationTokenReceived += (tokenStr) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     if (_currentOverlay != null && _currentOverlay.IsVisible)
                     {
-                        _currentOverlay.EnqueueText(translatedTxt);
+                        _currentOverlay.EnqueueText(tokenStr);
+                    }
+                });
+            };
+
+            _aiService.OnTranslationCompleted += (fullSentence) => {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    if (_currentOverlay != null && _currentOverlay.IsVisible)
+                    {
+                        // Khi kết thúc 1 câu hoàn chỉnh thì tự nối thêm 1 cú xuống dòng 
+                        // thay vì tự xuống dòng ở mọi Queue Item
+                        _currentOverlay.EnqueueText("\n");
                     }
                 });
             };

@@ -98,7 +98,6 @@ public partial class FloatingTextOverlay : Window
                             int currentLength = DisplayTextBlock.Text?.Length ?? 0;
                             // Xoá màn hình nếu đang giữ quá nhiều chữ tránh tràn RAM
                             if (currentLength > 400) DisplayTextBlock.Text = "";
-                            else if (currentLength > 0) DisplayTextBlock.Text += "\n";
                             
                             baseText = DisplayTextBlock.Text ?? "";
                         });
