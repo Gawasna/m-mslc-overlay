@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.components.DebugWidget"
+        Title="Hook API Debug Widget"
+        Width="600" Height="500"
+        Background="#1E1E1E"
+        Topmost="True"
+        WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="Auto, *, Auto" Margin="16">
+        <StackPanel Grid.Row="0" Spacing="10">
+            <Grid>
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="Named Pipe Simulator" FontWeight="Bold" Foreground="White" FontSize="18"/>
+                    <TextBlock Text="Simulate incoming JSON data from HookCore.dll" Foreground="#AAAAAA" FontSize="12" Margin="0,0,0,10"/>
+                </StackPanel>
+                <Button x:Name="InterruptBtn" Click="InterruptBtn_Click" Content="Interrupt Render" HorizontalAlignment="Right" VerticalAlignment="Top" Background="#331111" Foreground="#FF5555" FontSize="12" Padding="8,4" CornerRadius="4"/>
+            </Grid>
+            
+            <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,10">
+                <TextBox x:Name="JsonInput" Grid.Column="0" Height="100" AcceptsReturn="True" TextWrapping="Wrap" 
+                         FontFamily="Consolas" FontSize="12" Background="#2D2D30" Foreground="White"
+                         Text="{}{&quot;text&quot;:&quot;Hello world&quot;,&quot;is_final&quot;:false,&quot;bytes&quot;:11,&quot;ts_ms&quot;:123123}"/>
+                <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="10">
+                    <Button Content="Send JSON" Click="SendJsonBtn_Click" Width="100" HorizontalContentAlignment="Center"/>
+                    <Button Content="Send Final" Click="SendFinalBtn_Click" Width="100" HorizontalContentAlignment="Center"/>
+                    <Button Content="Reset State" Click="ResetStateBtn_Click" Width="100" HorizontalContentAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="#000000" BorderBrush="#333333" BorderThickness="1" CornerRadius="4" Margin="0,10,0,10">
+            <ScrollViewer x:Name="LogScroll">
+                <StackPanel x:Name="LogPanel" Margin="8"/>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="Clear Logs" Click="ClearLogsBtn_Click"/>
+            <Button Content="Close" Click="CloseBtn_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -46,10 +46,11 @@
         <Border Grid.Column="1" Background="#0A0A0A" Padding="24">
             <Grid RowDefinitions="Auto, *, Auto">
                 <StackPanel Grid.Row="0" Spacing="24">
-                    <StackPanel Spacing="16">
+                    <StackPanel Spacing="8">
                         <TextBlock Text="MS-LIVE-CAPTION" Foreground="White" FontSize="20" FontWeight="Bold"/>
+                        <TextBox x:Name="TopicInput" Text="Game/Phim" Watermark="Nhập AI Topic (vd: Game/Phim)" Background="#1A1A1A" Foreground="White" BorderBrush="#333333" CornerRadius="4" Margin="0,0,0,4"/>
                         <UniformGrid Columns="3" Margin="0,0,0,0">
-                            <Button Content="Inject" Background="#1A1A1A" Foreground="White" FontSize="12" FontWeight="Medium" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,4,0"/>
+                            <Button x:Name="InjectBtn" Click="InjectBtn_Click" Content="Inject" Background="#1A1A1A" Foreground="White" FontSize="12" FontWeight="Medium" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,4,0"/>
                             <Button Content="Suspend" Background="#1A1A1A" Foreground="#AAAAAA" FontSize="12" FontWeight="Medium" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,2,0"/>
                             <Button Content="Reload" Background="#1A1A1A" Foreground="#AAAAAA" FontSize="12" FontWeight="Medium" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4,0,0,0"/>
                         </UniformGrid>
@@ -70,8 +71,8 @@
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Hook Status" Foreground="#555555" FontSize="11" FontWeight="Medium"/>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Ellipse Width="6" Height="6" Fill="#00FF88"/>
-                                    <TextBlock Text="Injected" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                                    <Ellipse x:Name="HookStatusDot" Width="6" Height="6" Fill="#FF3333"/>
+                                    <TextBlock x:Name="HookStatusText" Text="Waiting" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -129,6 +130,9 @@
                     </Border>
                     <Border CornerRadius="18" BorderThickness="1" BorderBrush="#333333" Padding="16,8">
                         <TextBlock Text="Appearance" Foreground="#888888" FontSize="13" FontWeight="Medium"/>
+                    </Border>
+                    <Border CornerRadius="18" BorderThickness="1" BorderBrush="#333333" Padding="16,8">
+                        <TextBlock Text="Debug" Foreground="#888888" FontSize="13" FontWeight="Medium"/>
                     </Border>
                 </StackPanel>
 
@@ -190,6 +194,18 @@
                                 <TextBlock Grid.Column="0" Text="Request Limit" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="Bypassed / Unlimited" Foreground="White" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
                             </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Debug API & Hook -->
+                    <Border Background="#121212" CornerRadius="12" BorderThickness="1" BorderBrush="#1A1A1A" Padding="24">
+                        <StackPanel Spacing="16">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Debug &amp; Testing" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
+                                <Button Grid.Column="1" Content="Open Debug Widget ⚙" Click="OpenDebugWidgetBtn_Click" Background="#1A1A1A" BorderBrush="#333333" BorderThickness="1" CornerRadius="6" Foreground="White" FontSize="12" FontWeight="Medium" Padding="16,8"/>
+                            </Grid>
+                            <Rectangle Height="1" Fill="#1A1A1A" HorizontalAlignment="Stretch" Margin="0,8"/>
+                            <TextBlock Text="Mở cửa sổ Debug Widget để giả lập gửi JSON từ core HookCore.dll, qua đó kiểm thử SentenceSplitter và API connection." Foreground="#888888" FontSize="13" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
