@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,7 +24,7 @@ public partial class FloatingTextOverlay : Window
         // Kích hoạt khi bắt đầu hiển thị Float Widget
         this.Opened += (s, e) => 
         {
-            StartTypewriterEffect();
+            StartTypewriterPump();
             
             // Xâm nhập Hệ điều hành và đánh cắp Window Container (LiveCaptions), tàng hình ngay lập tức 
             _hiderService.HideTargetApp("LiveCaptions");
@@ -55,10 +56,18 @@ public partial class FloatingTextOverlay : Window
 
     private void Replay_Click(object sender, RoutedEventArgs e)
     {
-        StartTypewriterEffect();
+        // Replay giờ đây sẽ xoá chữ cũ nhưng queue vẫn giữ. 
+        DisplayTextBlock.Text = "";
     }
 
-    private async void StartTypewriterEffect()
+    private ConcurrentQueue<string> _sentenceQueue = new ConcurrentQueue<string>();
+
+    public void EnqueueText(string text)
+    {
+        _sentenceQueue.Enqueue(text);
+    }
+
+    private void StartTypewriterPump()
     {
         _typewriterCts?.Cancel();
         _typewriterCts?.Dispose();
@@ -67,28 +76,58 @@ public partial class FloatingTextOverlay : Window
 
         DisplayTextBlock.Text = "";
 
-        try
+        // Chạy ngầm một vòng lặp vĩnh viễn lúc cửa sổ đang bật để tiêu thụ Queue
+        Task.Run(async () =>
         {
-            for (int i = 0; i < LongSampleText.Length; i++)
+            try
             {
-                if (token.IsCancellationRequested) break;
-                
-                // Tránh lỗi memory khi cộng chuỗi (+=) liên tục gây cấp phát nhiều object String và Layout update
-                DisplayTextBlock.Text = LongSampleText.Substring(0, i + 1);
-                
-                // Giảm thiểu tải UI: chỉ cuộn định kỳ hoặc cuộn cuối cùng thay vì cuộn cho từng ký tự
-                if (i % 3 == 0 || i == LongSampleText.Length - 1)
+                while (!token.IsCancellationRequested)
                 {
-                    TextScrollViewer.ScrollToEnd();
+                    if (_sentenceQueue.TryDequeue(out string? currentSentence) && currentSentence != null)
+                    {
+                        // Giới hạn buffer hiển thị để tránh sập RAM
+                        var currentLength = 0;
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
+                            currentLength = DisplayTextBlock.Text?.Length ?? 0;
+                            if (currentLength > 500) DisplayTextBlock.Text = "";
+                            else if (currentLength > 0) DisplayTextBlock.Text += "\n";
+                        });
+
+                        string baseText = "";
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { baseText = DisplayTextBlock.Text ?? ""; });
+
+                        // Tính toán tốc độ gõ (Adaptive Speed)
+                        int queueLength = _sentenceQueue.Count;
+                        int delayMs = queueLength > 2 ? 10 : (queueLength == 1 ? 25 : 45);
+
+                        for (int i = 0; i < currentSentence.Length; i++)
+                        {
+                            if (token.IsCancellationRequested) break;
+                            
+                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
+                                DisplayTextBlock.Text = baseText + currentSentence.Substring(0, i + 1);
+                                if (i % 3 == 0 || i == currentSentence.Length - 1)
+                                {
+                                    TextScrollViewer.ScrollToEnd();
+                                }
+                            });
+                            
+                            await Task.Delay(delayMs, token);
+                        }
+                        
+                        // Chờ 1 chút để giãn cách từng câu
+                        await Task.Delay(300, token);
+                    }
+                    else
+                    {
+                        // Khi rỗng Queue, đợi một chu kỳ ngắn
+                        await Task.Delay(100, token);
+                    }
                 }
-                
-                // Add tiny delay to simulate typewriter logic
-                await Task.Delay(20, token);
             }
-        }
-        catch (TaskCanceledException)
-        {
-            // Ignore
-        }
+            catch (TaskCanceledException)
+            {
+            }
+        });
     }
 }

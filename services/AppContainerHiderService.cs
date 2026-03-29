@@ -16,37 +16,36 @@ public class AppContainerHiderService : IDisposable
     public bool IsHidden => _targetHwnd != IntPtr.Zero;
     public uint TargetProcessId { get; private set; }
 
+    public uint PreFindTargetProcessId(string processName = "LiveCaptions")
+    {
+        Process[] processes = Process.GetProcessesByName(processName);
+        if (processes.Length > 0)
+        {
+            _targetHwnd = processes[0].MainWindowHandle;
+        }
+
+        if (_targetHwnd == IntPtr.Zero) 
+            _targetHwnd = NativeMethods.FindWindow(null, "Live captions");
+        if (_targetHwnd == IntPtr.Zero) 
+            _targetHwnd = NativeMethods.FindWindow(null, "Chú thích trực tiếp");
+
+        if (_targetHwnd != IntPtr.Zero)
+        {
+            NativeMethods.GetWindowThreadProcessId(_targetHwnd, out uint pid);
+            TargetProcessId = pid;
+        }
+        return TargetProcessId;
+    }
+
     public bool HideTargetApp(string processName = "LiveCaptions")
     {
         if (IsHidden) return true; // Đang ẩn sẵn
 
-        // Tìm cửa sổ theo Tên Tiến Trình thay vì ClassName tĩnh 
-        Process[] processes = Process.GetProcessesByName(processName);
-        
-        if (processes.Length > 0)
-        {
-            // Lấy thẳng MainWindowHandle của Process UWP (Native / AppContainer Top-Level)
-            _targetHwnd = processes[0].MainWindowHandle;
-        }
-
-        // Fallback: Tìm cửa sổ chung theo Title hệ thống nếu MainWindowHandle trả về rỗng (Đặc thù UWP)
-        if (_targetHwnd == IntPtr.Zero) 
-        {
-            _targetHwnd = NativeMethods.FindWindow(null, "Live captions");
-        }
-        if (_targetHwnd == IntPtr.Zero) 
-        {
-            _targetHwnd = NativeMethods.FindWindow(null, "Chú thích trực tiếp");
-        }
-
-        if (_targetHwnd == IntPtr.Zero) 
+        if (TargetProcessId == 0 && PreFindTargetProcessId(processName) == 0)
         {
             Debug.WriteLine($"Không tìm thấy Windows Container app mục tiêu mang tên: {processName}");
             return false;
         }
-
-        NativeMethods.GetWindowThreadProcessId(_targetHwnd, out uint pid);
-        TargetProcessId = pid;
 
         // 1. Sao lưu cấu hình hiện tại (style và tọa độ màn hình gốc)
         NativeMethods.GetWindowRect(_targetHwnd, out _originalRect);

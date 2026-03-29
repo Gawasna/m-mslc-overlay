@@ -14,13 +14,35 @@ namespace m_mslc_overlay
         private FloatingTextOverlay? _currentOverlay;
         private AppContainerHiderService _hiderService;
         private LiveCaptionPipeService _pipeService;
+        private InjectorService _injectorService;
+        private AIService _aiService;
 
         public MainWindow()
         {
             InitializeComponent();
             _hiderService = new AppContainerHiderService();
             _pipeService = new LiveCaptionPipeService();
+            _injectorService = new InjectorService();
+            _aiService = new AIService();
             
+            _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
+            TopicInput.TextChanged += (s, e) => {
+                _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
+            };
+
+            _pipeService.OnFinalSentenceReceived += async (txt) => {
+                await _aiService.TranslateSentenceAsync(txt);
+            };
+
+            _aiService.OnTranslationCompleted += (translatedTxt) => {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    if (_currentOverlay != null && _currentOverlay.IsVisible)
+                    {
+                        _currentOverlay.EnqueueText(translatedTxt);
+                    }
+                });
+            };
+
             this.Closing += (s, e) => {
                 _hiderService.Dispose();
                 _pipeService.Dispose();
@@ -29,46 +51,26 @@ namespace m_mslc_overlay
 
         private async void InjectBtn_Click(object sender, RoutedEventArgs e)
         {
-            try
+            uint pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
+            if (pid == 0)
             {
-                if (!_hiderService.HideTargetApp("LiveCaptions"))
-                {
-                    Debug.WriteLine("LiveCaptions window not found or cannot hide.");
-                    return;
-                }
-
-                uint pid = _hiderService.TargetProcessId;
-                
-                string rootDir = Directory.GetParent(AppContext.BaseDirectory)?.Parent?.Parent?.Parent?.FullName ?? AppContext.BaseDirectory;
-                var loaderPath = Path.Combine(rootDir, "Loader.exe");
-                
-                if (!File.Exists(loaderPath))
-                {
-                    loaderPath = Path.Combine(AppContext.BaseDirectory, "Loader.exe");
-                }
-
-                var process = new Process {
-                    StartInfo = new ProcessStartInfo {
-                        FileName = loaderPath,
-                        Arguments = pid.ToString(),
-                        UseShellExecute = true,
-                        Verb = "runas"
-                    }
-                };
-                
-                process.Start();
-                await process.WaitForExitAsync();
-
-                if (process.ExitCode == 0)
-                {
-                    HookStatusDot.Fill = SolidColorBrush.Parse("#00FF88");
-                    HookStatusText.Text = "Injected";
-                    _pipeService.Start();
-                }
+                Debug.WriteLine("Trình LiveCaptions chưa bật! Vui lòng bật Live Captions của Windows trước khi Inject.");
+                return;
             }
-            catch (Exception ex)
+
+            bool success = await _injectorService.InjectAsync(pid);
+
+            if (success)
             {
-                Debug.WriteLine($"Failed to inject: {ex.Message}");
+                HookStatusDot.Fill = SolidColorBrush.Parse("#00FF88");
+                HookStatusText.Text = "Injected";
+                _pipeService.Start();
+            }
+            else
+            {
+                HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
+                HookStatusText.Text = "Failed";
+                Debug.WriteLine("Quá trình Inject thất bại hoặc bị từ chối quyền Administrator.");
             }
         }
 
