@@ -13,6 +13,7 @@ namespace m_mslc_overlay.views.components
     {
         private SentenceSplitter _splitter;
         private LiveCaptionPipeService? _pipeService;
+        public event Action? OnInterruptRequested;
 
         public DebugWidget()
         {
@@ -53,6 +54,11 @@ namespace m_mslc_overlay.views.components
         private void Pipe_OnError(string err) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-ERROR] {err}", "#FF4444"));
 
+        private void InterruptBtn_Click(object sender, RoutedEventArgs e)
+        {
+            OnInterruptRequested?.Invoke();
+            Log("[INTERRUPT] Xuất lệnh ngắt Render Queue thành công.", "#FF5555");
+        }
 
         private void Log(string message, string color = "#AAAAAA")
         {

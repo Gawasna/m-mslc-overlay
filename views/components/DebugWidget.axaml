@@ -8,8 +8,13 @@
         WindowStartupLocation="CenterOwner">
     <Grid RowDefinitions="Auto, *, Auto" Margin="16">
         <StackPanel Grid.Row="0" Spacing="10">
-            <TextBlock Text="Named Pipe Simulator" FontWeight="Bold" Foreground="White" FontSize="18"/>
-            <TextBlock Text="Simulate incoming JSON data from HookCore.dll" Foreground="#AAAAAA" FontSize="12" Margin="0,0,0,10"/>
+            <Grid>
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="Named Pipe Simulator" FontWeight="Bold" Foreground="White" FontSize="18"/>
+                    <TextBlock Text="Simulate incoming JSON data from HookCore.dll" Foreground="#AAAAAA" FontSize="12" Margin="0,0,0,10"/>
+                </StackPanel>
+                <Button x:Name="InterruptBtn" Click="InterruptBtn_Click" Content="Interrupt Render" HorizontalAlignment="Right" VerticalAlignment="Top" Background="#331111" Foreground="#FF5555" FontSize="12" Padding="8,4" CornerRadius="4"/>
+            </Grid>
             
             <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,10">
                 <TextBox x:Name="JsonInput" Grid.Column="0" Height="100" AcceptsReturn="True" TextWrapping="Wrap" 

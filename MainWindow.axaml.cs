@@ -90,6 +90,9 @@ namespace m_mslc_overlay
             if (_debugWidget == null || !_debugWidget.IsVisible)
             {
                 _debugWidget = new DebugWidget(_pipeService);
+                _debugWidget.OnInterruptRequested += () => {
+                    _currentOverlay?.ClearQueueAndText();
+                };
                 _debugWidget.Show();
             }
             else

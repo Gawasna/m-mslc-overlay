@@ -67,6 +67,14 @@ public partial class FloatingTextOverlay : Window
         _sentenceQueue.Enqueue(text);
     }
 
+    public void ClearQueueAndText()
+    {
+        while (_sentenceQueue.TryDequeue(out _)) { }
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            DisplayTextBlock.Text = "";
+        });
+    }
+
     private void StartTypewriterPump()
     {
         _typewriterCts?.Cancel();
@@ -85,28 +93,46 @@ public partial class FloatingTextOverlay : Window
                 {
                     if (_sentenceQueue.TryDequeue(out string? currentSentence) && currentSentence != null)
                     {
-                        // Giới hạn buffer hiển thị để tránh sập RAM
-                        var currentLength = 0;
+                        string baseText = "";
                         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
-                            currentLength = DisplayTextBlock.Text?.Length ?? 0;
-                            if (currentLength > 500) DisplayTextBlock.Text = "";
+                            int currentLength = DisplayTextBlock.Text?.Length ?? 0;
+                            // Xoá màn hình nếu đang giữ quá nhiều chữ tránh tràn RAM
+                            if (currentLength > 400) DisplayTextBlock.Text = "";
                             else if (currentLength > 0) DisplayTextBlock.Text += "\n";
+                            
+                            baseText = DisplayTextBlock.Text ?? "";
                         });
 
-                        string baseText = "";
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { baseText = DisplayTextBlock.Text ?? ""; });
-
-                        // Tính toán tốc độ gõ (Adaptive Speed)
                         int queueLength = _sentenceQueue.Count;
-                        int delayMs = queueLength > 2 ? 10 : (queueLength == 1 ? 25 : 45);
 
-                        for (int i = 0; i < currentSentence.Length; i++)
+                        // EMERGENCY MODE: Nếu tồn đọng quá 5 câu, huỷ animation đánh máy, phọt toàn bộ text ra ngay
+                        if (queueLength > 4)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                                DisplayTextBlock.Text = baseText + currentSentence;
+                                TextScrollViewer.ScrollToEnd();
+                            });
+                            await Task.Delay(50, token); // Delay tối thiểu
+                            continue;
+                        }
+
+                        // TÍNH TOÁN CẤP SỐ NHÂN TỐC ĐỘ:
+                        // Nếu queue > 2, nhảy hẳn 3 chữ cái mỗi nhịp. Nếu thưa dần thì nhảy 1-2 chữ.
+                        int charStep = queueLength > 2 ? 4 : (queueLength > 0 ? 2 : 1);
+                        int delayMs = queueLength > 0 ? 10 : 30; 
+                        int sentenceDelay = queueLength > 0 ? 100 : 400;
+
+                        for (int i = 0; i < currentSentence.Length; i += charStep)
                         {
                             if (token.IsCancellationRequested) break;
                             
-                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
-                                DisplayTextBlock.Text = baseText + currentSentence.Substring(0, i + 1);
-                                if (i % 3 == 0 || i == currentSentence.Length - 1)
+                            int len = Math.Min(i + charStep, currentSentence.Length);
+                            string textToRender = baseText + currentSentence.Substring(0, len);
+
+                            // Dùng Post (Fire-and-forget) thay vì InvokeAsync(đợi kết quả) để giảm thắt cổ chai UI Thread
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                                DisplayTextBlock.Text = textToRender;
+                                if (len == currentSentence.Length || len % 12 == 0)
                                 {
                                     TextScrollViewer.ScrollToEnd();
                                 }
@@ -115,8 +141,7 @@ public partial class FloatingTextOverlay : Window
                             await Task.Delay(delayMs, token);
                         }
                         
-                        // Chờ 1 chút để giãn cách từng câu
-                        await Task.Delay(300, token);
+                        await Task.Delay(sentenceDelay, token);
                     }
                     else
                     {
