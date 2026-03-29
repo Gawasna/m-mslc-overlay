@@ -14,6 +14,7 @@ public class AppContainerHiderService : IDisposable
     private CancellationTokenSource? _keepAliveCts;
 
     public bool IsHidden => _targetHwnd != IntPtr.Zero;
+    public uint TargetProcessId { get; private set; }
 
     public bool HideTargetApp(string processName = "LiveCaptions")
     {
@@ -43,6 +44,9 @@ public class AppContainerHiderService : IDisposable
             Debug.WriteLine($"Không tìm thấy Windows Container app mục tiêu mang tên: {processName}");
             return false;
         }
+
+        NativeMethods.GetWindowThreadProcessId(_targetHwnd, out uint pid);
+        TargetProcessId = pid;
 
         // 1. Sao lưu cấu hình hiện tại (style và tọa độ màn hình gốc)
         NativeMethods.GetWindowRect(_targetHwnd, out _originalRect);
@@ -85,6 +89,7 @@ public class AppContainerHiderService : IDisposable
         NativeMethods.SetWindowLongPtrSafety(_targetHwnd, NativeMethods.GWL_EXSTYLE, _originalExStyle);
 
         _targetHwnd = IntPtr.Zero;
+        TargetProcessId = 0;
     }
 
     private void StartKeepAliveLoop()

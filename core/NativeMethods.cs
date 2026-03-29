@@ -34,6 +34,9 @@ public static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern EXECUTION_STATE SetThreadExecutionState(EXECUTION_STATE esFlags);
 
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
     // Xử lý an toàn 32/64 bit cho GetWindowLongPtr / SetWindowLongPtr
     [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
     private static extern IntPtr GetWindowLong32(IntPtr hWnd, int nIndex);
