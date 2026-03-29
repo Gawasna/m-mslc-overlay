@@ -2,8 +2,198 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:components="clr-namespace:m_mslc_overlay.views.components"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="m_mslc_overlay.MainWindow"
-        Title="m_mslc_overlay">
-    Welcome to Avalonia!
+        Title="MS-LIVE-CAPTION"
+        Width="1280" Height="800"
+        Background="#050505"
+        FontFamily="Inter, Arial, sans-serif"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Styles>
+        <Style Selector="TextBlock.Mono">
+            <Setter Property="FontFamily" Value="Consolas, JetBrains Mono, monospace"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid ColumnDefinitions="60, 340, *">
+        <!-- 1. Global Sidebar -->
+        <Border Grid.Column="0" Background="#000000" Padding="0,24">
+            <Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
+                <!-- Dashboard active icon -->
+                <Grid Grid.Row="0" Height="48">
+                    <Border Width="3" Height="24" CornerRadius="1.5" Background="#00E5FF" HorizontalAlignment="Left"/>
+                    <TextBlock Text="☐" Foreground="White" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+                <!-- Translation Config -->
+                <Grid Grid.Row="1" Height="48">
+                    <TextBlock Text="A" Foreground="#555555" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+                <!-- Overlay Settings -->
+                <Grid Grid.Row="2" Height="48">
+                    <TextBlock Text="▤" Foreground="#555555" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+                
+                <!-- Terminal at bottom -->
+                <Grid Grid.Row="4" Height="48">
+                    <TextBlock Text=">_" Foreground="#555555" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas, JetBrains Mono, monospace"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 2. Left Panel -->
+        <Border Grid.Column="1" Background="#0A0A0A" Padding="24">
+            <Grid RowDefinitions="Auto, *, Auto">
+                <StackPanel Grid.Row="0" Spacing="24">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="MS-LIVE-CAPTION" Foreground="White" FontSize="20" FontWeight="Bold"/>
+                        <UniformGrid Columns="3" Margin="0,0,0,0">
+                            <Button Content="Inject" Background="#1A1A1A" Foreground="White" FontSize="12" FontWeight="Medium" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,4,0"/>
+                            <Button Content="Suspend" Background="#1A1A1A" Foreground="#AAAAAA" FontSize="12" FontWeight="Medium" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,2,0"/>
+                            <Button Content="Reload" Background="#1A1A1A" Foreground="#AAAAAA" FontSize="12" FontWeight="Medium" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4,0,0,0"/>
+                        </UniformGrid>
+                    </StackPanel>
+
+                    <Rectangle Height="1" Fill="#1A1A1A" HorizontalAlignment="Stretch"/>
+
+                    <UniformGrid Columns="2" Rows="2">
+                        <!-- Card 1: Target Process -->
+                        <Border Background="#121212" CornerRadius="8" Padding="12" Margin="0,0,4,4">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Target Process" Foreground="#555555" FontSize="11" FontWeight="Medium"/>
+                                <TextBlock Text="ms-live-caption.." Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Card 2: Hook Status -->
+                        <Border Background="#121212" CornerRadius="8" Padding="12" Margin="4,0,0,4">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Hook Status" Foreground="#555555" FontSize="11" FontWeight="Medium"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="6" Height="6" Fill="#00FF88"/>
+                                    <TextBlock Text="Injected" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <!-- Card 3: UI Overlay -->
+                        <Border Background="#121212" CornerRadius="8" Padding="12" Margin="0,4,4,0">
+                            <Grid RowDefinitions="Auto,*">
+                                <TextBlock Grid.Row="0" Text="UI Overlay" Foreground="#555555" FontSize="11" FontWeight="Medium" Margin="0,0,0,8"/>
+                                <Button Grid.Row="1" Content="Open Widget" Click="OpenOverlayBtn_Click" Background="#1A1A1A" Foreground="White" FontSize="12" FontWeight="SemiBold" CornerRadius="4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Bottom"/>
+                            </Grid>
+                        </Border>
+                        <!-- Card 4: Active Engine -->
+                        <Border Background="#121212" CornerRadius="8" Padding="12" Margin="4,4,0,0">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Active Engine" Foreground="#555555" FontSize="11" FontWeight="Medium"/>
+                                <TextBlock Text="Local" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+
+                <!-- Metrics Section -->
+                <Border Grid.Row="2" Background="#121212" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="OVERVIEW METRICS" Foreground="#888888" FontSize="10" FontWeight="Bold" LetterSpacing="1" Margin="0,0,0,4"/>
+                        <Grid ColumnDefinitions="*,*">
+                            <TextBlock Grid.Column="0" Text="Translated Words" Foreground="#555555" FontSize="12"/>
+                            <TextBlock Grid.Column="1" Text="1,284" Foreground="White" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*">
+                            <TextBlock Grid.Column="0" Text="Latency" Foreground="#555555" FontSize="12"/>
+                            <TextBlock Grid.Column="1" Text="42ms" Foreground="#00E5FF" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*">
+                            <TextBlock Grid.Column="0" Text="Overlay FPS" Foreground="#555555" FontSize="12"/>
+                            <TextBlock Grid.Column="1" Text="144" Foreground="White" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 3. Main Content -->
+        <Border Grid.Column="2" Background="#050505" Padding="40">
+            <Grid RowDefinitions="Auto, *">
+                <!-- Nav Pills -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                    <Border CornerRadius="18" BorderThickness="1" BorderBrush="#333333" Padding="16,8">
+                        <TextBlock Text="General" Foreground="#888888" FontSize="13" FontWeight="Medium"/>
+                    </Border>
+                    <Border CornerRadius="18" Background="#007BFF" Padding="16,8">
+                        <TextBlock Text="Engine Selection" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                    </Border>
+                    <Border CornerRadius="18" BorderThickness="1" BorderBrush="#333333" Padding="16,8">
+                        <TextBlock Text="Text Extraction" Foreground="#888888" FontSize="13" FontWeight="Medium"/>
+                    </Border>
+                    <Border CornerRadius="18" BorderThickness="1" BorderBrush="#333333" Padding="16,8">
+                        <TextBlock Text="Appearance" Foreground="#888888" FontSize="13" FontWeight="Medium"/>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Spacing="24" Margin="0,40,0,0">
+                    <!-- Local LLM -->
+                    <Border Background="#121212" CornerRadius="12" BorderThickness="1" BorderBrush="#1A1A1A" Padding="24">
+                        <StackPanel Spacing="16">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Local LLM Configuration" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
+                                <ToggleSwitch Grid.Column="1" IsChecked="True" OnContent="" OffContent="" MinWidth="0"/>
+                            </Grid>
+                            <Rectangle Height="1" Fill="#1A1A1A" HorizontalAlignment="Stretch" Margin="0,8"/>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Provider / Model" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Border Background="#1A0A00" BorderBrush="#FF8800" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="Ollama" Foreground="#FF8800" FontSize="11" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <TextBlock Text="qwen:7b" Foreground="White" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="API Endpoint" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="http://127.0.0.1:11434/api/generate" Classes="Mono" Foreground="#00E5FF" FontSize="13" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Context Window" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="4096 tokens" Foreground="White" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="System Prompt" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Content="Edit Translation Prompt" Background="#1A1A1A" BorderBrush="#333333" BorderThickness="1" CornerRadius="6" Foreground="White" FontSize="12" FontWeight="Medium" Padding="16,8"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Cloud Fallback API -->
+                    <Border Background="#0D0D0D" CornerRadius="12" BorderThickness="1" BorderBrush="#1A1A1A" Padding="24">
+                        <StackPanel Spacing="16">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Cloud Fallback API" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
+                                <ToggleSwitch Grid.Column="1" IsChecked="False" OnContent="" OffContent="" MinWidth="0"/>
+                            </Grid>
+                            <Rectangle Height="1" Fill="#1A1A1A" HorizontalAlignment="Stretch" Margin="0,8"/>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Service Provider" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#1A0C2B" BorderBrush="#B358FF" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="Google Translate API" Foreground="#B358FF" FontSize="11" FontWeight="SemiBold"/>
+                                </Border>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Authentication" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="AIzaSyB*********************" Classes="Mono" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBlock Text="👁" Foreground="#555555" FontSize="16" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Grid.Column="0" Text="Request Limit" Foreground="#888888" FontSize="13" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="Bypassed / Unlimited" Foreground="White" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>

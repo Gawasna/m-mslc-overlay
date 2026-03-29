@@ -1,0 +1,150 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.components.FloatingTextOverlay"
+        Width="600" Height="120"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Topmost="True"
+        WindowStartupLocation="CenterScreen">
+    <Window.Styles>
+        <Style Selector="Button.IconBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.IconBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#333333"/>
+        </Style>
+        <Style Selector="Button.IconBtn:pointerover Path">
+            <Setter Property="Stroke" Value="#EAEAEA"/>
+        </Style>
+
+        <!-- Custom thanh cuộn dọc (ScrollViewer) -->
+        <Style Selector="ScrollBar:vertical">
+            <Setter Property="Width" Value="4" />
+        </Style>
+        <Style Selector="ScrollBar /template/ Thumb">
+            <Setter Property="Background" Value="#4A4A4A" />
+            <Setter Property="CornerRadius" Value="2" />
+        </Style>
+        <Style Selector="ScrollBar /template/ Thumb:pointerover">
+            <Setter Property="Background" Value="#888888" />
+        </Style>
+        <!-- Ẩn các nút lên/xuống của ScrollBar -->
+        <Style Selector="ScrollBar /template/ RepeatButton">
+            <Setter Property="IsVisible" Value="False" />
+            <Setter Property="Height" Value="0" />
+        </Style>
+        <!-- Khắc phục SVG Box làm khuất icon (issue-0002) -->
+        <Style Selector="Button.IconBtn Path">
+            <Setter Property="ClipToBounds" Value="False" />
+            <Setter Property="Margin" Value="2" />
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <Border Background="#202020"
+                BorderBrush="#333333"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="16, 12"
+                Margin="8"
+                BoxShadow="0 4 16 0 #99000000"
+                PointerPressed="Window_PointerPressed">
+
+            <Grid ColumnDefinitions="*, Auto, Auto">
+                <ScrollViewer x:Name="TextScrollViewer" Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,24,0">
+                    <TextBlock x:Name="DisplayTextBlock"
+                               Foreground="#A0A0A0"
+                               FontSize="20"
+                               Text="Sẵn sàng để phụ đề bằng Tiếng Nhật (Nhật Bản)"
+                               FontFamily="Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"/>
+                </ScrollViewer>
+                           
+                <Rectangle Grid.Column="1"
+                           Width="1"
+                           Fill="#383838"
+                           VerticalAlignment="Stretch"
+                           Margin="0,0,24,0"/>
+                           
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal" 
+                            Spacing="20" 
+                            VerticalAlignment="Center">
+                    <Button Classes="IconBtn" ToolTip.Tip="Cài đặt">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="Vị trí">
+                                    <MenuItem.Icon>
+                                        <Path Data="{StaticResource IconMove}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Ngôn ngữ phụ đề">
+                                    <MenuItem.Icon>
+                                        <Path Data="{StaticResource IconGlobe}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Kích thước văn bản">
+                                    <MenuItem.Icon>
+                                        <Path Data="{StaticResource IconType}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Tùy chọn">
+                                    <MenuItem.Icon>
+                                        <Path Data="{StaticResource IconSliders}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    </MenuItem.Icon>
+                                    <MenuItem Header="Placeholdertext 1" />
+                                    <MenuItem Header="Placeholdertext 2" />
+                                    <MenuItem Header="Placeholdertexr 3">
+                                        <MenuItem.Icon>
+                                            <Path Data="{StaticResource IconSetting}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                </MenuItem>
+                                <MenuItem Header="Thử lại" Click="Replay_Click">
+                                    <MenuItem.Icon>
+                                        <Path Data="{StaticResource IconReplay}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <Separator Background="#1AFFFFFF" Height="1" Margin="0,4"/>
+                                <MenuItem Header="Tìm hiểu thêm">
+                                    <MenuItem.Icon>
+                                        <Path Data="{StaticResource IconHelp}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                        <Path Data="{StaticResource IconSetting}" 
+                              Stroke="#A0A0A0" 
+                              StrokeThickness="1.5" 
+                              StrokeLineCap="Round" 
+                              StrokeJoin="Round" 
+                              Width="18" 
+                              Height="18" 
+                              Stretch="Uniform" />
+                    </Button>
+                    <Button Classes="IconBtn" ToolTip.Tip="Đóng" Click="Close_Click">
+                        <Path Data="{StaticResource IconClose}" 
+                              Stroke="#A0A0A0" 
+                              StrokeThickness="1.5" 
+                              StrokeLineCap="Round" 
+                              StrokeJoin="Round" 
+                              Width="18" 
+                              Height="18" 
+                              Stretch="Uniform" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

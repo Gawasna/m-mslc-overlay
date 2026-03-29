@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Nút Cài đặt (Settings) -->
+    <StreamGeometry x:Key="IconSetting">M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z</StreamGeometry>
+    
+    <!-- Nút Phát lại (Replay) -->
+    <StreamGeometry x:Key="IconReplay">M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5</StreamGeometry>
+    
+    <!-- Nút Đóng (Close) -->
+    <StreamGeometry x:Key="IconClose">M18 6L6 18 M6 6l12 12</StreamGeometry>
+
+    <!-- Nút Vị trí (Move) -->
+    <StreamGeometry x:Key="IconMove">M5 9l-3 3 3 3 M9 5l3-3 3 3 M9 19l3 3 3-3 M19 9l3 3-3 3 M2 12h20 M12 2v20</StreamGeometry>
+
+    <!-- Nút Quả địa cầu (Globe) -->
+    <StreamGeometry x:Key="IconGlobe">M12 22A10 10 0 1 0 12 2a10 10 0 0 0 0 20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z</StreamGeometry>
+
+    <!-- Nút Kích thước (Type) -->
+    <StreamGeometry x:Key="IconType">M4 7V4h16v3 M9 20h6 M12 4v16</StreamGeometry>
+
+    <!-- Nút Tùy chọn (Sliders) -->
+    <StreamGeometry x:Key="IconSliders">M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6</StreamGeometry>
+
+    <!-- Nút Tìm hiểu thêm (Help) -->
+    <StreamGeometry x:Key="IconHelp">M12 22A10 10 0 1 0 12 2a10 10 0 0 0 0 20z M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3 M12 17h.01</StreamGeometry>
+</ResourceDictionary>
