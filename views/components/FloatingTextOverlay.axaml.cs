@@ -38,29 +38,46 @@ public partial class FloatingTextOverlay : Window
         };
     }
 
-    private void Window_PointerPressed(object sender, PointerPressedEventArgs e)
+    public void ReHideTargetApp()
     {
-        // Cancel typewriter if interacting (optional, but requested to fix CPU spikes on rapid clicks causing massive Tasks)
-        // Note: the original code had multiple non-cancelled Tasks if clicked rapidly.
+        // Khôi phục an toàn cửa sổ cũ (nếu có)
+        _hiderService.RestoreTargetApp();
+        // Tìm và ẩn tiến trình Live Captions mới
+        _hiderService.HideTargetApp("LiveCaptions");
+    }
+
+    public void SetImmediateText(string text)
+    {
+        // Hủy typewriter pump để tránh xung đột ghi đè lên text hiển thị trực tiếp
+        _typewriterCts?.Cancel();
+        _typewriterCts = null;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            DisplayTextBlock.Text = text;
+            TextScrollViewer.ScrollToEnd();
+        });
+    }
+
+    private void Window_PointerPressed(object sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             this.BeginMoveDrag(e);
         }
     }
 
-    private void Close_Click(object sender, RoutedEventArgs e)
+    private void Close_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _typewriterCts?.Cancel();
         this.Close();
     }
 
-    private void Replay_Click(object sender, RoutedEventArgs e)
+    private void Replay_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        // Replay giờ đây sẽ xoá chữ cũ nhưng queue vẫn giữ. 
         DisplayTextBlock.Text = "";
     }
 
-    private ConcurrentQueue<string> _sentenceQueue = new ConcurrentQueue<string>();
+    private System.Collections.Concurrent.ConcurrentQueue<string> _sentenceQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
 
     public void EnqueueText(string text)
     {
@@ -75,8 +92,11 @@ public partial class FloatingTextOverlay : Window
         });
     }
 
-    private void StartTypewriterPump()
+    public void StartTypewriterPump()
     {
+        // Tránh chạy nhiều task song song nếu pump đang hoạt động
+        if (_typewriterCts != null && !_typewriterCts.IsCancellationRequested) return;
+
         _typewriterCts?.Cancel();
         _typewriterCts?.Dispose();
         _typewriterCts = new CancellationTokenSource();

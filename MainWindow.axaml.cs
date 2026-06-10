@@ -17,6 +17,8 @@ namespace m_mslc_overlay
         private InjectorService _injectorService;
         private AIService _aiService;
 
+        private string _translationBuffer = "";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -30,27 +32,105 @@ namespace m_mslc_overlay
                 _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
             };
 
-            _pipeService.OnFinalSentenceReceived += async (txt) => {
-                await _aiService.TranslateSentenceAsync(txt);
-            };
-
-            _aiService.OnTranslationTokenReceived += (tokenStr) => {
+            // 1. Nhận luồng text thô partial (đang nhận dạng) từ Extractor
+            _pipeService.OnPartialCaptionReceived += (txt) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    LiveRawText.Text = string.IsNullOrWhiteSpace(txt) ? "No active speech detected." : txt;
+
+                    // Đồng bộ hành vi Floating Overlay giống hệt LiveRawText (hiển thị partial thô trực tiếp đè lên câu cũ)
                     if (_currentOverlay != null && _currentOverlay.IsVisible)
                     {
-                        _currentOverlay.EnqueueText(tokenStr);
+                        _currentOverlay.SetImmediateText(txt);
                     }
                 });
             };
 
-            _aiService.OnTranslationCompleted += (fullSentence) => {
+            // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
+            _pipeService.OnFinalSentenceReceived += (txt) => {
+                if (string.IsNullOrWhiteSpace(txt)) return;
+
+                // Định dạng timestamp cho câu thô
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                string logLine = $"[{timestamp}] English: {txt}\n";
+
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    if (_currentOverlay != null && _currentOverlay.IsVisible)
+                    // In dữ liệu text thô đưa từ extractor lên cửa sổ chính
+                    RawTextLog.Text += logLine;
+                    
+                    // Cuộn xuống cuối
+                    RawTextLog.CaretIndex = RawTextLog.Text.Length;
+                    LogScrollViewer.ScrollToEnd();
+
+                    // Nếu bật dịch thuật AI
+                    if (TranslateToggle.IsChecked == true)
                     {
-                        // Khi kết thúc 1 câu hoàn chỉnh thì tự nối thêm 1 cú xuống dòng 
-                        // thay vì tự xuống dòng ở mọi Queue Item
-                        _currentOverlay.EnqueueText("\n");
+                        _translationBuffer = ""; // Reset buffer bản dịch mới
+                        // Chạy nền tác vụ gọi AI để tránh block thread UI
+                        _ = _aiService.TranslateSentenceAsync(txt);
                     }
+                    else
+                    {
+                        // Nếu tắt dịch thuật (Raw Mode), cập nhật câu final hoàn chỉnh trực tiếp lần cuối giống LiveRawText
+                        if (_currentOverlay != null && _currentOverlay.IsVisible)
+                        {
+                            _currentOverlay.SetImmediateText(txt);
+                        }
+                    }
+                });
+            };
+
+            // 3. Nhận các token dịch từ AI
+            _aiService.OnTranslationTokenReceived += (tokenStr) => {
+                if (TranslateToggle.IsChecked == true)
+                {
+                    _translationBuffer += tokenStr;
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                        if (_currentOverlay != null && _currentOverlay.IsVisible)
+                        {
+                            // Thay thế trực tiếp hiển thị bằng bản dịch tiếng Việt chạy từ từ (typewriter feedback) đè lên câu cũ
+                            _currentOverlay.SetImmediateText(_translationBuffer);
+                        }
+                    });
+                }
+            };
+
+            // 4. Khi hoàn thành dịch 1 câu hoàn chỉnh
+            _aiService.OnTranslationCompleted += (fullSentence) => {
+                if (TranslateToggle.IsChecked == true)
+                {
+                    // In bản dịch tiếng Việt sang RawTextLog để dễ debug song song
+                    string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                    string logLine = $"[{timestamp}] Vietnamese: {fullSentence}\n-----------------------------------\n";
+
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                        RawTextLog.Text += logLine;
+                        RawTextLog.CaretIndex = RawTextLog.Text.Length;
+                        LogScrollViewer.ScrollToEnd();
+
+                        if (_currentOverlay != null && _currentOverlay.IsVisible)
+                        {
+                            // Đảm bảo hiển thị bản dịch hoàn chỉnh chính xác
+                            _currentOverlay.SetImmediateText(fullSentence);
+                        }
+                    });
+                }
+            };
+
+            // 5. Cập nhật log trạng thái của Pipe Server
+            _pipeService.OnStatusChanged += (statusMsg) => {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    RawTextLog.Text += $"[{timestamp}] [SYSTEM] {statusMsg}\n";
+                    LogScrollViewer.ScrollToEnd();
+                });
+            };
+
+            // 6. Cập nhật log lỗi của Pipe Server
+            _pipeService.OnError += (errorMsg) => {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    RawTextLog.Text += $"[{timestamp}] [ERROR] {errorMsg}\n";
+                    LogScrollViewer.ScrollToEnd();
                 });
             };
 
@@ -58,16 +138,42 @@ namespace m_mslc_overlay
                 _hiderService.Dispose();
                 _pipeService.Dispose();
             };
+
+            // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
+            DetectTargetProcess();
+        }
+
+        private void DetectTargetProcess()
+        {
+            uint pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
+            if (pid != 0)
+            {
+                TargetPidText.Text = $"PID: {pid}";
+                HookStatusDot.Fill = SolidColorBrush.Parse("#FFAA00");
+                HookStatusText.Text = "Detected";
+            }
+            else
+            {
+                TargetPidText.Text = "PID: Not Running";
+                HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
+                HookStatusText.Text = "Waiting";
+            }
         }
 
         private async void InjectBtn_Click(object sender, RoutedEventArgs e)
         {
-            uint pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
+            DetectTargetProcess();
+
+            uint pid = _hiderService.TargetProcessId;
             if (pid == 0)
             {
-                Debug.WriteLine("Trình LiveCaptions chưa bật! Vui lòng bật Live Captions của Windows trước khi Inject.");
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                RawTextLog.Text += $"[{timestamp}] [WARNING] LiveCaptions chưa chạy! Vui lòng khởi động Windows Live Captions trước.\n";
                 return;
             }
+
+            string ts = DateTime.Now.ToString("HH:mm:ss");
+            RawTextLog.Text += $"[{ts}] [SYSTEM] Starting DLL injection into PID {pid}...\n";
 
             bool success = await _injectorService.InjectAsync(pid);
 
@@ -75,13 +181,25 @@ namespace m_mslc_overlay
             {
                 HookStatusDot.Fill = SolidColorBrush.Parse("#00FF88");
                 HookStatusText.Text = "Injected";
+                
+                string nowTs = DateTime.Now.ToString("HH:mm:ss");
+                RawTextLog.Text += $"[{nowTs}] [SYSTEM] DLL injected successfully. Starting Named Pipe listener...\n";
+                
                 _pipeService.Start();
+
+                // Nâng cao Fault Tolerance: Ẩn lại tiến trình Live Captions mới nếu overlay đang mở
+                if (_currentOverlay != null && _currentOverlay.IsVisible)
+                {
+                    _currentOverlay.ReHideTargetApp();
+                }
             }
             else
             {
                 HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
                 HookStatusText.Text = "Failed";
-                Debug.WriteLine("Quá trình Inject thất bại hoặc bị từ chối quyền Administrator.");
+                
+                string nowTs = DateTime.Now.ToString("HH:mm:ss");
+                RawTextLog.Text += $"[{nowTs}] [ERROR] Injection failed or Administrator permission was denied.\n";
             }
         }
 
@@ -91,6 +209,10 @@ namespace m_mslc_overlay
             {
                 _currentOverlay = new FloatingTextOverlay();
                 _currentOverlay.Show();
+            }
+            else
+            {
+                _currentOverlay.Activate();
             }
         }
 
