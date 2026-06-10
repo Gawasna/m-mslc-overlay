@@ -11,25 +11,25 @@ namespace m_mslc_overlay.services
         {
             try
             {
-                // Dò tìm vị trí thực thi của thư viện Loader.exe để nhúng tham số PID
+                // Dò tìm vị trí thực thi của thư viện Host.exe để nhúng tham số PID
                 string rootDir = Directory.GetParent(AppContext.BaseDirectory)?.Parent?.Parent?.Parent?.FullName ?? AppContext.BaseDirectory;
-                var loaderPath = Path.Combine(rootDir, "Loader.exe");
+                var hostPath = Path.Combine(rootDir, "Host.exe");
                 
-                if (!File.Exists(loaderPath))
+                if (!File.Exists(hostPath))
                 {
-                    loaderPath = Path.Combine(AppContext.BaseDirectory, "Loader.exe");
+                    hostPath = Path.Combine(AppContext.BaseDirectory, "Host.exe");
                 }
 
-                if (!File.Exists(loaderPath))
+                if (!File.Exists(hostPath))
                 {
-                    Debug.WriteLine($"Trình Injector (Loader.exe) không tồn tại tại đường dẫn: {loaderPath}");
+                    Debug.WriteLine($"Trình Injector (Host.exe) không tồn tại tại đường dẫn: {hostPath}");
                     return false;
                 }
 
                 var process = new Process {
                     StartInfo = new ProcessStartInfo {
-                        FileName = loaderPath,
-                        Arguments = pid.ToString(),
+                        FileName = hostPath,
+                        Arguments = $"--pid {pid} --inject-only",
                         UseShellExecute = true,
                         Verb = "runas", // UAC Prompt bắt buộc để Inject cấp hệ thống
                         CreateNoWindow = true
