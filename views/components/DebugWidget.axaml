@@ -30,7 +30,7 @@
 
         <Border Grid.Row="1" Background="#000000" BorderBrush="#333333" BorderThickness="1" CornerRadius="4" Margin="0,10,0,10">
             <ScrollViewer x:Name="LogScroll">
-                <StackPanel x:Name="LogPanel" Margin="8"/>
+                <SelectableTextBlock x:Name="LogText" Margin="8" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"/>
             </ScrollViewer>
         </Border>
 

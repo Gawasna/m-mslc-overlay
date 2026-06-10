@@ -62,16 +62,18 @@ namespace m_mslc_overlay.views.components
 
         private void Log(string message, string color = "#AAAAAA")
         {
-            var textBlock = new TextBlock
+            if (LogText.Inlines == null)
             {
-                Text = $"[{DateTime.Now:HH:mm:ss.fff}] {message}",
-                Foreground = SolidColorBrush.Parse(color),
-                FontFamily = FontFamily.Parse("Consolas"),
-                FontSize = 12,
-                Margin = new Thickness(0, 2)
+                LogText.Inlines = new Avalonia.Controls.Documents.InlineCollection();
+            }
+
+            var run = new Avalonia.Controls.Documents.Run
+            {
+                Text = $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n",
+                Foreground = SolidColorBrush.Parse(color)
             };
             
-            LogPanel.Children.Add(textBlock);
+            LogText.Inlines.Add(run);
             LogScroll.ScrollToEnd();
         }
 
@@ -129,7 +131,7 @@ namespace m_mslc_overlay.views.components
 
         private void ClearLogsBtn_Click(object sender, RoutedEventArgs e)
         {
-            LogPanel.Children.Clear();
+            LogText.Inlines?.Clear();
         }
 
         private void CloseBtn_Click(object sender, RoutedEventArgs e)
