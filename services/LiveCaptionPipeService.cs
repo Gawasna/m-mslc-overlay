@@ -79,15 +79,12 @@ namespace m_mslc_overlay.services
 
                     _splitter.Reset();
 
-                    var buffer = new byte[65536];
-                    while (pipeServer.IsConnected && !token.IsCancellationRequested)
+                    using var reader = new StreamReader(pipeServer, Encoding.UTF8);
+                    string? line;
+                    while ((line = await reader.ReadLineAsync(token)) != null)
                     {
-                        int bytesRead = await pipeServer.ReadAsync(buffer, 0, buffer.Length, token);
-                        if (bytesRead == 0) break; // Client disconnected
-
-                        // Đọc theo packet mảng bytes để decode các luồng JSON không có dấn \n.
-                        ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(buffer, 0, bytesRead);
-                        ProcessJsonBlob(span);
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        ProcessJsonLine(line);
                     }
                 }
                 catch (OperationCanceledException)
@@ -107,47 +104,38 @@ namespace m_mslc_overlay.services
             }
         }
 
-        private void ProcessJsonBlob(ReadOnlySpan<byte> blob)
+        private void ProcessJsonLine(string line)
         {
-            var reader = new Utf8JsonReader(blob);
-            while (reader.Read())
+            try
             {
-                try
+                using var doc = JsonDocument.Parse(line);
+                var root = doc.RootElement;
+                
+                string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? "" : "";
+                bool isFinal = root.TryGetProperty("is_final", out var finalProp) && finalProp.GetBoolean();
+
+                OnPartialCaptionReceived?.Invoke(text);
+
+                var sentences = _splitter.ExtractNewSentences(text, isFinal);
+                foreach (var s in sentences)
                 {
-                    if (reader.TokenType == JsonTokenType.StartObject)
+                    string combined = string.IsNullOrEmpty(_shortSentenceBuffer) ? s : _shortSentenceBuffer + " " + s;
+                    int wordCount = combined.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                    
+                    if (wordCount <= 3)
                     {
-                        var doc = JsonDocument.ParseValue(ref reader);
-                        var root = doc.RootElement;
-                        
-                        string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? "" : "";
-                        bool isFinal = root.TryGetProperty("is_final", out var finalProp) && finalProp.GetBoolean();
-
-                        OnPartialCaptionReceived?.Invoke(text);
-
-                        var sentences = _splitter.ExtractNewSentences(text, isFinal);
-                        foreach (var s in sentences)
-                        {
-                            string combined = string.IsNullOrEmpty(_shortSentenceBuffer) ? s : _shortSentenceBuffer + " " + s;
-                            int wordCount = combined.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                            
-                            if (wordCount <= 3)
-                            {
-                                _shortSentenceBuffer = combined;
-                            }
-                            else
-                            {
-                                OnFinalSentenceReceived?.Invoke(combined);
-                                _shortSentenceBuffer = "";
-                            }
-                        }
+                        _shortSentenceBuffer = combined;
+                    }
+                    else
+                    {
+                        OnFinalSentenceReceived?.Invoke(combined);
+                        _shortSentenceBuffer = "";
                     }
                 }
-                catch (Exception ex)
-                {
-                    OnError?.Invoke($"JSON parsing error: {ex.Message}");
-                    // Tránh infinite loop nếu buffer bị lỗi
-                    break;
-                }
+            }
+            catch (Exception ex)
+            {
+                OnError?.Invoke($"JSON parsing error: {ex.Message}");
             }
         }
 
