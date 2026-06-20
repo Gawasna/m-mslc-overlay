@@ -4,7 +4,7 @@
         Title="Side Panel (Mockup)"
         Background="#1E1E1E"
         Topmost="True"
-        SystemDecorations="Full">
+        SystemDecorations="None">
     <Grid>
         <TextBlock Text="Side Panel (Mockup)" 
                    Foreground="White" 
