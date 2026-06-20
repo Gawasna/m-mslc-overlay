@@ -1,11 +1,15 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.views.components.FloatingTextOverlay"
+        x:Name="RootWindow"
         Title="FloatingTextOverlay">
-    <Border x:Name="MainBorder" PointerPressed="Window_PointerPressed">
+    <Border x:Name="MainBorder" 
+            Background="{Binding OverlayBackground, ElementName=RootWindow}"
+            PointerPressed="Window_PointerPressed">
         <StackPanel>
             <ScrollViewer x:Name="TextScrollViewer" Height="100">
-                <TextBlock x:Name="DisplayTextBlock" />
+                <TextBlock x:Name="DisplayTextBlock" 
+                           FontSize="{Binding OverlayFontSize, ElementName=RootWindow}" />
             </ScrollViewer>
             <Button Content="Settings">
                 <Button.Flyout>

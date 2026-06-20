@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Media;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -12,6 +14,24 @@ namespace m_mslc_overlay.views.components;
 
 public partial class FloatingTextOverlay : Window
 {
+    public static readonly StyledProperty<double> OverlayFontSizeProperty =
+        AvaloniaProperty.Register<FloatingTextOverlay, double>(nameof(OverlayFontSize), defaultValue: 20.0);
+
+    public double OverlayFontSize
+    {
+        get => GetValue(OverlayFontSizeProperty);
+        set => SetValue(OverlayFontSizeProperty, value);
+    }
+
+    public static readonly StyledProperty<IBrush> OverlayBackgroundProperty =
+        AvaloniaProperty.Register<FloatingTextOverlay, IBrush>(nameof(OverlayBackground), defaultValue: SolidColorBrush.Parse("#CC202020"));
+
+    public IBrush OverlayBackground
+    {
+        get => GetValue(OverlayBackgroundProperty);
+        set => SetValue(OverlayBackgroundProperty, value);
+    }
+
     private readonly MainWindow? _mainWindow;
     private CancellationTokenSource? _typewriterCts;
     private readonly AppContainerHiderService _hiderService = new AppContainerHiderService();
@@ -130,46 +150,42 @@ public partial class FloatingTextOverlay : Window
 
     private void SetFontSize_Small_Click(object? sender, RoutedEventArgs e)
     {
-        DisplayTextBlock.FontSize = 16;
+        OverlayFontSize = 16.0;
     }
 
     private void SetFontSize_Medium_Click(object? sender, RoutedEventArgs e)
     {
-        DisplayTextBlock.FontSize = 20;
+        OverlayFontSize = 20.0;
     }
 
     private void SetFontSize_Large_Click(object? sender, RoutedEventArgs e)
     {
-        DisplayTextBlock.FontSize = 24;
+        OverlayFontSize = 24.0;
     }
 
     private void SetFontSize_ExtraLarge_Click(object? sender, RoutedEventArgs e)
     {
-        DisplayTextBlock.FontSize = 28;
+        OverlayFontSize = 28.0;
     }
 
     private void SetBgOpacity_100_Click(object? sender, RoutedEventArgs e)
     {
-        var border = this.FindControl<Border>("MainBorder");
-        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#FF202020");
+        OverlayBackground = SolidColorBrush.Parse("#FF202020");
     }
 
     private void SetBgOpacity_80_Click(object? sender, RoutedEventArgs e)
     {
-        var border = this.FindControl<Border>("MainBorder");
-        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#CC202020");
+        OverlayBackground = SolidColorBrush.Parse("#CC202020");
     }
 
     private void SetBgOpacity_60_Click(object? sender, RoutedEventArgs e)
     {
-        var border = this.FindControl<Border>("MainBorder");
-        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#99202020");
+        OverlayBackground = SolidColorBrush.Parse("#99202020");
     }
 
     private void SetBgOpacity_40_Click(object? sender, RoutedEventArgs e)
     {
-        var border = this.FindControl<Border>("MainBorder");
-        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#66202020");
+        OverlayBackground = SolidColorBrush.Parse("#66202020");
     }
 
     private void SetEffect_Typewriter_Click(object? sender, RoutedEventArgs e)

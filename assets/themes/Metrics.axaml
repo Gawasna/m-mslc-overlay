@@ -1,0 +1,24 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=netstandard">
+    <!-- Font Sizes -->
+    <sys:Double x:Key="FontSizeSmall">10.0</sys:Double>
+    <sys:Double x:Key="FontSizeNormal">12.0</sys:Double>
+    <sys:Double x:Key="FontSizeMedium">14.0</sys:Double>
+    <sys:Double x:Key="FontSizeLarge">16.0</sys:Double>
+    <sys:Double x:Key="FontSizeExtraLarge">20.0</sys:Double>
+    
+    <!-- Dimensions -->
+    <sys:Double x:Key="PrimaryToolbarHeight">28.0</sys:Double>
+    <sys:Double x:Key="SecondaryToolbarHeight">36.0</sys:Double>
+    <sys:Double x:Key="QuickActionButtonSize">28.0</sys:Double>
+    <sys:Double x:Key="QuickActionIconSize">14.0</sys:Double>
+    
+    <!-- Thicknesses -->
+    <Thickness x:Key="BorderThicknessDefault">1</Thickness>
+    <Thickness x:Key="BorderThicknessBottomOnly">0,0,0,1</Thickness>
+    
+    <!-- Corner Radius -->
+    <CornerRadius x:Key="CornerRadiusZero">0</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusDefault">4</CornerRadius>
+</ResourceDictionary>

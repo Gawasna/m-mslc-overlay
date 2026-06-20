@@ -7,11 +7,14 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://m-mslc-overlay/assets/Icons.axaml"/>
+                <ResourceInclude Source="avares://m-mslc-overlay/assets/themes/Colors.axaml"/>
+                <ResourceInclude Source="avares://m-mslc-overlay/assets/themes/Metrics.axaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://m-mslc-overlay/assets/styles/Controls.axaml"/>
     </Application.Styles>
 </Application>

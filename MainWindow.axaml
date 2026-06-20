@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.MainWindow"
         Title="MSLC Control Center"
-        Background="#F3F3F3"
+        Background="{StaticResource BgWindowBrush}"
         MinWidth="800" MinHeight="600"
         Width="1024" Height="768"
         WindowStartupLocation="CenterScreen">
@@ -14,75 +14,16 @@
         <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
     </Window.Resources>
 
-    <Window.Styles>
-        <!-- Menu Bar Styles -->
-        <Style Selector="Menu">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Height" Value="28"/>
-        </Style>
-        <Style Selector="Menu > MenuItem">
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#111111"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Menu > MenuItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F2F3F0"/>
-            <Setter Property="Foreground" Value="#111111"/>
-        </Style>
-        <Style Selector="MenuItem">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#111111"/>
-        </Style>
-        <Style Selector="MenuItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F2F3F0"/>
-            <Setter Property="Foreground" Value="#111111"/>
-        </Style>
-        <Style Selector="MenuItem:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E7E8E5"/>
-            <Setter Property="Foreground" Value="#111111"/>
-        </Style>
 
-        <!-- Primary Button (Inject DLL: Orange background, white icon) -->
-        <Style Selector="Button.PrimaryBtn">
-            <Setter Property="Background" Value="#FF8400"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.PrimaryBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E07300"/>
-        </Style>
-        <Style Selector="Button.PrimaryBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#C26300"/>
-        </Style>
-
-        <!-- Secondary Button (Gray background, dark icon) -->
-        <Style Selector="Button.SecondaryBtn">
-            <Setter Property="Background" Value="#E7E8E5"/>
-            <Setter Property="Foreground" Value="#111111"/>
-            <Setter Property="BorderBrush" Value="#CBCCC9"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.SecondaryBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#D7D8D5"/>
-        </Style>
-        <Style Selector="Button.SecondaryBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#C7C8C5"/>
-        </Style>
-    </Window.Styles>
 
     <Grid RowDefinitions="Auto, Auto, *">
         
         <!-- 1. Primary Toolbar (Menu Bar) -->
         <Border Grid.Row="0" 
-                Height="28" 
-                Background="#FFFFFF"
-                BorderBrush="#E5E5E5" 
-                BorderThickness="0,0,0,1"
+                Height="{StaticResource PrimaryToolbarHeight}" 
+                Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}" 
+                BorderThickness="{StaticResource BorderThicknessBottomOnly}"
                 Padding="8,0">
             <Menu VerticalAlignment="Center">
                 <MenuItem Header="File">
@@ -121,10 +62,10 @@
 
         <!-- 2. Secondary Toolbar (Quick Actions) -->
         <Border Grid.Row="1" 
-                Height="36" 
-                Background="#FFFFFF"
-                BorderBrush="#E5E5E5" 
-                BorderThickness="0,0,0,1"
+                Height="{StaticResource SecondaryToolbarHeight}" 
+                Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}" 
+                BorderThickness="{StaticResource BorderThicknessBottomOnly}"
                 Padding="8,0">
             <DockPanel LastChildFill="False">
                 <!-- Left: Quick Action Buttons (Icon only, no corner radius) -->
@@ -132,27 +73,27 @@
                     <!-- Inject DLL Button -->
                     <Button x:Name="InjectBtn" 
                             Click="InjectBtn_Click"
-                            Width="28" Height="28" 
-                            CornerRadius="0" Padding="0" 
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="PrimaryBtn"
                             ToolTip.Tip="Inject DLL">
-                        <PathIcon Data="{StaticResource IconZap}" Width="14" Height="14" Foreground="#FFFFFF" />
+                        <PathIcon Data="{StaticResource IconZap}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
                     </Button>
                     <!-- Open Overlay Button -->
                     <Button Click="OpenOverlayBtn_Click"
-                            Width="28" Height="28" 
-                            CornerRadius="0" Padding="0" 
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
                             ToolTip.Tip="Open Floating Overlay">
-                        <PathIcon Data="{StaticResource IconPlay}" Width="14" Height="14" Foreground="#111111" />
+                        <PathIcon Data="{StaticResource IconPlay}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                     <!-- Open Debug / Settings Button -->
                     <Button Click="OpenDebugWidgetBtn_Click"
-                            Width="28" Height="28" 
-                            CornerRadius="0" Padding="0" 
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
                             ToolTip.Tip="Open Debug Settings">
-                        <PathIcon Data="{StaticResource IconSetting}" Width="14" Height="14" Foreground="#111111" />
+                        <PathIcon Data="{StaticResource IconSetting}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                 </StackPanel>
                 
