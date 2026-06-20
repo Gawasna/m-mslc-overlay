@@ -129,7 +129,7 @@
         </Border>
 
         <!-- 3. Content Area (Form & Logs) -->
-        <Border Grid.Row="2" Padding="16">
+        <Border Grid.Row="2" Padding="0">
             <Grid ColumnDefinitions="280, *">
             <!-- Left Side: Config Panel -->
             <Border Grid.Column="0" 
