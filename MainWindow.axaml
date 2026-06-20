@@ -3,7 +3,7 @@
         x:Class="m_mslc_overlay.MainWindow"
         Title="{DynamicResource Title_ControlCenter}"
         Background="{StaticResource BgWindowBrush}"
-        MinWidth="800" MinHeight="600"
+        MinWidth="400" MinHeight="300"
         Width="1024" Height="768"
         WindowStartupLocation="CenterScreen">
     
