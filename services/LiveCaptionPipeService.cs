@@ -20,6 +20,8 @@ namespace m_mslc_overlay.services
         private readonly SentenceSplitter _splitter;
         private string _shortSentenceBuffer = "";
 
+        public bool IsRunning => _listenerTask != null && !_listenerTask.IsCompleted;
+
         public event Action<string>? OnPartialCaptionReceived;
         public event Action<string>? OnFinalSentenceReceived;
         public event Action<string>? OnStatusChanged;

@@ -16,7 +16,7 @@
 
 
 
-    <Grid RowDefinitions="Auto, Auto, *">
+    <Grid RowDefinitions="Auto, Auto, *, Auto">
         
         <!-- 1. Primary Toolbar (Menu Bar) -->
         <Border Grid.Row="0" 
@@ -102,29 +102,6 @@
                         <PathIcon Data="{StaticResource IconSetting}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                 </StackPanel>
-                
-                <!-- Right: Status Indicators (Smaller Text) -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                    <!-- Target PID Info -->
-                    <TextBlock x:Name="TargetPidText" 
-                               Text="{DynamicResource Status_PidNotRunning}" 
-                               Foreground="#666666" 
-                               FontSize="10" 
-                               VerticalAlignment="Center"/>
-                    
-                    <!-- Hook Status dot and text -->
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <Ellipse x:Name="HookStatusDot" 
-                                 Width="8" Height="8" 
-                                 Fill="#CBCCC9" 
-                                 VerticalAlignment="Center"/>
-                        <TextBlock x:Name="HookStatusText" 
-                                   Text="{DynamicResource Status_Disconnected}" 
-                                   Foreground="#666666" 
-                                   FontSize="10" 
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </StackPanel>
             </DockPanel>
         </Border>
 
@@ -204,6 +181,58 @@
                     </Grid>
                 </Border>
             </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 4. Downbar (Status Bar) -->
+        <Border Grid.Row="3" 
+                Height="24" 
+                Background="#F3F3F3" 
+                BorderBrush="#E5E5E5" 
+                BorderThickness="0,1,0,0"
+                Padding="12,0">
+            <Grid ColumnDefinitions="*, Auto, *">
+                <!-- Trái: Trạng thái vận hành -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                    <TextBlock x:Name="StatusBarMainText" 
+                               Text="{DynamicResource Status_Ready}" 
+                               Foreground="#666666" 
+                               FontSize="11"/>
+                </StackPanel>
+
+                <!-- Giữa: Thông tin mô hình AI -->
+                <TextBlock Grid.Column="1" 
+                           x:Name="StatusBarInfoText"
+                           Text="AI Model: Gemini 1.5 Pro | Topic: Game/Phim" 
+                           Foreground="#888888" 
+                           FontSize="11" 
+                           VerticalAlignment="Center"/>
+
+                <!-- Phải: Các chỉ báo kỹ thuật -->
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal" 
+                            HorizontalAlignment="Right" 
+                            VerticalAlignment="Center" 
+                            Spacing="16">
+                    <!-- Target PID -->
+                    <TextBlock x:Name="TargetPidText" 
+                               Text="{DynamicResource Status_PidNotRunning}" 
+                               Foreground="#666666" 
+                               FontSize="11"/>
+                    
+                    <!-- Hook Status -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse x:Name="HookStatusDot" 
+                                 Width="8" Height="8" 
+                                 Fill="#CBCCC9" 
+                                 VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HookStatusText" 
+                                   Text="{DynamicResource Status_Disconnected}" 
+                                   Foreground="#666666" 
+                                   FontSize="11" 
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
             </Grid>
         </Border>
 

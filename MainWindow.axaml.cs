@@ -39,6 +39,7 @@ namespace m_mslc_overlay
             _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
             TopicInput.TextChanged += (s, e) => {
                 _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
+                UpdateDynamicStrings();
             };
 
             // 1. Nhận luồng text thô partial (đang nhận dạng) từ Extractor
@@ -138,6 +139,7 @@ namespace m_mslc_overlay
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     RawTextLog.Text += $"[{timestamp}] [SYSTEM] {statusMsg}\n";
                     LogScrollViewer.ScrollToEnd();
+                    UpdateDynamicStrings();
                 });
             };
 
@@ -147,6 +149,7 @@ namespace m_mslc_overlay
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     RawTextLog.Text += $"[{timestamp}] [ERROR] {errorMsg}\n";
                     LogScrollViewer.ScrollToEnd();
+                    UpdateDynamicStrings();
                 });
             };
 
@@ -216,6 +219,20 @@ namespace m_mslc_overlay
                 LiveRawText.Text.StartsWith("["))
             {
                 LiveRawText.Text = LanguageManager.GetString("Status_NoActiveSpeech");
+            }
+
+            // Cập nhật thông tin AI Model & Topic
+            string topic = string.IsNullOrWhiteSpace(TopicInput.Text) ? "None" : TopicInput.Text;
+            StatusBarInfoText.Text = string.Format(LanguageManager.GetString("Status_InfoFormat"), "Gemini 1.5 Pro", topic);
+
+            // Cập nhật trạng thái vận hành chính
+            if (_pipeService.IsRunning)
+            {
+                StatusBarMainText.Text = LanguageManager.GetString("Status_PipeMonitoring");
+            }
+            else
+            {
+                StatusBarMainText.Text = LanguageManager.GetString("Status_Ready");
             }
         }
 
