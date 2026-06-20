@@ -339,6 +339,12 @@ namespace m_mslc_overlay
             }
         }
 
+        private void PreferencesMenuItem_Click(object? sender, RoutedEventArgs e)
+        {
+            var preferencesDialog = new m_mslc_overlay.Dialogs.PreferencesDialog();
+            preferencesDialog.ShowDialog(this);
+        }
+
         private void ChangeLanguage_Vi_Click(object? sender, RoutedEventArgs e)
         {
             LanguageManager.LoadLanguage("vi-VN");
