@@ -12,10 +12,11 @@ namespace m_mslc_overlay.views.components;
 
 public partial class FloatingTextOverlay : Window
 {
-    private const string LongSampleText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Dự án đang test tính năng tự động giãn chữ và gõ phím theo phong cách typewriter. Nếu bạn kéo các viền, giao diện vẫn sẽ tự do thay đổi kích thước ngang dọc và tự động dồn (wrap) chữ cho phù hợp không gian mà hoàn toàn uyển chuyển! Đây là dòng giả lập dữ liệu dài từ bản dịch voice capture...";
-
+    private readonly MainWindow? _mainWindow;
     private CancellationTokenSource? _typewriterCts;
     private readonly AppContainerHiderService _hiderService = new AppContainerHiderService();
+
+    public bool UseTypewriter { get; set; } = true;
 
     public FloatingTextOverlay()
     {
@@ -36,6 +37,11 @@ public partial class FloatingTextOverlay : Window
             _hiderService.RestoreTargetApp();
             _hiderService.Dispose();
         };
+    }
+
+    public FloatingTextOverlay(MainWindow mainWindow) : this()
+    {
+        _mainWindow = mainWindow;
     }
 
     public void ReHideTargetApp()
@@ -72,9 +78,123 @@ public partial class FloatingTextOverlay : Window
         this.Close();
     }
 
-    private void Replay_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void ResetPosition_Click(object? sender, RoutedEventArgs e)
+    {
+        var screen = Screens.Primary;
+        if (screen != null)
+        {
+            var x = (screen.Bounds.Width - (int)this.Width) / 2;
+            var y = (screen.Bounds.Height - (int)this.Height) / 2;
+            this.Position = new Avalonia.PixelPoint(x, y);
+        }
+    }
+
+    private void SetLanguage_Vietnamese_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.AIService.TargetLanguage = "Tiếng Việt";
+            _mainWindow.IsTranslationEnabled = true;
+            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Việt]";
+        }
+    }
+
+    private void SetLanguage_Japanese_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.AIService.TargetLanguage = "Tiếng Nhật";
+            _mainWindow.IsTranslationEnabled = true;
+            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Nhật]";
+        }
+    }
+
+    private void SetLanguage_Chinese_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.AIService.TargetLanguage = "Tiếng Trung";
+            _mainWindow.IsTranslationEnabled = true;
+            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Trung]";
+        }
+    }
+
+    private void SetLanguage_English_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.IsTranslationEnabled = false;
+            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Anh gốc (Không dịch)]";
+        }
+    }
+
+    private void SetFontSize_Small_Click(object? sender, RoutedEventArgs e)
+    {
+        DisplayTextBlock.FontSize = 16;
+    }
+
+    private void SetFontSize_Medium_Click(object? sender, RoutedEventArgs e)
+    {
+        DisplayTextBlock.FontSize = 20;
+    }
+
+    private void SetFontSize_Large_Click(object? sender, RoutedEventArgs e)
+    {
+        DisplayTextBlock.FontSize = 24;
+    }
+
+    private void SetFontSize_ExtraLarge_Click(object? sender, RoutedEventArgs e)
+    {
+        DisplayTextBlock.FontSize = 28;
+    }
+
+    private void SetBgOpacity_100_Click(object? sender, RoutedEventArgs e)
+    {
+        var border = this.FindControl<Border>("MainBorder");
+        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#FF202020");
+    }
+
+    private void SetBgOpacity_80_Click(object? sender, RoutedEventArgs e)
+    {
+        var border = this.FindControl<Border>("MainBorder");
+        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#CC202020");
+    }
+
+    private void SetBgOpacity_60_Click(object? sender, RoutedEventArgs e)
+    {
+        var border = this.FindControl<Border>("MainBorder");
+        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#99202020");
+    }
+
+    private void SetBgOpacity_40_Click(object? sender, RoutedEventArgs e)
+    {
+        var border = this.FindControl<Border>("MainBorder");
+        if (border != null) border.Background = Avalonia.Media.SolidColorBrush.Parse("#66202020");
+    }
+
+    private void SetEffect_Typewriter_Click(object? sender, RoutedEventArgs e)
+    {
+        UseTypewriter = true;
+        DisplayTextBlock.Text = "[Đã bật hiệu ứng đánh máy]";
+    }
+
+    private void SetEffect_Instant_Click(object? sender, RoutedEventArgs e)
+    {
+        UseTypewriter = false;
+        DisplayTextBlock.Text = "[Đã tắt hiệu ứng đánh máy]";
+    }
+
+    private void TestTypewriter_Click(object? sender, RoutedEventArgs e)
     {
         DisplayTextBlock.Text = "";
+        while (_sentenceQueue.TryDequeue(out _)) { }
+        StartTypewriterPump();
+        EnqueueText("Chào mừng bạn đến với MS-LIVE-CAPTION Control Center! Đây là đoạn văn bản chạy thử nghiệm hiệu ứng đánh máy (typewriter animation). Khi bạn thay đổi kích thước của Floating Overlay, văn bản sẽ tự động xuống dòng mượt mà. Hệ thống đang hoạt động ổn định!");
+    }
+
+    private void Help_Click(object? sender, RoutedEventArgs e)
+    {
+        DisplayTextBlock.Text = "Hướng dẫn: Nhấn giữ chuột trái để di chuyển Overlay. Nhấp chuột phải vào nút Cài đặt ở bên phải để cấu hình Ngôn ngữ dịch, Cỡ chữ, Độ mờ nền, hoặc bật/tắt Hiệu ứng đánh máy.";
     }
 
     private System.Collections.Concurrent.ConcurrentQueue<string> _sentenceQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();

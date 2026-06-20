@@ -70,10 +70,17 @@ namespace m_mslc_overlay
                     }
                     else
                     {
-                        // Nếu tắt dịch thuật (Raw Mode), cập nhật câu final hoàn chỉnh trực tiếp lần cuối giống LiveRawText
+                        // Nếu tắt dịch thuật (Raw Mode), cập nhật câu final hoàn chỉnh
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
-                            _currentOverlay.SetImmediateText(txt);
+                            if (_currentOverlay.UseTypewriter)
+                            {
+                                _currentOverlay.EnqueueText(txt);
+                            }
+                            else
+                            {
+                                _currentOverlay.SetImmediateText(txt);
+                            }
                         }
                     }
                 });
@@ -203,11 +210,25 @@ namespace m_mslc_overlay
             }
         }
 
+        public AIService AIService => _aiService;
+
+        public bool IsTranslationEnabled
+        {
+            get => TranslateToggle.IsChecked ?? false;
+            set => Avalonia.Threading.Dispatcher.UIThread.Post(() => TranslateToggle.IsChecked = value);
+        }
+
+        public string ContextTopic
+        {
+            get => TopicInput.Text ?? "Game/Phim";
+            set => Avalonia.Threading.Dispatcher.UIThread.Post(() => TopicInput.Text = value);
+        }
+
         private void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_currentOverlay == null || !_currentOverlay.IsVisible)
             {
-                _currentOverlay = new FloatingTextOverlay();
+                _currentOverlay = new FloatingTextOverlay(this);
                 _currentOverlay.Show();
             }
             else

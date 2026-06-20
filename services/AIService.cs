@@ -19,6 +19,7 @@ namespace m_mslc_overlay.services
         private readonly SemaphoreSlim _translateSemaphore = new SemaphoreSlim(1, 1);
 
         public string ContextTopic { get; set; } = "Game/Phim";
+        public string TargetLanguage { get; set; } = "Tiếng Việt";
 
         public AIService()
         {
@@ -38,7 +39,7 @@ namespace m_mslc_overlay.services
                     model = "qwen2.5:3b",
                     messages = new[]
                     {
-                        new { role = "user", content = $"Dịch thuật ngữ cảnh {ContextTopic}, chỉ trả về kết quả only:\n\n{originalText}" }
+                        new { role = "user", content = $"Dịch sang {TargetLanguage} với ngữ cảnh {ContextTopic}, chỉ trả về duy nhất kết quả dịch, không giải thích gì thêm:\n\n{originalText}" }
                     },
                     stream = true
                 };

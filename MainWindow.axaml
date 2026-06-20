@@ -1,164 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:components="clr-namespace:m_mslc_overlay.views.components"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
         x:Class="m_mslc_overlay.MainWindow"
-        Title="MS-LIVE-CAPTION CONTROL CENTER"
-        Width="780" Height="540"
-        Background="#0B0B0E"
-        FontFamily="Inter, Arial, sans-serif"
-        WindowStartupLocation="CenterScreen">
-    
-    <Window.Styles>
-        <Style Selector="TextBlock.Mono">
-            <Setter Property="FontFamily" Value="Consolas, JetBrains Mono, monospace"/>
-        </Style>
-        <Style Selector="Button">
-            <Setter Property="Background" Value="#1C1C24"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#2E2E3A"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,8"/>
-        </Style>
-        <Style Selector="Button:hover">
-            <Setter Property="Background" Value="#2A2A35"/>
-            <Setter Property="BorderBrush" Value="#00E5FF"/>
-        </Style>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="#141419"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#2E2E3A"/>
-            <Setter Property="CornerRadius" Value="6"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="BorderBrush" Value="#00E5FF"/>
-        </Style>
-        <Style Selector="ToggleSwitch">
-            <Setter Property="Foreground" Value="#AAAAAA"/>
-        </Style>
-    </Window.Styles>
-
-    <Grid RowDefinitions="Auto, *">
-        <!-- Header Bar -->
-        <Border Grid.Row="0" Background="#141419" BorderBrush="#2E2E3A" BorderThickness="0,0,0,1" Padding="20,16">
-            <Grid ColumnDefinitions="*, Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="MS-LIVE-CAPTION" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Border Background="#1A0D00" BorderBrush="#FF8800" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                        <TextBlock Text="CONTROL CENTER" Foreground="#FF8800" FontSize="10" FontWeight="Bold"/>
-                    </Border>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Ellipse x:Name="HookStatusDot" Width="8" Height="8" Fill="#FF3333" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="HookStatusText" Text="Waiting" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- Main Body -->
-        <Grid Grid.Row="1" ColumnDefinitions="320, *">
-            <!-- Left Panel: Controls -->
-            <Border Grid.Column="0" Background="#0E0E12" BorderBrush="#2E2E3A" BorderThickness="0,0,1,0" Padding="20">
-                <Grid RowDefinitions="*, Auto">
-                    <StackPanel Grid.Row="0" Spacing="20">
-                        <!-- Target Process Info -->
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="TARGET PROCESS" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            <Border Background="#141419" BorderBrush="#2E2E3A" BorderThickness="1" CornerRadius="6" Padding="12,10">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <StackPanel Grid.Column="0" Spacing="2">
-                                        <TextBlock Text="LiveCaptions.exe" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
-                                        <TextBlock x:Name="TargetPidText" Text="PID: Not Running" Foreground="#888888" FontSize="11" Classes="Mono"/>
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="#0C1F1F" BorderBrush="#00E5FF" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                        <TextBlock Text="UWP" Foreground="#00E5FF" FontSize="10" FontWeight="Bold"/>
-                                    </Border>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-
-                        <!-- Actions Grid -->
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="ACTIVATION" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            <Button x:Name="InjectBtn" Click="InjectBtn_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#007BFF" BorderBrush="#0056B3" Height="38">
-                                <TextBlock Text="Inject DLL (Agent)" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </Button>
-                        </StackPanel>
-
-                        <!-- Configurations -->
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="CONFIGURATION" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            
-                            <!-- Topic Input -->
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="AI Context Topic" Foreground="#888888" FontSize="12"/>
-                                <TextBox x:Name="TopicInput" Text="Game/Phim" Watermark="e.g. Game/Phim, Tech, News..."/>
-                            </StackPanel>
-
-                            <!-- Translation Mode Toggle -->
-                            <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
-                                <StackPanel Grid.Column="0" Spacing="2">
-                                    <TextBlock Text="AI Translation Mode" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Use Ollama Local LLM" Foreground="#666666" FontSize="11"/>
-                                </StackPanel>
-                                <ToggleSwitch x:Name="TranslateToggle" Grid.Column="1" IsChecked="True" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center"/>
-                            </Grid>
-                        </StackPanel>
-
-                        <!-- UI Display Controls -->
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="DISPLAY WINDOWS" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            <Button Content="Open Floating Overlay 🗗" Click="OpenOverlayBtn_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                            <Button Content="Open Debug Controller ⚙" Click="OpenDebugWidgetBtn_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <!-- App Info Footer -->
-                    <StackPanel Grid.Row="1" Spacing="2">
-                        <TextBlock Text="MSLC Integration Client v2.0" Foreground="#444444" FontSize="11"/>
-                        <TextBlock Text="Status: Connected to Pipe Server" Foreground="#559955" FontSize="10" Classes="Mono"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- Right Panel: Real-time Live Log -->
-            <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto, Auto" Margin="20">
-                <!-- Log Header -->
-                <TextBlock Grid.Row="0" Text="REAL-TIME RAW CAPTIONS FROM CORE" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5" Margin="0,0,0,10"/>
-                
-                <!-- Log Content -->
-                <Border Grid.Row="1" Background="#070709" BorderBrush="#1C1C24" BorderThickness="1" CornerRadius="6" Padding="12">
-                    <ScrollViewer x:Name="LogScrollViewer">
-                        <TextBox x:Name="RawTextLog" 
-                                 Background="Transparent" 
-                                 Foreground="#00FF88" 
-                                 BorderThickness="0" 
-                                 TextWrapping="Wrap" 
-                                 AcceptsReturn="True" 
-                                 IsReadOnly="True"
-                                 FontSize="13" 
-                                 Classes="Mono"
-                                 Watermark="[Waiting for English captions from Agent.dll...]"/>
-                    </ScrollViewer>
-                </Border>
-
-                <!-- Current Partial Word Streaming -->
-                <TextBlock Grid.Row="2" Text="CURRENT SPEECH RECOGNIZING (PARTIAL):" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5" Margin="0,15,0,5"/>
-                <Border Grid.Row="3" Background="#141419" BorderBrush="#2E2E3A" BorderThickness="1" CornerRadius="6" Padding="12" MinHeight="50">
-                    <TextBlock x:Name="LiveRawText" 
-                               Text="No active speech detected." 
-                               Foreground="#00E5FF" 
-                               FontSize="13" 
-                               FontWeight="Medium" 
-                               TextWrapping="Wrap" 
-                               VerticalAlignment="Center"/>
-                </Border>
-            </Grid>
-        </Grid>
-    </Grid>
+        Title="MainWindow">
+    <StackPanel>
+        <Ellipse x:Name="HookStatusDot" Width="10" Height="10"/>
+        <TextBlock x:Name="HookStatusText"/>
+        <TextBlock x:Name="TargetPidText"/>
+        <Button x:Name="InjectBtn" Click="InjectBtn_Click" Content="Inject"/>
+        <TextBox x:Name="TopicInput"/>
+        <ToggleSwitch x:Name="TranslateToggle"/>
+        <Button Content="Open Overlay" Click="OpenOverlayBtn_Click"/>
+        <Button Content="Open Debug" Click="OpenDebugWidgetBtn_Click"/>
+        <ScrollViewer x:Name="LogScrollViewer" Height="200">
+            <TextBox x:Name="RawTextLog"/>
+        </ScrollViewer>
+        <TextBlock x:Name="LiveRawText"/>
+    </StackPanel>
 </Window>
