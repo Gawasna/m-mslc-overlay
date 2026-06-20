@@ -1,19 +1,264 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.MainWindow"
-        Title="MainWindow">
-    <StackPanel>
-        <Ellipse x:Name="HookStatusDot" Width="10" Height="10"/>
-        <TextBlock x:Name="HookStatusText"/>
-        <TextBlock x:Name="TargetPidText"/>
-        <Button x:Name="InjectBtn" Click="InjectBtn_Click" Content="Inject"/>
-        <TextBox x:Name="TopicInput"/>
-        <ToggleSwitch x:Name="TranslateToggle"/>
-        <Button Content="Open Overlay" Click="OpenOverlayBtn_Click"/>
-        <Button Content="Open Debug" Click="OpenDebugWidgetBtn_Click"/>
-        <ScrollViewer x:Name="LogScrollViewer" Height="200">
-            <TextBox x:Name="RawTextLog"/>
-        </ScrollViewer>
-        <TextBlock x:Name="LiveRawText"/>
-    </StackPanel>
+        Title="MSLC Control Center"
+        Background="#F3F3F3"
+        MinWidth="800" MinHeight="600"
+        Width="1024" Height="768"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <!-- Zap/Lightning icon for DLL Injection -->
+        <StreamGeometry x:Key="IconZap">M13 2L3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
+        <!-- Play icon for starting Pipe / Opening Overlay -->
+        <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
+    </Window.Resources>
+
+    <Window.Styles>
+        <!-- Menu Bar Styles -->
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Height" Value="28"/>
+        </Style>
+        <Style Selector="Menu > MenuItem">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Menu > MenuItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F2F3F0"/>
+            <Setter Property="Foreground" Value="#111111"/>
+        </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#111111"/>
+        </Style>
+        <Style Selector="MenuItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F2F3F0"/>
+            <Setter Property="Foreground" Value="#111111"/>
+        </Style>
+        <Style Selector="MenuItem:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E7E8E5"/>
+            <Setter Property="Foreground" Value="#111111"/>
+        </Style>
+
+        <!-- Primary Button (Inject DLL: Orange background, white icon) -->
+        <Style Selector="Button.PrimaryBtn">
+            <Setter Property="Background" Value="#FF8400"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.PrimaryBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E07300"/>
+        </Style>
+        <Style Selector="Button.PrimaryBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#C26300"/>
+        </Style>
+
+        <!-- Secondary Button (Gray background, dark icon) -->
+        <Style Selector="Button.SecondaryBtn">
+            <Setter Property="Background" Value="#E7E8E5"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Setter Property="BorderBrush" Value="#CBCCC9"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.SecondaryBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#D7D8D5"/>
+        </Style>
+        <Style Selector="Button.SecondaryBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#C7C8C5"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto, Auto, *">
+        
+        <!-- 1. Primary Toolbar (Menu Bar) -->
+        <Border Grid.Row="0" 
+                Height="28" 
+                Background="#FFFFFF"
+                BorderBrush="#E5E5E5" 
+                BorderThickness="0,0,0,1"
+                Padding="8,0">
+            <Menu VerticalAlignment="Center">
+                <MenuItem Header="File">
+                    <MenuItem Header="Inject Target DLL">
+                        <MenuItem Header="By Active Process ID (PID)..." />
+                        <MenuItem Header="By Process Name..." />
+                        <MenuItem Header="Open Injection Log" />
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="Exit" InputGesture="Alt+F4" />
+                </MenuItem>
+                <MenuItem Header="Edit">
+                    <MenuItem Header="Copy Selected Log" InputGesture="Ctrl+C" />
+                    <MenuItem Header="Clear History Log" InputGesture="Ctrl+L" />
+                    <Separator />
+                    <MenuItem Header="Preferences..." InputGesture="Ctrl+," />
+                </MenuItem>
+                <MenuItem Header="View">
+                    <MenuItem Header="Toggle Floating Overlay" InputGesture="F5" />
+                    <MenuItem Header="Toggle Debug Widget" InputGesture="F6" />
+                    <Separator />
+                    <MenuItem Header="Keep on Top" />
+                </MenuItem>
+                <MenuItem Header="Tools">
+                    <MenuItem Header="Named Pipe Monitor" />
+                    <MenuItem Header="Active Extractor checkout" />
+                    <MenuItem Header="System Diagnostics" />
+                </MenuItem>
+                <MenuItem Header="Help">
+                    <MenuItem Header="View Documentation" InputGesture="F1" />
+                    <MenuItem Header="Check for Updates..." />
+                    <MenuItem Header="About Control Center" />
+                </MenuItem>
+            </Menu>
+        </Border>
+
+        <!-- 2. Secondary Toolbar (Quick Actions) -->
+        <Border Grid.Row="1" 
+                Height="36" 
+                Background="#FFFFFF"
+                BorderBrush="#E5E5E5" 
+                BorderThickness="0,0,0,1"
+                Padding="8,0">
+            <DockPanel LastChildFill="False">
+                <!-- Left: Quick Action Buttons (Icon only, no corner radius) -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <!-- Inject DLL Button -->
+                    <Button x:Name="InjectBtn" 
+                            Click="InjectBtn_Click"
+                            Width="28" Height="28" 
+                            CornerRadius="0" Padding="0" 
+                            Classes="PrimaryBtn"
+                            ToolTip.Tip="Inject DLL">
+                        <PathIcon Data="{StaticResource IconZap}" Width="14" Height="14" Foreground="#FFFFFF" />
+                    </Button>
+                    <!-- Open Overlay Button -->
+                    <Button Click="OpenOverlayBtn_Click"
+                            Width="28" Height="28" 
+                            CornerRadius="0" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Open Floating Overlay">
+                        <PathIcon Data="{StaticResource IconPlay}" Width="14" Height="14" Foreground="#111111" />
+                    </Button>
+                    <!-- Open Debug / Settings Button -->
+                    <Button Click="OpenDebugWidgetBtn_Click"
+                            Width="28" Height="28" 
+                            CornerRadius="0" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Open Debug Settings">
+                        <PathIcon Data="{StaticResource IconSetting}" Width="14" Height="14" Foreground="#111111" />
+                    </Button>
+                </StackPanel>
+                
+                <!-- Right: Status Indicators (Smaller Text) -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <!-- Target PID Info -->
+                    <TextBlock x:Name="TargetPidText" 
+                               Text="PID: Not Running" 
+                               Foreground="#666666" 
+                               FontSize="10" 
+                               VerticalAlignment="Center"/>
+                    
+                    <!-- Hook Status dot and text -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse x:Name="HookStatusDot" 
+                                 Width="8" Height="8" 
+                                 Fill="#CBCCC9" 
+                                 VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HookStatusText" 
+                                   Text="Disconnected" 
+                                   Foreground="#666666" 
+                                   FontSize="10" 
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- 3. Content Area (Form & Logs) -->
+        <Border Grid.Row="2" Padding="16">
+            <Grid ColumnDefinitions="280, *">
+            <!-- Left Side: Config Panel -->
+            <Border Grid.Column="0" 
+                    Background="#FFFFFF" 
+                    BorderBrush="#E5E5E5" 
+                    BorderThickness="1" 
+                    Padding="16">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Translation Settings" FontSize="14" FontWeight="Bold" Foreground="#111111"/>
+                    
+                    <!-- Context Topic input -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Context Topic:" FontSize="11" Foreground="#666666"/>
+                        <TextBox x:Name="TopicInput" Watermark="e.g. Game, Movie, News" Text="Game/Phim" Height="32"/>
+                    </StackPanel>
+                    
+                    <!-- Translation Switch -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="AI Translation:" FontSize="11" Foreground="#666666"/>
+                        <ToggleSwitch x:Name="TranslateToggle" 
+                                      OnContent="Enabled" 
+                                      OffContent="Disabled" 
+                                      IsChecked="True"/>
+                    </StackPanel>
+                    
+                    <TextBlock Text="How to use:&#x0a;1. Open Live Captions in Windows.&#x0a;2. Click Inject DLL.&#x0a;3. Click Play to open Overlay.&#x0a;4. Speech will be translated live." 
+                               FontSize="11" 
+                               Foreground="#666666" 
+                               TextWrapping="Wrap" 
+                               Margin="0,16,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Right Side: Logs Area -->
+            <Grid Grid.Column="1" RowDefinitions="Auto, *">
+                <!-- Live Subtitle Display -->
+                <Border Grid.Row="0" 
+                        Background="#FFFFFF" 
+                        BorderBrush="#E5E5E5" 
+                        BorderThickness="1" 
+                        Padding="16">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Live Raw Recognition" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
+                        <TextBlock x:Name="LiveRawText" 
+                                   Text="No active speech detected." 
+                                   FontSize="16" 
+                                   Foreground="#000000" 
+                                   TextWrapping="Wrap" 
+                                   Height="60"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- History Log display -->
+                <Border Grid.Row="1" 
+                        Background="#FFFFFF" 
+                        BorderBrush="#E5E5E5" 
+                        BorderThickness="1" 
+                        Padding="16">
+                    <Grid RowDefinitions="Auto, *">
+                        <TextBlock Grid.Row="0" Text="Session History &amp; System Logs" FontSize="12" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,8"/>
+                        <ScrollViewer x:Name="LogScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <TextBox x:Name="RawTextLog" 
+                                     IsReadOnly="True" 
+                                     TextWrapping="Wrap" 
+                                     AcceptsReturn="True" 
+                                     Background="Transparent" 
+                                     BorderThickness="0" 
+                                     Padding="0"
+                                     FontSize="12"
+                                     FontFamily="Consolas,Monospace"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+            </Grid>
+        </Border>
+
+    </Grid>
 </Window>
