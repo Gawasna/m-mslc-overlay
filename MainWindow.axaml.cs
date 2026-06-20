@@ -19,6 +19,15 @@ namespace m_mslc_overlay
 
         private string _translationBuffer = "";
 
+        private enum HookState
+        {
+            Waiting,
+            Detected,
+            Injected,
+            Failed
+        }
+        private HookState _currentHookState = HookState.Waiting;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -35,7 +44,7 @@ namespace m_mslc_overlay
             // 1. Nhận luồng text thô partial (đang nhận dạng) từ Extractor
             _pipeService.OnPartialCaptionReceived += (txt) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    LiveRawText.Text = string.IsNullOrWhiteSpace(txt) ? "No active speech detected." : txt;
+                    LiveRawText.Text = string.IsNullOrWhiteSpace(txt) ? LanguageManager.GetString("Status_NoActiveSpeech") : txt;
 
                     // Đồng bộ hành vi Floating Overlay giống hệt LiveRawText (hiển thị partial thô trực tiếp đè lên câu cũ)
                     if (_currentOverlay != null && _currentOverlay.IsVisible)
@@ -51,7 +60,7 @@ namespace m_mslc_overlay
 
                 // Định dạng timestamp cho câu thô
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                string logLine = $"[{timestamp}] English: {txt}\n";
+                string logLine = $"[{timestamp}] {LanguageManager.GetString("Log_EnglishPrefix")}: {txt}\n";
 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     // In dữ liệu text thô đưa từ extractor lên cửa sổ chính
@@ -107,7 +116,7 @@ namespace m_mslc_overlay
                 {
                     // In bản dịch tiếng Việt sang RawTextLog để dễ debug song song
                     string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                    string logLine = $"[{timestamp}] Vietnamese: {fullSentence}\n-----------------------------------\n";
+                    string logLine = $"[{timestamp}] {LanguageManager.GetString("Log_VietnamesePrefix")}: {fullSentence}\n-----------------------------------\n";
 
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         RawTextLog.Text += logLine;
@@ -155,15 +164,58 @@ namespace m_mslc_overlay
             uint pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
             if (pid != 0)
             {
-                TargetPidText.Text = $"PID: {pid}";
-                HookStatusDot.Fill = SolidColorBrush.Parse("#FFAA00");
-                HookStatusText.Text = "Detected";
+                _currentHookState = HookState.Detected;
             }
             else
             {
-                TargetPidText.Text = "PID: Not Running";
-                HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
-                HookStatusText.Text = "Waiting";
+                _currentHookState = HookState.Waiting;
+            }
+            UpdateDynamicStrings();
+        }
+
+        private void UpdateDynamicStrings()
+        {
+            uint pid = _hiderService.TargetProcessId;
+            if (pid == 0)
+            {
+                pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
+            }
+
+            if (pid != 0)
+            {
+                TargetPidText.Text = $"{LanguageManager.GetString("Status_PidPrefix")}{pid}";
+            }
+            else
+            {
+                TargetPidText.Text = LanguageManager.GetString("Status_PidNotRunning");
+            }
+
+            switch (_currentHookState)
+            {
+                case HookState.Waiting:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Waiting");
+                    break;
+                case HookState.Detected:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#FFAA00");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Detected");
+                    break;
+                case HookState.Injected:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#00FF88");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Injected");
+                    break;
+                case HookState.Failed:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Failed");
+                    break;
+            }
+
+            if (string.IsNullOrWhiteSpace(LiveRawText.Text) || 
+                LiveRawText.Text == "No active speech detected." || 
+                LiveRawText.Text == "Chưa phát hiện giọng nói hoạt động." || 
+                LiveRawText.Text.StartsWith("["))
+            {
+                LiveRawText.Text = LanguageManager.GetString("Status_NoActiveSpeech");
             }
         }
 
@@ -253,6 +305,18 @@ namespace m_mslc_overlay
             {
                 _debugWidget.Activate();
             }
+        }
+
+        private void ChangeLanguage_Vi_Click(object? sender, RoutedEventArgs e)
+        {
+            LanguageManager.LoadLanguage("vi-VN");
+            UpdateDynamicStrings();
+        }
+
+        private void ChangeLanguage_En_Click(object? sender, RoutedEventArgs e)
+        {
+            LanguageManager.LoadLanguage("en-US");
+            UpdateDynamicStrings();
         }
     }
 }

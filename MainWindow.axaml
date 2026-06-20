@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.MainWindow"
-        Title="MSLC Control Center"
+        Title="{DynamicResource Title_ControlCenter}"
         Background="{StaticResource BgWindowBrush}"
         MinWidth="800" MinHeight="600"
         Width="1024" Height="768"
@@ -26,36 +26,41 @@
                 BorderThickness="{StaticResource BorderThicknessBottomOnly}"
                 Padding="8,0">
             <Menu VerticalAlignment="Center">
-                <MenuItem Header="File">
-                    <MenuItem Header="Inject Target DLL">
-                        <MenuItem Header="By Active Process ID (PID)..." />
-                        <MenuItem Header="By Process Name..." />
-                        <MenuItem Header="Open Injection Log" />
+                <MenuItem Header="{DynamicResource Menu_File}">
+                    <MenuItem Header="{DynamicResource Menu_InjectTargetDll}">
+                        <MenuItem Header="{DynamicResource Menu_ByActivePid}" />
+                        <MenuItem Header="{DynamicResource Menu_ByProcessName}" />
+                        <MenuItem Header="{DynamicResource Menu_OpenInjectionLog}" />
                     </MenuItem>
                     <Separator />
-                    <MenuItem Header="Exit" InputGesture="Alt+F4" />
+                    <MenuItem Header="{DynamicResource Menu_Exit}" InputGesture="Alt+F4" />
                 </MenuItem>
-                <MenuItem Header="Edit">
-                    <MenuItem Header="Copy Selected Log" InputGesture="Ctrl+C" />
-                    <MenuItem Header="Clear History Log" InputGesture="Ctrl+L" />
+                <MenuItem Header="{DynamicResource Menu_Edit}">
+                    <MenuItem Header="{DynamicResource Menu_CopySelectedLog}" InputGesture="Ctrl+C" />
+                    <MenuItem Header="{DynamicResource Menu_ClearHistoryLog}" InputGesture="Ctrl+L" />
                     <Separator />
-                    <MenuItem Header="Preferences..." InputGesture="Ctrl+," />
+                    <MenuItem Header="{DynamicResource Menu_Preferences}" InputGesture="Ctrl+," />
                 </MenuItem>
-                <MenuItem Header="View">
-                    <MenuItem Header="Toggle Floating Overlay" InputGesture="F5" />
-                    <MenuItem Header="Toggle Debug Widget" InputGesture="F6" />
+                <MenuItem Header="{DynamicResource Menu_View}">
+                    <MenuItem Header="{DynamicResource Menu_ToggleFloatingOverlay}" InputGesture="F5" />
+                    <MenuItem Header="{DynamicResource Menu_ToggleDebugWidget}" InputGesture="F6" />
                     <Separator />
-                    <MenuItem Header="Keep on Top" />
+                    <MenuItem Header="{DynamicResource Menu_KeepOnTop}" />
+                    <Separator />
+                    <MenuItem Header="{DynamicResource Menu_Language}">
+                        <MenuItem Header="Tiếng Việt (vi-VN)" Click="ChangeLanguage_Vi_Click" />
+                        <MenuItem Header="English (en-US)" Click="ChangeLanguage_En_Click" />
+                    </MenuItem>
                 </MenuItem>
-                <MenuItem Header="Tools">
-                    <MenuItem Header="Named Pipe Monitor" />
-                    <MenuItem Header="Active Extractor checkout" />
-                    <MenuItem Header="System Diagnostics" />
+                <MenuItem Header="{DynamicResource Menu_Tools}">
+                    <MenuItem Header="{DynamicResource Menu_NamedPipeMonitor}" />
+                    <MenuItem Header="{DynamicResource Menu_ActiveExtractorCheckout}" />
+                    <MenuItem Header="{DynamicResource Menu_SystemDiagnostics}" />
                 </MenuItem>
-                <MenuItem Header="Help">
-                    <MenuItem Header="View Documentation" InputGesture="F1" />
-                    <MenuItem Header="Check for Updates..." />
-                    <MenuItem Header="About Control Center" />
+                <MenuItem Header="{DynamicResource Menu_Help}">
+                    <MenuItem Header="{DynamicResource Menu_ViewDocumentation}" InputGesture="F1" />
+                    <MenuItem Header="{DynamicResource Menu_CheckForUpdates}" />
+                    <MenuItem Header="{DynamicResource Menu_AboutControlCenter}" />
                 </MenuItem>
             </Menu>
         </Border>
@@ -76,7 +81,7 @@
                             Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="PrimaryBtn"
-                            ToolTip.Tip="Inject DLL">
+                            ToolTip.Tip="{DynamicResource Tooltip_InjectDll}">
                         <PathIcon Data="{StaticResource IconZap}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
                     </Button>
                     <!-- Open Overlay Button -->
@@ -84,7 +89,7 @@
                             Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
-                            ToolTip.Tip="Open Floating Overlay">
+                            ToolTip.Tip="{DynamicResource Tooltip_OpenOverlay}">
                         <PathIcon Data="{StaticResource IconPlay}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                     <!-- Open Debug / Settings Button -->
@@ -92,7 +97,7 @@
                             Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
-                            ToolTip.Tip="Open Debug Settings">
+                            ToolTip.Tip="{DynamicResource Tooltip_OpenDebugSettings}">
                         <PathIcon Data="{StaticResource IconSetting}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                 </StackPanel>
@@ -101,7 +106,7 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                     <!-- Target PID Info -->
                     <TextBlock x:Name="TargetPidText" 
-                               Text="PID: Not Running" 
+                               Text="{DynamicResource Status_PidNotRunning}" 
                                Foreground="#666666" 
                                FontSize="10" 
                                VerticalAlignment="Center"/>
@@ -113,7 +118,7 @@
                                  Fill="#CBCCC9" 
                                  VerticalAlignment="Center"/>
                         <TextBlock x:Name="HookStatusText" 
-                                   Text="Disconnected" 
+                                   Text="{DynamicResource Status_Disconnected}" 
                                    Foreground="#666666" 
                                    FontSize="10" 
                                    VerticalAlignment="Center"/>
@@ -132,24 +137,24 @@
                     BorderThickness="1" 
                     Padding="16">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="Translation Settings" FontSize="14" FontWeight="Bold" Foreground="#111111"/>
+                    <TextBlock Text="{DynamicResource Header_TranslationSettings}" FontSize="14" FontWeight="Bold" Foreground="#111111"/>
                     
                     <!-- Context Topic input -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Context Topic:" FontSize="11" Foreground="#666666"/>
-                        <TextBox x:Name="TopicInput" Watermark="e.g. Game, Movie, News" Text="Game/Phim" Height="32"/>
+                        <TextBlock Text="{DynamicResource Label_ContextTopic}" FontSize="11" Foreground="#666666"/>
+                        <TextBox x:Name="TopicInput" Watermark="{DynamicResource Watermark_TopicInput}" Text="Game/Phim" Height="32"/>
                     </StackPanel>
                     
                     <!-- Translation Switch -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="AI Translation:" FontSize="11" Foreground="#666666"/>
+                        <TextBlock Text="{DynamicResource Label_AiTranslation}" FontSize="11" Foreground="#666666"/>
                         <ToggleSwitch x:Name="TranslateToggle" 
-                                      OnContent="Enabled" 
-                                      OffContent="Disabled" 
+                                      OnContent="{DynamicResource Label_Enabled}" 
+                                      OffContent="{DynamicResource Label_Disabled}" 
                                       IsChecked="True"/>
                     </StackPanel>
                     
-                    <TextBlock Text="How to use:&#x0a;1. Open Live Captions in Windows.&#x0a;2. Click Inject DLL.&#x0a;3. Click Play to open Overlay.&#x0a;4. Speech will be translated live." 
+                    <TextBlock Text="{DynamicResource Label_HowToUse}" 
                                FontSize="11" 
                                Foreground="#666666" 
                                TextWrapping="Wrap" 
@@ -166,9 +171,9 @@
                         BorderThickness="1" 
                         Padding="16">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Live Raw Recognition" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
+                        <TextBlock Text="{DynamicResource Header_LiveRawRecognition}" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
                         <TextBlock x:Name="LiveRawText" 
-                                   Text="No active speech detected." 
+                                   Text="{DynamicResource Status_NoActiveSpeech}" 
                                    FontSize="16" 
                                    Foreground="#000000" 
                                    TextWrapping="Wrap" 
@@ -183,7 +188,7 @@
                         BorderThickness="1" 
                         Padding="16">
                     <Grid RowDefinitions="Auto, *">
-                        <TextBlock Grid.Row="0" Text="Session History &amp; System Logs" FontSize="12" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="0" Text="{DynamicResource Header_SessionHistory}" FontSize="12" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,8"/>
                         <ScrollViewer x:Name="LogScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
                             <TextBox x:Name="RawTextLog" 
                                      IsReadOnly="True" 

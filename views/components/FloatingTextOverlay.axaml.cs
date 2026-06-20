@@ -115,7 +115,7 @@ public partial class FloatingTextOverlay : Window
         {
             _mainWindow.AIService.TargetLanguage = "Tiếng Việt";
             _mainWindow.IsTranslationEnabled = true;
-            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Việt]";
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangVietnamese");
         }
     }
 
@@ -125,7 +125,7 @@ public partial class FloatingTextOverlay : Window
         {
             _mainWindow.AIService.TargetLanguage = "Tiếng Nhật";
             _mainWindow.IsTranslationEnabled = true;
-            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Nhật]";
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangJapanese");
         }
     }
 
@@ -135,7 +135,7 @@ public partial class FloatingTextOverlay : Window
         {
             _mainWindow.AIService.TargetLanguage = "Tiếng Trung";
             _mainWindow.IsTranslationEnabled = true;
-            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Trung]";
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangChinese");
         }
     }
 
@@ -144,7 +144,7 @@ public partial class FloatingTextOverlay : Window
         if (_mainWindow != null)
         {
             _mainWindow.IsTranslationEnabled = false;
-            DisplayTextBlock.Text = "[Đã chuyển sang Tiếng Anh gốc (Không dịch)]";
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangEnglish");
         }
     }
 
@@ -191,13 +191,13 @@ public partial class FloatingTextOverlay : Window
     private void SetEffect_Typewriter_Click(object? sender, RoutedEventArgs e)
     {
         UseTypewriter = true;
-        DisplayTextBlock.Text = "[Đã bật hiệu ứng đánh máy]";
+        DisplayTextBlock.Text = LanguageManager.GetString("Msg_EffectTypewriter");
     }
 
     private void SetEffect_Instant_Click(object? sender, RoutedEventArgs e)
     {
         UseTypewriter = false;
-        DisplayTextBlock.Text = "[Đã tắt hiệu ứng đánh máy]";
+        DisplayTextBlock.Text = LanguageManager.GetString("Msg_EffectInstant");
     }
 
     private void TestTypewriter_Click(object? sender, RoutedEventArgs e)
@@ -205,12 +205,12 @@ public partial class FloatingTextOverlay : Window
         DisplayTextBlock.Text = "";
         while (_sentenceQueue.TryDequeue(out _)) { }
         StartTypewriterPump();
-        EnqueueText("Chào mừng bạn đến với MS-LIVE-CAPTION Control Center! Đây là đoạn văn bản chạy thử nghiệm hiệu ứng đánh máy (typewriter animation). Khi bạn thay đổi kích thước của Floating Overlay, văn bản sẽ tự động xuống dòng mượt mà. Hệ thống đang hoạt động ổn định!");
+        EnqueueText(LanguageManager.GetString("Msg_TestTypewriterSentence"));
     }
 
     private void Help_Click(object? sender, RoutedEventArgs e)
     {
-        DisplayTextBlock.Text = "Hướng dẫn: Nhấn giữ chuột trái để di chuyển Overlay. Nhấp chuột phải vào nút Cài đặt ở bên phải để cấu hình Ngôn ngữ dịch, Cỡ chữ, Độ mờ nền, hoặc bật/tắt Hiệu ứng đánh máy.";
+        DisplayTextBlock.Text = LanguageManager.GetString("Msg_HelpText");
     }
 
     private System.Collections.Concurrent.ConcurrentQueue<string> _sentenceQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();

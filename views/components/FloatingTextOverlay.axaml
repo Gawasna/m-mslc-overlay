@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.views.components.FloatingTextOverlay"
         x:Name="RootWindow"
-        Title="FloatingTextOverlay">
+        Title="{DynamicResource Title_FloatingTextOverlay}">
     <Border x:Name="MainBorder" 
             Background="{Binding OverlayBackground, ElementName=RootWindow}"
             PointerPressed="Window_PointerPressed">
@@ -11,40 +11,40 @@
                 <TextBlock x:Name="DisplayTextBlock" 
                            FontSize="{Binding OverlayFontSize, ElementName=RootWindow}" />
             </ScrollViewer>
-            <Button Content="Settings">
+            <Button Content="{DynamicResource Button_Settings}">
                 <Button.Flyout>
                     <MenuFlyout>
-                        <MenuItem Header="Vị trí">
-                            <MenuItem Header="Đặt lại giữa màn hình" Click="ResetPosition_Click"/>
+                        <MenuItem Header="{DynamicResource Menu_Position}">
+                            <MenuItem Header="{DynamicResource Menu_ResetPosition}" Click="ResetPosition_Click"/>
                         </MenuItem>
-                        <MenuItem Header="Ngôn ngữ dịch">
-                            <MenuItem Header="Dịch sang Tiếng Việt" Click="SetLanguage_Vietnamese_Click"/>
-                            <MenuItem Header="Dịch sang Tiếng Nhật" Click="SetLanguage_Japanese_Click"/>
-                            <MenuItem Header="Dịch sang Tiếng Trung" Click="SetLanguage_Chinese_Click"/>
-                            <MenuItem Header="Không dịch (Tiếng Anh gốc)" Click="SetLanguage_English_Click"/>
+                        <MenuItem Header="{DynamicResource Menu_TargetLanguage}">
+                            <MenuItem Header="{DynamicResource Menu_LangVietnamese}" Click="SetLanguage_Vietnamese_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_LangJapanese}" Click="SetLanguage_Japanese_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_LangChinese}" Click="SetLanguage_Chinese_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_LangEnglish}" Click="SetLanguage_English_Click"/>
                         </MenuItem>
-                        <MenuItem Header="Cỡ chữ">
-                            <MenuItem Header="Nhỏ (16px)" Click="SetFontSize_Small_Click"/>
-                            <MenuItem Header="Vừa (20px)" Click="SetFontSize_Medium_Click"/>
-                            <MenuItem Header="Lớn (24px)" Click="SetFontSize_Large_Click"/>
-                            <MenuItem Header="Cực lớn (28px)" Click="SetFontSize_ExtraLarge_Click"/>
+                        <MenuItem Header="{DynamicResource Menu_FontSize}">
+                            <MenuItem Header="{DynamicResource Menu_FontSizeSmall}" Click="SetFontSize_Small_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_FontSizeMedium}" Click="SetFontSize_Medium_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_FontSizeLarge}" Click="SetFontSize_Large_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_FontSizeExtraLarge}" Click="SetFontSize_ExtraLarge_Click"/>
                         </MenuItem>
-                        <MenuItem Header="Độ mờ nền">
-                            <MenuItem Header="Đục (100%)" Click="SetBgOpacity_100_Click"/>
-                            <MenuItem Header="Mờ nhẹ (80%)" Click="SetBgOpacity_80_Click"/>
-                            <MenuItem Header="Mờ vừa (60%)" Click="SetBgOpacity_60_Click"/>
-                            <MenuItem Header="Mờ nhiều (40%)" Click="SetBgOpacity_40_Click"/>
+                        <MenuItem Header="{DynamicResource Menu_BgOpacity}">
+                            <MenuItem Header="{DynamicResource Menu_BgOpacity100}" Click="SetBgOpacity_100_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_BgOpacity80}" Click="SetBgOpacity_80_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_BgOpacity60}" Click="SetBgOpacity_60_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_BgOpacity40}" Click="SetBgOpacity_40_Click"/>
                         </MenuItem>
-                        <MenuItem Header="Hiệu ứng chữ">
-                            <MenuItem Header="Đánh máy (Typewriter)" Click="SetEffect_Typewriter_Click"/>
-                            <MenuItem Header="Tức thì (Instant)" Click="SetEffect_Instant_Click"/>
+                        <MenuItem Header="{DynamicResource Menu_TextEffect}">
+                            <MenuItem Header="{DynamicResource Menu_EffectTypewriter}" Click="SetEffect_Typewriter_Click"/>
+                            <MenuItem Header="{DynamicResource Menu_EffectInstant}" Click="SetEffect_Instant_Click"/>
                         </MenuItem>
-                        <MenuItem Header="Chạy thử mẫu" Click="TestTypewriter_Click" />
-                        <MenuItem Header="Hướng dẫn &amp; Thông tin" Click="Help_Click" />
+                        <MenuItem Header="{DynamicResource Menu_TestSample}" Click="TestTypewriter_Click" />
+                        <MenuItem Header="{DynamicResource Menu_HelpInfo}" Click="Help_Click" />
                     </MenuFlyout>
                 </Button.Flyout>
             </Button>
-            <Button Content="Close" Click="Close_Click"/>
+            <Button Content="{DynamicResource Button_Close}" Click="Close_Click"/>
         </StackPanel>
     </Border>
 </Window>
