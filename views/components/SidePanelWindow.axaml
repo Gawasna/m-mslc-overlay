@@ -3,7 +3,6 @@
         x:Class="m_mslc_overlay.views.components.SidePanelWindow"
         Title="Side Panel (Mockup)"
         Background="#1E1E1E"
-        Topmost="True"
         MinWidth="400"
         MinHeight="300"
         SystemDecorations="Full">

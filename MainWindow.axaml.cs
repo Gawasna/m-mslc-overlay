@@ -321,6 +321,7 @@ namespace m_mslc_overlay
 
         public enum PanelPosition { Left, Right, Top, Bottom }
         public PanelPosition ConfiguredSidePanelPosition = PanelPosition.Right;
+        public bool ConfiguredSidePanelTopmost = false;
 
         private SidePanelWindow? _sidePanelWindow;
 
@@ -342,6 +343,7 @@ namespace m_mslc_overlay
                 double workAreaHeightDip = workArea.Height / scaling;
 
                 _sidePanelWindow = new SidePanelWindow();
+                _sidePanelWindow.Topmost = ConfiguredSidePanelTopmost;
                 _sidePanelWindow.OnClosedAction = () => {
                     _sidePanelWindow = null;
                 };
