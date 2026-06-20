@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using m_mslc_overlay.services;
 
-namespace m_mslc_overlay.Dialogs
+namespace m_mslc_overlay.views.dialogs
 {
     public partial class PreferencesDialog : Window
     {

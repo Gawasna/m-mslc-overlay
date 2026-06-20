@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="m_mslc_overlay.Dialogs.PreferencesDialog"
+        x:Class="m_mslc_overlay.views.dialogs.PreferencesDialog"
         Title="{DynamicResource Title_Preferences}"
         Width="720" Height="480"
         WindowStartupLocation="CenterOwner"

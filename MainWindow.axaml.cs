@@ -341,7 +341,7 @@ namespace m_mslc_overlay
 
         private void PreferencesMenuItem_Click(object? sender, RoutedEventArgs e)
         {
-            var preferencesDialog = new m_mslc_overlay.Dialogs.PreferencesDialog();
+            var preferencesDialog = new m_mslc_overlay.views.dialogs.PreferencesDialog();
             preferencesDialog.ShowDialog(this);
         }
 
