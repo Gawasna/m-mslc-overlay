@@ -6,10 +6,8 @@
         Topmost="True"
         MinWidth="400"
         MinHeight="300"
-        ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome"
-        ExtendClientAreaTitleBarHeightHint="-1">
-    <Grid Background="Transparent" PointerPressed="Grid_PointerPressed">
+        SystemDecorations="Full">
+    <Grid>
         <TextBlock Text="Side Panel (Mockup)" 
                    Foreground="White" 
                    HorizontalAlignment="Center" 
