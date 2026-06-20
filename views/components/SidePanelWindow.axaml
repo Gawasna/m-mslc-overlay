@@ -1,0 +1,15 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.components.SidePanelWindow"
+        Title="Side Panel (Mockup)"
+        Background="#1E1E1E"
+        Topmost="True"
+        SystemDecorations="Full">
+    <Grid>
+        <TextBlock Text="Side Panel (Mockup)" 
+                   Foreground="White" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center" 
+                   FontSize="24"/>
+    </Grid>
+</Window>

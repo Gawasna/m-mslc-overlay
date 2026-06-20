@@ -318,5 +318,62 @@ namespace m_mslc_overlay
             LanguageManager.LoadLanguage("en-US");
             UpdateDynamicStrings();
         }
+
+        private SidePanelWindow? _sidePanelWindow;
+        private WindowState _previousMainWindowState;
+        private double _previousWidth;
+        private double _previousHeight;
+        private Avalonia.PixelPoint _previousPosition;
+
+        private void ToggleSidePanel_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_sidePanelWindow != null && _sidePanelWindow.IsVisible)
+            {
+                _sidePanelWindow.Close();
+            }
+            else
+            {
+                var screen = this.Screens.ScreenFromWindow(this) ?? this.Screens.Primary;
+                if (screen == null) return;
+
+                var workArea = screen.WorkingArea;
+                double scaling = screen.Scaling;
+                double workAreaWidthDip = workArea.Width / scaling;
+                double workAreaHeightDip = workArea.Height / scaling;
+                
+                _previousMainWindowState = this.WindowState;
+                _previousWidth = double.IsNaN(this.Width) ? this.Bounds.Width : this.Width;
+                _previousHeight = double.IsNaN(this.Height) ? this.Bounds.Height : this.Height;
+                _previousPosition = this.Position;
+
+                _sidePanelWindow = new SidePanelWindow();
+                _sidePanelWindow.OnClosedAction = () => {
+                    if (_sidePanelWindow != null) {
+                        _sidePanelWindow = null;
+                        this.WindowState = _previousMainWindowState;
+                        if (this.WindowState == WindowState.Normal)
+                        {
+                            this.Position = _previousPosition;
+                            this.Width = _previousWidth;
+                            this.Height = _previousHeight;
+                        }
+                    }
+                };
+
+                if (this.WindowState == WindowState.FullScreen || this.WindowState == WindowState.Maximized)
+                {
+                    this.WindowState = WindowState.Normal;
+                    this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                    this.Width = workAreaWidthDip / 2.0;
+                    this.Height = workAreaHeightDip;
+                }
+
+                _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X + workArea.Width / 2, workArea.Y);
+                _sidePanelWindow.Width = workAreaWidthDip / 2.0;
+                _sidePanelWindow.Height = workAreaHeightDip;
+
+                _sidePanelWindow.Show();
+            }
+        }
     }
 }
