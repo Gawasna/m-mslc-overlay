@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Runtime.Versioning;
 using m_mslc_overlay.core;
 
 namespace m_mslc_overlay.services
