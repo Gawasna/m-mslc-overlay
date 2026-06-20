@@ -63,7 +63,7 @@ namespace m_mslc_overlay.views.dialogs
             
             // Hide all tabs
             if (TabGeneral != null) TabGeneral.IsVisible = false;
-            if (TabAI != null) TabAI.IsVisible = false;
+            if (TabTranslation != null) TabTranslation.IsVisible = false;
             if (TabAppearance != null) TabAppearance.IsVisible = false;
             if (TabAdvanced != null) TabAdvanced.IsVisible = false;
 
@@ -74,7 +74,7 @@ namespace m_mslc_overlay.views.dialogs
                     if (TabGeneral != null) TabGeneral.IsVisible = true;
                     break;
                 case 1:
-                    if (TabAI != null) TabAI.IsVisible = true;
+                    if (TabTranslation != null) TabTranslation.IsVisible = true;
                     break;
                 case 2:
                     if (TabAppearance != null) TabAppearance.IsVisible = true;

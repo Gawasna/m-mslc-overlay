@@ -40,11 +40,24 @@ Chứa các thiết lập cơ bản về hành vi của ứng dụng:
 - **Ngôn ngữ ứng dụng**: Dropdown chọn ngôn ngữ giao diện (Tiếng Việt, English).
 - **Cập nhật**: Bật/Tắt "Tự động kiểm tra phiên bản mới khi khởi động".
 
-### Tab 2: Dịch Thuật AI (AI Translation)
-Chứa các cấu hình sâu về mô hình trí tuệ nhân tạo:
-- **Mô hình AI (AI Model)**: Dropdown chọn mô hình (Gemini 1.5 Pro, Gemini Flash, Claude 3 Haiku, v.v.).
-- **Khóa API (API Key)**: TextBox ẩn mật khẩu để nhập API Key riêng (Nếu người dùng muốn dùng Key cá nhân). Nút "Test Connection".
-- **Prompt Hệ Thống (System Prompt)**: TextBox nhiều dòng (Multiline) để tùy chỉnh cách AI nhận diện và dịch câu.
+### Tab 2: Dịch Thuật (Translation)
+Sử dụng cấu trúc Tab Pane (các tab phụ) bên trong nội dung để phân loại phương thức dịch:
+
+#### 2.1. Engine Dịch (Translation Engine)
+- **Dịch vụ (Service)**: Dropdown chọn API dịch thuật truyền thống (ví dụ: Google Translate, DeepL, Bing).
+- **Ngôn ngữ nguồn/đích**: Cấu hình ép cứng ngôn ngữ (nếu không auto-detect).
+
+#### 2.2. AI Dịch (Cloud AI)
+Chứa các cấu hình sâu về mô hình trí tuệ nhân tạo đám mây:
+- **Mô hình AI (AI Model)**: Dropdown chọn mô hình (Gemini 1.5 Pro, Claude 3, v.v.).
+- **Khóa API (API Key)**: TextBox ẩn mật khẩu. Nút "Test Connection".
+- **Prompt Hệ Thống (System Prompt)**: TextBox nhiều dòng để tinh chỉnh cách AI dịch.
+
+#### 2.3. Local AI
+Dành cho các mô hình chạy trực tiếp trên máy:
+- **Engine Local**: Dropdown (Ollama, LMStudio, v.v.).
+- **Endpoint URL**: Ví dụ `http://localhost:11434/api/generate`.
+- **Mô hình (Model Name)**: Tên mô hình đang chạy cục bộ.
 
 ### Tab 3: Giao Diện (Appearance)
 Cấu hình về mặt hiển thị:
@@ -58,6 +71,7 @@ Cấu hình về mặt hiển thị:
 Dành cho người dùng am hiểu kỹ thuật:
 - **Named Pipe Name**: TextBox (Mặc định: `MSLCCaptionPipe`).
 - **Thư mục Log (Log Directory)**: Nơi lưu các tệp tin `injection.log` và lịch sử dịch thuật. Nút "Mở thư mục...".
+- **Kết nối mạng (Network/Proxy)**: Tùy chỉnh proxy cho các kết nối API dịch thuật.
 - **Gỡ lỗi (Debug)**: Bật/Tắt "Ghi log chi tiết (Verbose Logging)".
 
 ---
@@ -76,7 +90,7 @@ Các khóa dịch thuật cần thêm vào `vi-VN.json` và `en-US.json`:
 ```json
   "Title_Preferences": "Cấu hình Nâng cao",
   "Tab_General": "Chung",
-  "Tab_AiTranslation": "Dịch thuật AI",
+  "Tab_Translation": "Dịch thuật",
   "Tab_Appearance": "Giao diện",
   "Tab_Advanced": "Nâng cao",
   
@@ -84,6 +98,9 @@ Các khóa dịch thuật cần thêm vào `vi-VN.json` và `en-US.json`:
   "Pref_General_TrayIcon": "Thu nhỏ xuống khay hệ thống khi đóng",
   "Pref_General_Language": "Ngôn ngữ giao diện",
   
+  "Pref_Trans_Engine": "Engine Dịch",
+  "Pref_Trans_CloudAI": "AI Dịch",
+  "Pref_Trans_LocalAI": "Local AI",
   "Pref_AI_Model": "Mô hình AI",
   "Pref_AI_ApiKey": "API Key (Tùy chọn)",
   "Pref_AI_SystemPrompt": "Prompt Hệ thống (System Prompt)",
@@ -91,7 +108,8 @@ Các khóa dịch thuật cần thêm vào `vi-VN.json` và `en-US.json`:
   
   "Pref_Advanced_PipeName": "Tên luồng Named Pipe",
   "Pref_Advanced_LogDir": "Thư mục lưu nhật ký",
-  "Pref_Advanced_OpenDir": "Mở thư mục"
+  "Pref_Advanced_OpenDir": "Mở thư mục",
+  "Pref_Advanced_Network": "Kết nối mạng"
 ```
 
 ---
@@ -100,7 +118,7 @@ Các khóa dịch thuật cần thêm vào `vi-VN.json` và `en-US.json`:
 
 ```xml
 <Window xmlns="https://github.com/avaloniaui"
-        x:Class="m_mslc_overlay.Dialogs.PreferencesDialog"
+        x:Class="m_mslc_overlay.views.dialogs.PreferencesDialog"
         Title="{DynamicResource Title_Preferences}"
         Width="720" Height="480"
         WindowStartupLocation="CenterOwner"
@@ -109,9 +127,8 @@ Các khóa dịch thuật cần thêm vào `vi-VN.json` và `en-US.json`:
         <!-- Sidebar Navigation -->
         <Border Grid.Column="0" Background="#F3F3F3" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0">
             <ListBox x:Name="TabSelector" Background="Transparent" BorderThickness="0" Margin="0,8">
-                <!-- Styles for ListBoxItem to look like flat buttons -->
                 <ListBoxItem Content="{DynamicResource Tab_General}" />
-                <ListBoxItem Content="{DynamicResource Tab_AiTranslation}" />
+                <ListBoxItem Content="{DynamicResource Tab_Translation}" />
                 <ListBoxItem Content="{DynamicResource Tab_Appearance}" />
                 <ListBoxItem Content="{DynamicResource Tab_Advanced}" />
             </ListBox>
@@ -132,4 +149,4 @@ Các khóa dịch thuật cần thêm vào `vi-VN.json` và `en-US.json`:
 
 Dưới đây là thiết kế wireframe cho cửa sổ Cấu hình Nâng cao được xuất từ công cụ Pencil:
 
-![Preferences Dialog Layout](./preferences_dialog.png)
+![Preferences Dialog Redesign Layout](./preferences_redesign.png)
