@@ -4,8 +4,12 @@
         Title="Side Panel (Mockup)"
         Background="#1E1E1E"
         Topmost="True"
-        SystemDecorations="None">
-    <Grid>
+        MinWidth="400"
+        MinHeight="300"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
+    <Grid Background="Transparent" PointerPressed="Grid_PointerPressed">
         <TextBlock Text="Side Panel (Mockup)" 
                    Foreground="White" 
                    HorizontalAlignment="Center" 

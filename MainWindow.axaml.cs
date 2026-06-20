@@ -319,17 +319,17 @@ namespace m_mslc_overlay
             UpdateDynamicStrings();
         }
 
+        public enum PanelPosition { Left, Right, Top, Bottom }
+        public PanelPosition ConfiguredSidePanelPosition = PanelPosition.Right;
+
         private SidePanelWindow? _sidePanelWindow;
-        private WindowState _previousMainWindowState;
-        private double _previousWidth;
-        private double _previousHeight;
-        private Avalonia.PixelPoint _previousPosition;
 
         private void ToggleSidePanel_Click(object? sender, RoutedEventArgs e)
         {
             if (_sidePanelWindow != null && _sidePanelWindow.IsVisible)
             {
                 _sidePanelWindow.Close();
+                _sidePanelWindow = null;
             }
             else
             {
@@ -340,37 +340,64 @@ namespace m_mslc_overlay
                 double scaling = screen.Scaling;
                 double workAreaWidthDip = workArea.Width / scaling;
                 double workAreaHeightDip = workArea.Height / scaling;
-                
-                _previousMainWindowState = this.WindowState;
-                _previousWidth = double.IsNaN(this.Width) ? this.Bounds.Width : this.Width;
-                _previousHeight = double.IsNaN(this.Height) ? this.Bounds.Height : this.Height;
-                _previousPosition = this.Position;
 
                 _sidePanelWindow = new SidePanelWindow();
                 _sidePanelWindow.OnClosedAction = () => {
-                    if (_sidePanelWindow != null) {
-                        _sidePanelWindow = null;
-                        this.WindowState = _previousMainWindowState;
-                        if (this.WindowState == WindowState.Normal)
-                        {
-                            this.Position = _previousPosition;
-                            this.Width = _previousWidth;
-                            this.Height = _previousHeight;
-                        }
-                    }
+                    _sidePanelWindow = null;
                 };
 
                 if (this.WindowState == WindowState.FullScreen || this.WindowState == WindowState.Maximized)
                 {
                     this.WindowState = WindowState.Normal;
-                    this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
-                    this.Width = workAreaWidthDip / 2.0;
-                    this.Height = workAreaHeightDip;
+
+                    switch (ConfiguredSidePanelPosition)
+                    {
+                        case PanelPosition.Left:
+                            this.Position = new Avalonia.PixelPoint(workArea.X + workArea.Width / 2, workArea.Y);
+                            this.Width = workAreaWidthDip / 2.0;
+                            this.Height = workAreaHeightDip;
+                            break;
+                        case PanelPosition.Right:
+                            this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                            this.Width = workAreaWidthDip / 2.0;
+                            this.Height = workAreaHeightDip;
+                            break;
+                        case PanelPosition.Top:
+                            this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y + workArea.Height / 2);
+                            this.Width = workAreaWidthDip;
+                            this.Height = workAreaHeightDip / 2.0;
+                            break;
+                        case PanelPosition.Bottom:
+                            this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                            this.Width = workAreaWidthDip;
+                            this.Height = workAreaHeightDip / 2.0;
+                            break;
+                    }
                 }
 
-                _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X + workArea.Width / 2, workArea.Y);
-                _sidePanelWindow.Width = workAreaWidthDip / 2.0;
-                _sidePanelWindow.Height = workAreaHeightDip;
+                switch (ConfiguredSidePanelPosition)
+                {
+                    case PanelPosition.Left:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                        _sidePanelWindow.Width = workAreaWidthDip / 2.0;
+                        _sidePanelWindow.Height = workAreaHeightDip;
+                        break;
+                    case PanelPosition.Right:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X + workArea.Width / 2, workArea.Y);
+                        _sidePanelWindow.Width = workAreaWidthDip / 2.0;
+                        _sidePanelWindow.Height = workAreaHeightDip;
+                        break;
+                    case PanelPosition.Top:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                        _sidePanelWindow.Width = workAreaWidthDip;
+                        _sidePanelWindow.Height = workAreaHeightDip / 2.0;
+                        break;
+                    case PanelPosition.Bottom:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y + workArea.Height / 2);
+                        _sidePanelWindow.Width = workAreaWidthDip;
+                        _sidePanelWindow.Height = workAreaHeightDip / 2.0;
+                        break;
+                }
 
                 _sidePanelWindow.Show();
             }

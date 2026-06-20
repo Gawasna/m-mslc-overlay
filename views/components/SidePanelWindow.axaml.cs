@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using System;
 
 namespace m_mslc_overlay.views.components
@@ -11,6 +12,14 @@ namespace m_mslc_overlay.views.components
         {
             InitializeComponent();
             this.Closed += (s, e) => OnClosedAction?.Invoke();
+        }
+
+        private void Grid_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                this.BeginMoveDrag(e);
+            }
         }
     }
 }
