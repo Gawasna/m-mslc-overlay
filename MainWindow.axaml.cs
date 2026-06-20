@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -16,8 +17,19 @@ namespace m_mslc_overlay
         private LiveCaptionPipeService _pipeService;
         private InjectorService _injectorService;
         private AIService _aiService;
+        private SystemMonitor _sysMonitor;
+        private DispatcherTimer _resourceTimer;
 
         private string _translationBuffer = "";
+
+        private enum HookState
+        {
+            Waiting,
+            Detected,
+            Injected,
+            Failed
+        }
+        private HookState _currentHookState = HookState.Waiting;
 
         public MainWindow()
         {
@@ -27,15 +39,21 @@ namespace m_mslc_overlay
             _injectorService = new InjectorService();
             _aiService = new AIService();
             
+            _sysMonitor = new SystemMonitor();
+            _resourceTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _resourceTimer.Tick += OnResourceTimerTick;
+            _resourceTimer.Start();
+            
             _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
             TopicInput.TextChanged += (s, e) => {
                 _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
+                UpdateDynamicStrings();
             };
 
             // 1. Nhận luồng text thô partial (đang nhận dạng) từ Extractor
             _pipeService.OnPartialCaptionReceived += (txt) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    LiveRawText.Text = string.IsNullOrWhiteSpace(txt) ? "No active speech detected." : txt;
+                    LiveRawText.Text = string.IsNullOrWhiteSpace(txt) ? LanguageManager.GetString("Status_NoActiveSpeech") : txt;
 
                     // Đồng bộ hành vi Floating Overlay giống hệt LiveRawText (hiển thị partial thô trực tiếp đè lên câu cũ)
                     if (_currentOverlay != null && _currentOverlay.IsVisible)
@@ -51,7 +69,7 @@ namespace m_mslc_overlay
 
                 // Định dạng timestamp cho câu thô
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                string logLine = $"[{timestamp}] English: {txt}\n";
+                string logLine = $"[{timestamp}] {LanguageManager.GetString("Log_EnglishPrefix")}: {txt}\n";
 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     // In dữ liệu text thô đưa từ extractor lên cửa sổ chính
@@ -70,10 +88,17 @@ namespace m_mslc_overlay
                     }
                     else
                     {
-                        // Nếu tắt dịch thuật (Raw Mode), cập nhật câu final hoàn chỉnh trực tiếp lần cuối giống LiveRawText
+                        // Nếu tắt dịch thuật (Raw Mode), cập nhật câu final hoàn chỉnh
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
-                            _currentOverlay.SetImmediateText(txt);
+                            if (_currentOverlay.UseTypewriter)
+                            {
+                                _currentOverlay.EnqueueText(txt);
+                            }
+                            else
+                            {
+                                _currentOverlay.SetImmediateText(txt);
+                            }
                         }
                     }
                 });
@@ -100,7 +125,7 @@ namespace m_mslc_overlay
                 {
                     // In bản dịch tiếng Việt sang RawTextLog để dễ debug song song
                     string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                    string logLine = $"[{timestamp}] Vietnamese: {fullSentence}\n-----------------------------------\n";
+                    string logLine = $"[{timestamp}] {LanguageManager.GetString("Log_VietnamesePrefix")}: {fullSentence}\n-----------------------------------\n";
 
                     Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                         RawTextLog.Text += logLine;
@@ -122,6 +147,7 @@ namespace m_mslc_overlay
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     RawTextLog.Text += $"[{timestamp}] [SYSTEM] {statusMsg}\n";
                     LogScrollViewer.ScrollToEnd();
+                    UpdateDynamicStrings();
                 });
             };
 
@@ -131,16 +157,24 @@ namespace m_mslc_overlay
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     RawTextLog.Text += $"[{timestamp}] [ERROR] {errorMsg}\n";
                     LogScrollViewer.ScrollToEnd();
+                    UpdateDynamicStrings();
                 });
             };
 
             this.Closing += (s, e) => {
                 _hiderService.Dispose();
                 _pipeService.Dispose();
+                _resourceTimer.Stop();
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
             DetectTargetProcess();
+        }
+
+        private void OnResourceTimerTick(object? sender, EventArgs e)
+        {
+            var metrics = _sysMonitor.GetMetrics();
+            ResourceUsageText.Text = $"SYS: {metrics.sysCpu:F1}% CPU {metrics.sysRamMb:F0}MB | APP: {metrics.appCpu:F1}% CPU {metrics.appRamMb:F0}MB";
         }
 
         private void DetectTargetProcess()
@@ -148,15 +182,72 @@ namespace m_mslc_overlay
             uint pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
             if (pid != 0)
             {
-                TargetPidText.Text = $"PID: {pid}";
-                HookStatusDot.Fill = SolidColorBrush.Parse("#FFAA00");
-                HookStatusText.Text = "Detected";
+                _currentHookState = HookState.Detected;
             }
             else
             {
-                TargetPidText.Text = "PID: Not Running";
-                HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
-                HookStatusText.Text = "Waiting";
+                _currentHookState = HookState.Waiting;
+            }
+            UpdateDynamicStrings();
+        }
+
+        private void UpdateDynamicStrings()
+        {
+            uint pid = _hiderService.TargetProcessId;
+            if (pid == 0)
+            {
+                pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
+            }
+
+            if (pid != 0)
+            {
+                TargetPidText.Text = $"{LanguageManager.GetString("Status_PidPrefix")}{pid}";
+            }
+            else
+            {
+                TargetPidText.Text = LanguageManager.GetString("Status_PidNotRunning");
+            }
+
+            switch (_currentHookState)
+            {
+                case HookState.Waiting:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Waiting");
+                    break;
+                case HookState.Detected:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#FFAA00");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Detected");
+                    break;
+                case HookState.Injected:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#00FF88");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Injected");
+                    break;
+                case HookState.Failed:
+                    HookStatusDot.Fill = SolidColorBrush.Parse("#FF3333");
+                    HookStatusText.Text = LanguageManager.GetString("Status_Failed");
+                    break;
+            }
+
+            if (string.IsNullOrWhiteSpace(LiveRawText.Text) || 
+                LiveRawText.Text == "No active speech detected." || 
+                LiveRawText.Text == "Chưa phát hiện giọng nói hoạt động." || 
+                LiveRawText.Text.StartsWith("["))
+            {
+                LiveRawText.Text = LanguageManager.GetString("Status_NoActiveSpeech");
+            }
+
+            // Cập nhật thông tin AI Model & Topic
+            string topic = string.IsNullOrWhiteSpace(TopicInput.Text) ? "None" : TopicInput.Text;
+            StatusBarInfoText.Text = string.Format(LanguageManager.GetString("Status_InfoFormat"), "Gemini 1.5 Pro", topic);
+
+            // Cập nhật trạng thái vận hành chính
+            if (_pipeService.IsRunning)
+            {
+                StatusBarMainText.Text = LanguageManager.GetString("Status_PipeMonitoring");
+            }
+            else
+            {
+                StatusBarMainText.Text = LanguageManager.GetString("Status_Ready");
             }
         }
 
@@ -203,11 +294,25 @@ namespace m_mslc_overlay
             }
         }
 
+        public AIService AIService => _aiService;
+
+        public bool IsTranslationEnabled
+        {
+            get => TranslateToggle.IsChecked ?? false;
+            set => Avalonia.Threading.Dispatcher.UIThread.Post(() => TranslateToggle.IsChecked = value);
+        }
+
+        public string ContextTopic
+        {
+            get => TopicInput.Text ?? "Game/Phim";
+            set => Avalonia.Threading.Dispatcher.UIThread.Post(() => TopicInput.Text = value);
+        }
+
         private void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_currentOverlay == null || !_currentOverlay.IsVisible)
             {
-                _currentOverlay = new FloatingTextOverlay();
+                _currentOverlay = new FloatingTextOverlay(this);
                 _currentOverlay.Show();
             }
             else
@@ -231,6 +336,110 @@ namespace m_mslc_overlay
             else
             {
                 _debugWidget.Activate();
+            }
+        }
+
+        private void PreferencesMenuItem_Click(object? sender, RoutedEventArgs e)
+        {
+            var preferencesDialog = new m_mslc_overlay.views.dialogs.PreferencesDialog();
+            preferencesDialog.ShowDialog(this);
+        }
+
+        private void ChangeLanguage_Vi_Click(object? sender, RoutedEventArgs e)
+        {
+            LanguageManager.LoadLanguage("vi-VN");
+            UpdateDynamicStrings();
+        }
+
+        private void ChangeLanguage_En_Click(object? sender, RoutedEventArgs e)
+        {
+            LanguageManager.LoadLanguage("en-US");
+            UpdateDynamicStrings();
+        }
+
+        public enum PanelPosition { Left, Right, Top, Bottom }
+        public PanelPosition ConfiguredSidePanelPosition = PanelPosition.Right;
+        public bool ConfiguredSidePanelTopmost = false;
+
+        private SidePanelWindow? _sidePanelWindow;
+
+        private void ToggleSidePanel_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_sidePanelWindow != null && _sidePanelWindow.IsVisible)
+            {
+                _sidePanelWindow.Close();
+                _sidePanelWindow = null;
+            }
+            else
+            {
+                var screen = this.Screens.ScreenFromWindow(this) ?? this.Screens.Primary;
+                if (screen == null) return;
+
+                var workArea = screen.WorkingArea;
+                double scaling = screen.Scaling;
+                double workAreaWidthDip = workArea.Width / scaling;
+                double workAreaHeightDip = workArea.Height / scaling;
+
+                _sidePanelWindow = new SidePanelWindow();
+                _sidePanelWindow.Topmost = ConfiguredSidePanelTopmost;
+                _sidePanelWindow.OnClosedAction = () => {
+                    _sidePanelWindow = null;
+                };
+
+                if (this.WindowState == WindowState.FullScreen || this.WindowState == WindowState.Maximized)
+                {
+                    this.WindowState = WindowState.Normal;
+
+                    switch (ConfiguredSidePanelPosition)
+                    {
+                        case PanelPosition.Left:
+                            this.Position = new Avalonia.PixelPoint(workArea.X + workArea.Width / 2, workArea.Y);
+                            this.Width = workAreaWidthDip / 2.0;
+                            this.Height = workAreaHeightDip;
+                            break;
+                        case PanelPosition.Right:
+                            this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                            this.Width = workAreaWidthDip / 2.0;
+                            this.Height = workAreaHeightDip;
+                            break;
+                        case PanelPosition.Top:
+                            this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y + workArea.Height / 2);
+                            this.Width = workAreaWidthDip;
+                            this.Height = workAreaHeightDip / 2.0;
+                            break;
+                        case PanelPosition.Bottom:
+                            this.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                            this.Width = workAreaWidthDip;
+                            this.Height = workAreaHeightDip / 2.0;
+                            break;
+                    }
+                }
+
+                switch (ConfiguredSidePanelPosition)
+                {
+                    case PanelPosition.Left:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                        _sidePanelWindow.Width = workAreaWidthDip / 2.0;
+                        _sidePanelWindow.Height = workAreaHeightDip;
+                        break;
+                    case PanelPosition.Right:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X + workArea.Width / 2, workArea.Y);
+                        _sidePanelWindow.Width = workAreaWidthDip / 2.0;
+                        _sidePanelWindow.Height = workAreaHeightDip;
+                        break;
+                    case PanelPosition.Top:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y);
+                        _sidePanelWindow.Width = workAreaWidthDip;
+                        _sidePanelWindow.Height = workAreaHeightDip / 2.0;
+                        break;
+                    case PanelPosition.Bottom:
+                        _sidePanelWindow.Position = new Avalonia.PixelPoint(workArea.X, workArea.Y + workArea.Height / 2);
+                        _sidePanelWindow.Width = workAreaWidthDip;
+                        _sidePanelWindow.Height = workAreaHeightDip / 2.0;
+                        break;
+                }
+
+                _sidePanelWindow.Show();
             }
         }
     }

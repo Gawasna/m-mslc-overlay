@@ -1,164 +1,247 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:components="clr-namespace:m_mslc_overlay.views.components"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
         x:Class="m_mslc_overlay.MainWindow"
-        Title="MS-LIVE-CAPTION CONTROL CENTER"
-        Width="780" Height="540"
-        Background="#0B0B0E"
-        FontFamily="Inter, Arial, sans-serif"
+        Title="{DynamicResource Title_ControlCenter}"
+        Background="{StaticResource BgWindowBrush}"
+        MinWidth="400" MinHeight="300"
+        Width="1024" Height="768"
         WindowStartupLocation="CenterScreen">
     
-    <Window.Styles>
-        <Style Selector="TextBlock.Mono">
-            <Setter Property="FontFamily" Value="Consolas, JetBrains Mono, monospace"/>
-        </Style>
-        <Style Selector="Button">
-            <Setter Property="Background" Value="#1C1C24"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#2E2E3A"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,8"/>
-        </Style>
-        <Style Selector="Button:hover">
-            <Setter Property="Background" Value="#2A2A35"/>
-            <Setter Property="BorderBrush" Value="#00E5FF"/>
-        </Style>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="#141419"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#2E2E3A"/>
-            <Setter Property="CornerRadius" Value="6"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="BorderBrush" Value="#00E5FF"/>
-        </Style>
-        <Style Selector="ToggleSwitch">
-            <Setter Property="Foreground" Value="#AAAAAA"/>
-        </Style>
-    </Window.Styles>
+    <Window.Resources>
+        <!-- Zap/Lightning icon for DLL Injection -->
+        <StreamGeometry x:Key="IconZap">M13 2L3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
+        <!-- Play icon for starting Pipe / Opening Overlay -->
+        <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
+    </Window.Resources>
 
-    <Grid RowDefinitions="Auto, *">
-        <!-- Header Bar -->
-        <Border Grid.Row="0" Background="#141419" BorderBrush="#2E2E3A" BorderThickness="0,0,0,1" Padding="20,16">
-            <Grid ColumnDefinitions="*, Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="MS-LIVE-CAPTION" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Border Background="#1A0D00" BorderBrush="#FF8800" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                        <TextBlock Text="CONTROL CENTER" Foreground="#FF8800" FontSize="10" FontWeight="Bold"/>
-                    </Border>
+
+
+    <Grid RowDefinitions="Auto, Auto, *, Auto">
+        
+        <!-- 1. Primary Toolbar (Menu Bar) -->
+        <Border Grid.Row="0" 
+                Height="{StaticResource PrimaryToolbarHeight}" 
+                Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}" 
+                BorderThickness="{StaticResource BorderThicknessBottomOnly}"
+                Padding="8,0">
+            <Menu VerticalAlignment="Center">
+                <MenuItem Header="{DynamicResource Menu_File}">
+                    <MenuItem Header="{DynamicResource Menu_InjectTargetDll}">
+                        <MenuItem Header="{DynamicResource Menu_ByActivePid}" />
+                        <MenuItem Header="{DynamicResource Menu_ByProcessName}" />
+                        <MenuItem Header="{DynamicResource Menu_OpenInjectionLog}" />
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="{DynamicResource Menu_Exit}" InputGesture="Alt+F4" />
+                </MenuItem>
+                <MenuItem Header="{DynamicResource Menu_Edit}">
+                    <MenuItem Header="{DynamicResource Menu_CopySelectedLog}" InputGesture="Ctrl+C" />
+                    <MenuItem Header="{DynamicResource Menu_ClearHistoryLog}" InputGesture="Ctrl+L" />
+                    <Separator />
+                    <MenuItem Header="{DynamicResource Menu_Preferences}" InputGesture="Ctrl+," Click="PreferencesMenuItem_Click" />
+                </MenuItem>
+                <MenuItem Header="{DynamicResource Menu_View}">
+                    <MenuItem Header="{DynamicResource Menu_ToggleFloatingOverlay}" InputGesture="F5" />
+                    <MenuItem Header="{DynamicResource Menu_ToggleDebugWidget}" InputGesture="F6" />
+                    <MenuItem Header="Toggle Side Panel (Mockup)" InputGesture="F7" Click="ToggleSidePanel_Click" />
+                    <Separator />
+                    <MenuItem Header="{DynamicResource Menu_KeepOnTop}" />
+                    <Separator />
+                    <MenuItem Header="{DynamicResource Menu_Language}">
+                        <MenuItem Header="Tiếng Việt (vi-VN)" Click="ChangeLanguage_Vi_Click" />
+                        <MenuItem Header="English (en-US)" Click="ChangeLanguage_En_Click" />
+                    </MenuItem>
+                </MenuItem>
+                <MenuItem Header="{DynamicResource Menu_Tools}">
+                    <MenuItem Header="{DynamicResource Menu_NamedPipeMonitor}" />
+                    <MenuItem Header="{DynamicResource Menu_ActiveExtractorCheckout}" />
+                    <MenuItem Header="{DynamicResource Menu_SystemDiagnostics}" />
+                </MenuItem>
+                <MenuItem Header="{DynamicResource Menu_Help}">
+                    <MenuItem Header="{DynamicResource Menu_ViewDocumentation}" InputGesture="F1" />
+                    <MenuItem Header="{DynamicResource Menu_CheckForUpdates}" />
+                    <MenuItem Header="{DynamicResource Menu_AboutControlCenter}" />
+                </MenuItem>
+            </Menu>
+        </Border>
+
+        <!-- 2. Secondary Toolbar (Quick Actions) -->
+        <Border Grid.Row="1" 
+                Height="{StaticResource SecondaryToolbarHeight}" 
+                Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}" 
+                BorderThickness="{StaticResource BorderThicknessBottomOnly}"
+                Padding="8,0">
+            <DockPanel LastChildFill="False">
+                <!-- Left: Quick Action Buttons (Icon only, no corner radius) -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <!-- Inject DLL Button -->
+                    <Button x:Name="InjectBtn" 
+                            Click="InjectBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="PrimaryBtn"
+                            ToolTip.Tip="{DynamicResource Tooltip_InjectDll}">
+                        <PathIcon Data="{StaticResource IconZap}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
+                    </Button>
+                    <!-- Open Overlay Button -->
+                    <Button Click="OpenOverlayBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="{DynamicResource Tooltip_OpenOverlay}">
+                        <PathIcon Data="{StaticResource IconPlay}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Open Debug / Settings Button -->
+                    <Button Click="OpenDebugWidgetBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="{DynamicResource Tooltip_OpenDebugSettings}">
+                        <PathIcon Data="{StaticResource IconSetting}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Ellipse x:Name="HookStatusDot" Width="8" Height="8" Fill="#FF3333" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="HookStatusText" Text="Waiting" Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <!-- 3. Content Area (Form & Logs) -->
+        <Border Grid.Row="2" Padding="0">
+            <Grid ColumnDefinitions="280, *">
+            <!-- Left Side: Config Panel -->
+            <Border Grid.Column="0" 
+                    Background="#FFFFFF" 
+                    BorderBrush="#E5E5E5" 
+                    BorderThickness="1" 
+                    Padding="16">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="{DynamicResource Header_TranslationSettings}" FontSize="14" FontWeight="Bold" Foreground="#111111"/>
+                    
+                    <!-- Context Topic input -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{DynamicResource Label_ContextTopic}" FontSize="11" Foreground="#666666"/>
+                        <TextBox x:Name="TopicInput" Watermark="{DynamicResource Watermark_TopicInput}" Text="Game/Phim" Height="32"/>
+                    </StackPanel>
+                    
+                    <!-- Translation Switch -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{DynamicResource Label_AiTranslation}" FontSize="11" Foreground="#666666"/>
+                        <ToggleSwitch x:Name="TranslateToggle" 
+                                      OnContent="{DynamicResource Label_Enabled}" 
+                                      OffContent="{DynamicResource Label_Disabled}" 
+                                      IsChecked="True"/>
+                    </StackPanel>
+                    
+                    <TextBlock Text="{DynamicResource Label_HowToUse}" 
+                               FontSize="11" 
+                               Foreground="#666666" 
+                               TextWrapping="Wrap" 
+                               Margin="0,16,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Right Side: Logs Area -->
+            <Grid Grid.Column="1" RowDefinitions="Auto, *">
+                <!-- Live Subtitle Display -->
+                <Border Grid.Row="0" 
+                        Background="#FFFFFF" 
+                        BorderBrush="#E5E5E5" 
+                        BorderThickness="1" 
+                        Padding="16">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{DynamicResource Header_LiveRawRecognition}" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
+                        <TextBlock x:Name="LiveRawText" 
+                                   Text="{DynamicResource Status_NoActiveSpeech}" 
+                                   FontSize="16" 
+                                   Foreground="#000000" 
+                                   TextWrapping="Wrap" 
+                                   Height="60"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- History Log display -->
+                <Border Grid.Row="1" 
+                        Background="#FFFFFF" 
+                        BorderBrush="#E5E5E5" 
+                        BorderThickness="1" 
+                        Padding="16">
+                    <Grid RowDefinitions="Auto, *">
+                        <TextBlock Grid.Row="0" Text="{DynamicResource Header_SessionHistory}" FontSize="12" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,8"/>
+                        <ScrollViewer x:Name="LogScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <TextBox x:Name="RawTextLog" 
+                                     IsReadOnly="True" 
+                                     TextWrapping="Wrap" 
+                                     AcceptsReturn="True" 
+                                     Background="Transparent" 
+                                     BorderThickness="0" 
+                                     Padding="0"
+                                     FontSize="12"
+                                     FontFamily="Consolas,Monospace"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 4. Downbar (Status Bar) -->
+        <Border Grid.Row="3" 
+                Height="24" 
+                Background="#F3F3F3" 
+                BorderBrush="#E5E5E5" 
+                BorderThickness="0,1,0,0"
+                Padding="12,0">
+            <Grid ColumnDefinitions="*, Auto, *">
+                <!-- Trái: Trạng thái vận hành -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                    <TextBlock x:Name="StatusBarMainText" 
+                               Text="{DynamicResource Status_Ready}" 
+                               Foreground="#666666" 
+                               FontSize="11"/>
+                </StackPanel>
+
+                <!-- Giữa: Thông tin mô hình AI -->
+                <TextBlock Grid.Column="1" 
+                           x:Name="StatusBarInfoText"
+                           Text="AI Model: Gemini 1.5 Pro | Topic: Game/Phim" 
+                           Foreground="#888888" 
+                           FontSize="11" 
+                           VerticalAlignment="Center"/>
+
+                <!-- Phải: Các chỉ báo kỹ thuật -->
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal" 
+                            HorizontalAlignment="Right" 
+                            VerticalAlignment="Center" 
+                            Spacing="16">
+                    <!-- Resource Usage -->
+                    <TextBlock x:Name="ResourceUsageText" 
+                               Text="SYS: 0% CPU 0MB | APP: 0% CPU 0MB" 
+                               Foreground="#888888" 
+                               FontSize="11" 
+                               VerticalAlignment="Center"/>
+                               
+                    <!-- Target PID -->
+                    <TextBlock x:Name="TargetPidText" 
+                               Text="{DynamicResource Status_PidNotRunning}" 
+                               Foreground="#666666" 
+                               FontSize="11"/>
+                    
+                    <!-- Hook Status -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse x:Name="HookStatusDot" 
+                                 Width="8" Height="8" 
+                                 Fill="#CBCCC9" 
+                                 VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HookStatusText" 
+                                   Text="{DynamicResource Status_Disconnected}" 
+                                   Foreground="#666666" 
+                                   FontSize="11" 
+                                   VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Main Body -->
-        <Grid Grid.Row="1" ColumnDefinitions="320, *">
-            <!-- Left Panel: Controls -->
-            <Border Grid.Column="0" Background="#0E0E12" BorderBrush="#2E2E3A" BorderThickness="0,0,1,0" Padding="20">
-                <Grid RowDefinitions="*, Auto">
-                    <StackPanel Grid.Row="0" Spacing="20">
-                        <!-- Target Process Info -->
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="TARGET PROCESS" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            <Border Background="#141419" BorderBrush="#2E2E3A" BorderThickness="1" CornerRadius="6" Padding="12,10">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <StackPanel Grid.Column="0" Spacing="2">
-                                        <TextBlock Text="LiveCaptions.exe" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
-                                        <TextBlock x:Name="TargetPidText" Text="PID: Not Running" Foreground="#888888" FontSize="11" Classes="Mono"/>
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="#0C1F1F" BorderBrush="#00E5FF" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                        <TextBlock Text="UWP" Foreground="#00E5FF" FontSize="10" FontWeight="Bold"/>
-                                    </Border>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-
-                        <!-- Actions Grid -->
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="ACTIVATION" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            <Button x:Name="InjectBtn" Click="InjectBtn_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#007BFF" BorderBrush="#0056B3" Height="38">
-                                <TextBlock Text="Inject DLL (Agent)" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </Button>
-                        </StackPanel>
-
-                        <!-- Configurations -->
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="CONFIGURATION" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            
-                            <!-- Topic Input -->
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="AI Context Topic" Foreground="#888888" FontSize="12"/>
-                                <TextBox x:Name="TopicInput" Text="Game/Phim" Watermark="e.g. Game/Phim, Tech, News..."/>
-                            </StackPanel>
-
-                            <!-- Translation Mode Toggle -->
-                            <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
-                                <StackPanel Grid.Column="0" Spacing="2">
-                                    <TextBlock Text="AI Translation Mode" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Use Ollama Local LLM" Foreground="#666666" FontSize="11"/>
-                                </StackPanel>
-                                <ToggleSwitch x:Name="TranslateToggle" Grid.Column="1" IsChecked="True" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center"/>
-                            </Grid>
-                        </StackPanel>
-
-                        <!-- UI Display Controls -->
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="DISPLAY WINDOWS" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"/>
-                            <Button Content="Open Floating Overlay 🗗" Click="OpenOverlayBtn_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                            <Button Content="Open Debug Controller ⚙" Click="OpenDebugWidgetBtn_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <!-- App Info Footer -->
-                    <StackPanel Grid.Row="1" Spacing="2">
-                        <TextBlock Text="MSLC Integration Client v2.0" Foreground="#444444" FontSize="11"/>
-                        <TextBlock Text="Status: Connected to Pipe Server" Foreground="#559955" FontSize="10" Classes="Mono"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- Right Panel: Real-time Live Log -->
-            <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto, Auto" Margin="20">
-                <!-- Log Header -->
-                <TextBlock Grid.Row="0" Text="REAL-TIME RAW CAPTIONS FROM CORE" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5" Margin="0,0,0,10"/>
-                
-                <!-- Log Content -->
-                <Border Grid.Row="1" Background="#070709" BorderBrush="#1C1C24" BorderThickness="1" CornerRadius="6" Padding="12">
-                    <ScrollViewer x:Name="LogScrollViewer">
-                        <TextBox x:Name="RawTextLog" 
-                                 Background="Transparent" 
-                                 Foreground="#00FF88" 
-                                 BorderThickness="0" 
-                                 TextWrapping="Wrap" 
-                                 AcceptsReturn="True" 
-                                 IsReadOnly="True"
-                                 FontSize="13" 
-                                 Classes="Mono"
-                                 Watermark="[Waiting for English captions from Agent.dll...]"/>
-                    </ScrollViewer>
-                </Border>
-
-                <!-- Current Partial Word Streaming -->
-                <TextBlock Grid.Row="2" Text="CURRENT SPEECH RECOGNIZING (PARTIAL):" Foreground="#666666" FontSize="10" FontWeight="Bold" LetterSpacing="0.5" Margin="0,15,0,5"/>
-                <Border Grid.Row="3" Background="#141419" BorderBrush="#2E2E3A" BorderThickness="1" CornerRadius="6" Padding="12" MinHeight="50">
-                    <TextBlock x:Name="LiveRawText" 
-                               Text="No active speech detected." 
-                               Foreground="#00E5FF" 
-                               FontSize="13" 
-                               FontWeight="Medium" 
-                               TextWrapping="Wrap" 
-                               VerticalAlignment="Center"/>
-                </Border>
-            </Grid>
-        </Grid>
     </Grid>
 </Window>

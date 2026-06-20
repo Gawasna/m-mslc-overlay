@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Media;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -12,10 +14,29 @@ namespace m_mslc_overlay.views.components;
 
 public partial class FloatingTextOverlay : Window
 {
-    private const string LongSampleText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Dự án đang test tính năng tự động giãn chữ và gõ phím theo phong cách typewriter. Nếu bạn kéo các viền, giao diện vẫn sẽ tự do thay đổi kích thước ngang dọc và tự động dồn (wrap) chữ cho phù hợp không gian mà hoàn toàn uyển chuyển! Đây là dòng giả lập dữ liệu dài từ bản dịch voice capture...";
+    public static readonly StyledProperty<double> OverlayFontSizeProperty =
+        AvaloniaProperty.Register<FloatingTextOverlay, double>(nameof(OverlayFontSize), defaultValue: 20.0);
 
+    public double OverlayFontSize
+    {
+        get => GetValue(OverlayFontSizeProperty);
+        set => SetValue(OverlayFontSizeProperty, value);
+    }
+
+    public static readonly StyledProperty<IBrush> OverlayBackgroundProperty =
+        AvaloniaProperty.Register<FloatingTextOverlay, IBrush>(nameof(OverlayBackground), defaultValue: SolidColorBrush.Parse("#CC202020"));
+
+    public IBrush OverlayBackground
+    {
+        get => GetValue(OverlayBackgroundProperty);
+        set => SetValue(OverlayBackgroundProperty, value);
+    }
+
+    private readonly MainWindow? _mainWindow;
     private CancellationTokenSource? _typewriterCts;
     private readonly AppContainerHiderService _hiderService = new AppContainerHiderService();
+
+    public bool UseTypewriter { get; set; } = true;
 
     public FloatingTextOverlay()
     {
@@ -36,6 +57,11 @@ public partial class FloatingTextOverlay : Window
             _hiderService.RestoreTargetApp();
             _hiderService.Dispose();
         };
+    }
+
+    public FloatingTextOverlay(MainWindow mainWindow) : this()
+    {
+        _mainWindow = mainWindow;
     }
 
     public void ReHideTargetApp()
@@ -72,9 +98,119 @@ public partial class FloatingTextOverlay : Window
         this.Close();
     }
 
-    private void Replay_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void ResetPosition_Click(object? sender, RoutedEventArgs e)
+    {
+        var screen = Screens.Primary;
+        if (screen != null)
+        {
+            var x = (screen.Bounds.Width - (int)this.Width) / 2;
+            var y = (screen.Bounds.Height - (int)this.Height) / 2;
+            this.Position = new Avalonia.PixelPoint(x, y);
+        }
+    }
+
+    private void SetLanguage_Vietnamese_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.AIService.TargetLanguage = "Tiếng Việt";
+            _mainWindow.IsTranslationEnabled = true;
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangVietnamese");
+        }
+    }
+
+    private void SetLanguage_Japanese_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.AIService.TargetLanguage = "Tiếng Nhật";
+            _mainWindow.IsTranslationEnabled = true;
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangJapanese");
+        }
+    }
+
+    private void SetLanguage_Chinese_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.AIService.TargetLanguage = "Tiếng Trung";
+            _mainWindow.IsTranslationEnabled = true;
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangChinese");
+        }
+    }
+
+    private void SetLanguage_English_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mainWindow != null)
+        {
+            _mainWindow.IsTranslationEnabled = false;
+            DisplayTextBlock.Text = LanguageManager.GetString("Msg_LangEnglish");
+        }
+    }
+
+    private void SetFontSize_Small_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayFontSize = 16.0;
+    }
+
+    private void SetFontSize_Medium_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayFontSize = 20.0;
+    }
+
+    private void SetFontSize_Large_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayFontSize = 24.0;
+    }
+
+    private void SetFontSize_ExtraLarge_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayFontSize = 28.0;
+    }
+
+    private void SetBgOpacity_100_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayBackground = SolidColorBrush.Parse("#FF202020");
+    }
+
+    private void SetBgOpacity_80_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayBackground = SolidColorBrush.Parse("#CC202020");
+    }
+
+    private void SetBgOpacity_60_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayBackground = SolidColorBrush.Parse("#99202020");
+    }
+
+    private void SetBgOpacity_40_Click(object? sender, RoutedEventArgs e)
+    {
+        OverlayBackground = SolidColorBrush.Parse("#66202020");
+    }
+
+    private void SetEffect_Typewriter_Click(object? sender, RoutedEventArgs e)
+    {
+        UseTypewriter = true;
+        DisplayTextBlock.Text = LanguageManager.GetString("Msg_EffectTypewriter");
+    }
+
+    private void SetEffect_Instant_Click(object? sender, RoutedEventArgs e)
+    {
+        UseTypewriter = false;
+        DisplayTextBlock.Text = LanguageManager.GetString("Msg_EffectInstant");
+    }
+
+    private void TestTypewriter_Click(object? sender, RoutedEventArgs e)
     {
         DisplayTextBlock.Text = "";
+        while (_sentenceQueue.TryDequeue(out _)) { }
+        StartTypewriterPump();
+        EnqueueText(LanguageManager.GetString("Msg_TestTypewriterSentence"));
+    }
+
+    private void Help_Click(object? sender, RoutedEventArgs e)
+    {
+        DisplayTextBlock.Text = LanguageManager.GetString("Msg_HelpText");
     }
 
     private System.Collections.Concurrent.ConcurrentQueue<string> _sentenceQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();

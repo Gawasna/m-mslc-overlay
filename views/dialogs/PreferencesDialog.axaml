@@ -1,0 +1,118 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.dialogs.PreferencesDialog"
+        Title="{DynamicResource Title_Preferences}"
+        Width="720" Height="480"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F9F9F9">
+    <Grid ColumnDefinitions="200, *">
+        
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0" Background="#F3F3F3" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0">
+            <ListBox x:Name="TabSelector" Background="Transparent" BorderThickness="0" Margin="0,8" SelectionChanged="TabSelector_SelectionChanged">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="12,8"/>
+                        <Setter Property="Margin" Value="8,2"/>
+                        <Setter Property="CornerRadius" Value="4"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                        <Setter Property="Background" Value="#E5E5E5"/>
+                        <Setter Property="Foreground" Value="#111111"/>
+                    </Style>
+                </ListBox.Styles>
+                <ListBoxItem Content="{DynamicResource Tab_General}" IsSelected="True" />
+                <ListBoxItem Content="{DynamicResource Tab_AiTranslation}" />
+                <ListBoxItem Content="{DynamicResource Tab_Appearance}" />
+                <ListBoxItem Content="{DynamicResource Tab_Advanced}" />
+            </ListBox>
+        </Border>
+        
+        <!-- Content Area -->
+        <Border Grid.Column="1" Background="#FFFFFF" Padding="24">
+            <Grid RowDefinitions="*, Auto">
+                
+                <!-- Tab contents wrapper -->
+                <Panel Grid.Row="0">
+                    
+                    <!-- General Tab -->
+                    <StackPanel x:Name="TabGeneral" IsVisible="True" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_General}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <StackPanel Spacing="16">
+                            <CheckBox x:Name="StartupCheck" Content="{DynamicResource Pref_General_Startup}" IsChecked="False"/>
+                            <CheckBox x:Name="TrayIconCheck" Content="{DynamicResource Pref_General_TrayIcon}" IsChecked="True"/>
+                            <CheckBox x:Name="CheckUpdatesCheck" Content="{DynamicResource Pref_General_CheckUpdates}" IsChecked="True"/>
+                            <StackPanel Spacing="8" Margin="0,8,0,0">
+                                <TextBlock Text="{DynamicResource Pref_General_Language}" FontSize="12" Foreground="#666666"/>
+                                <ComboBox x:Name="LanguageCombo" Width="240" SelectedIndex="0">
+                                    <ComboBoxItem Content="Tiếng Việt (vi-VN)"/>
+                                    <ComboBoxItem Content="English (en-US)"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- AI Translation Tab -->
+                    <StackPanel x:Name="TabAI" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_AiTranslation}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{DynamicResource Pref_AI_Model}" FontSize="12" Foreground="#666666"/>
+                                <ComboBox x:Name="AiModelCombo" Width="240" SelectedIndex="0">
+                                    <ComboBoxItem Content="Gemini 1.5 Pro"/>
+                                    <ComboBoxItem Content="Gemini 1.5 Flash"/>
+                                    <ComboBoxItem Content="Claude 3 Haiku"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{DynamicResource Pref_AI_ApiKey}" FontSize="12" Foreground="#666666"/>
+                                <TextBox x:Name="ApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="sk-proj-..."/>
+                                <Button Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{DynamicResource Pref_AI_SystemPrompt}" FontSize="12" Foreground="#666666"/>
+                                <TextBox x:Name="SystemPromptBox" Height="100" AcceptsReturn="True" TextWrapping="Wrap" Watermark="You are a helpful translator..."/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Appearance Tab -->
+                    <StackPanel x:Name="TabAppearance" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_Appearance}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <!-- Mock content for Appearance -->
+                        <TextBlock Text="Cấu hình giao diện sẽ được bổ sung sau." Foreground="#666666"/>
+                    </StackPanel>
+                    
+                    <!-- Advanced Tab -->
+                    <StackPanel x:Name="TabAdvanced" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_Advanced}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{DynamicResource Pref_Advanced_PipeName}" FontSize="12" Foreground="#666666"/>
+                                <TextBox x:Name="PipeNameBox" Width="240" HorizontalAlignment="Left" Text="MSLCCaptionPipe"/>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{DynamicResource Pref_Advanced_LogDir}" FontSize="12" Foreground="#666666"/>
+                                <Grid ColumnDefinitions="*, Auto" Width="400" HorizontalAlignment="Left">
+                                    <TextBox Grid.Column="0" Text="./logs/" IsReadOnly="True" Margin="0,0,8,0"/>
+                                    <Button Grid.Column="1" Content="{DynamicResource Pref_Advanced_OpenDir}"/>
+                                </Grid>
+                            </StackPanel>
+                            <CheckBox x:Name="VerboseLogCheck" Content="Ghi log chi tiết (Verbose Logging)" IsChecked="False" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                    
+                </Panel>
+                
+                <!-- Action Buttons -->
+                <Grid Grid.Row="1" ColumnDefinitions="Auto, *, Auto" Margin="0,24,0,0">
+                    <Button Grid.Column="0" Content="{DynamicResource Pref_Action_Reset}" Click="ResetBtn_Click" Classes="SecondaryBtn" Background="#F3F3F3" Padding="16,8"/>
+                    <Button Grid.Column="2" Content="{DynamicResource Pref_Action_Close}" Click="CloseBtn_Click" Background="#111111" Foreground="#FFFFFF" Padding="24,8"/>
+                </Grid>
+                
+            </Grid>
+        </Border>
+        
+    </Grid>
+</Window>

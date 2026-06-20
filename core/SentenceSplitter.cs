@@ -10,7 +10,7 @@ namespace m_mslc_overlay.core
         private int _confirmedLen = 0;
 
         // time-gated final
-        private string _pendingFinal = null;
+        private string? _pendingFinal = null;
         private DateTime _pendingFinalTime = DateTime.MinValue;
 
         // dedup
