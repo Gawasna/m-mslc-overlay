@@ -40,12 +40,12 @@
                     <StackPanel x:Name="TabGeneral" IsVisible="True" Spacing="24">
                         <TextBlock Text="{DynamicResource Tab_General}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
                         <StackPanel Spacing="16">
-                            <CheckBox Content="{DynamicResource Pref_General_Startup}" IsChecked="False"/>
-                            <CheckBox Content="{DynamicResource Pref_General_TrayIcon}" IsChecked="True"/>
-                            <CheckBox Content="{DynamicResource Pref_General_CheckUpdates}" IsChecked="True"/>
+                            <CheckBox x:Name="StartupCheck" Content="{DynamicResource Pref_General_Startup}" IsChecked="False"/>
+                            <CheckBox x:Name="TrayIconCheck" Content="{DynamicResource Pref_General_TrayIcon}" IsChecked="True"/>
+                            <CheckBox x:Name="CheckUpdatesCheck" Content="{DynamicResource Pref_General_CheckUpdates}" IsChecked="True"/>
                             <StackPanel Spacing="8" Margin="0,8,0,0">
                                 <TextBlock Text="{DynamicResource Pref_General_Language}" FontSize="12" Foreground="#666666"/>
-                                <ComboBox Width="240" SelectedIndex="0">
+                                <ComboBox x:Name="LanguageCombo" Width="240" SelectedIndex="0">
                                     <ComboBoxItem Content="Tiếng Việt (vi-VN)"/>
                                     <ComboBoxItem Content="English (en-US)"/>
                                 </ComboBox>
@@ -59,7 +59,7 @@
                         <StackPanel Spacing="16">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="{DynamicResource Pref_AI_Model}" FontSize="12" Foreground="#666666"/>
-                                <ComboBox Width="240" SelectedIndex="0">
+                                <ComboBox x:Name="AiModelCombo" Width="240" SelectedIndex="0">
                                     <ComboBoxItem Content="Gemini 1.5 Pro"/>
                                     <ComboBoxItem Content="Gemini 1.5 Flash"/>
                                     <ComboBoxItem Content="Claude 3 Haiku"/>
@@ -67,12 +67,12 @@
                             </StackPanel>
                             <StackPanel Spacing="8">
                                 <TextBlock Text="{DynamicResource Pref_AI_ApiKey}" FontSize="12" Foreground="#666666"/>
-                                <TextBox Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="sk-proj-..."/>
+                                <TextBox x:Name="ApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="sk-proj-..."/>
                                 <Button Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Spacing="8">
                                 <TextBlock Text="{DynamicResource Pref_AI_SystemPrompt}" FontSize="12" Foreground="#666666"/>
-                                <TextBox Height="100" AcceptsReturn="True" TextWrapping="Wrap" Watermark="You are a helpful translator..."/>
+                                <TextBox x:Name="SystemPromptBox" Height="100" AcceptsReturn="True" TextWrapping="Wrap" Watermark="You are a helpful translator..."/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -90,7 +90,7 @@
                         <StackPanel Spacing="16">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="{DynamicResource Pref_Advanced_PipeName}" FontSize="12" Foreground="#666666"/>
-                                <TextBox Width="240" HorizontalAlignment="Left" Text="MSLCCaptionPipe"/>
+                                <TextBox x:Name="PipeNameBox" Width="240" HorizontalAlignment="Left" Text="MSLCCaptionPipe"/>
                             </StackPanel>
                             <StackPanel Spacing="8">
                                 <TextBlock Text="{DynamicResource Pref_Advanced_LogDir}" FontSize="12" Foreground="#666666"/>
@@ -99,7 +99,7 @@
                                     <Button Grid.Column="1" Content="{DynamicResource Pref_Advanced_OpenDir}"/>
                                 </Grid>
                             </StackPanel>
-                            <CheckBox Content="Ghi log chi tiết (Verbose Logging)" IsChecked="False" Margin="0,8,0,0"/>
+                            <CheckBox x:Name="VerboseLogCheck" Content="Ghi log chi tiết (Verbose Logging)" IsChecked="False" Margin="0,8,0,0"/>
                         </StackPanel>
                     </StackPanel>
                     
@@ -107,7 +107,7 @@
                 
                 <!-- Action Buttons -->
                 <Grid Grid.Row="1" ColumnDefinitions="Auto, *, Auto" Margin="0,24,0,0">
-                    <Button Grid.Column="0" Content="{DynamicResource Pref_Action_Reset}" Classes="SecondaryBtn" Background="#F3F3F3" Padding="16,8"/>
+                    <Button Grid.Column="0" Content="{DynamicResource Pref_Action_Reset}" Click="ResetBtn_Click" Classes="SecondaryBtn" Background="#F3F3F3" Padding="16,8"/>
                     <Button Grid.Column="2" Content="{DynamicResource Pref_Action_Close}" Click="CloseBtn_Click" Background="#111111" Foreground="#FFFFFF" Padding="24,8"/>
                 </Grid>
                 

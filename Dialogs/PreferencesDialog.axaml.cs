@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using m_mslc_overlay.services;
 
 namespace m_mslc_overlay.Dialogs
 {
@@ -8,6 +9,52 @@ namespace m_mslc_overlay.Dialogs
         public PreferencesDialog()
         {
             InitializeComponent();
+            ConfigManager.Load();
+            LoadSettings();
+        }
+
+        private void LoadSettings()
+        {
+            var cfg = ConfigManager.Current;
+            StartupCheck.IsChecked = cfg.RunAtStartup;
+            TrayIconCheck.IsChecked = cfg.StartMinimizedToTray;
+            CheckUpdatesCheck.IsChecked = cfg.CheckForUpdates;
+            
+            LanguageCombo.SelectedIndex = cfg.Language == "vi-VN" ? 0 : 1;
+            
+            AiModelCombo.SelectedIndex = cfg.AiModel switch {
+                "Gemini 1.5 Flash" => 1,
+                "Claude 3 Haiku" => 2,
+                _ => 0
+            };
+            
+            ApiKeyBox.Text = cfg.ApiKey;
+            SystemPromptBox.Text = cfg.SystemPrompt;
+            PipeNameBox.Text = cfg.PipeName;
+            VerboseLogCheck.IsChecked = cfg.VerboseLogging;
+        }
+
+        private void SaveSettings()
+        {
+            var cfg = ConfigManager.Current;
+            cfg.RunAtStartup = StartupCheck.IsChecked ?? false;
+            cfg.StartMinimizedToTray = TrayIconCheck.IsChecked ?? true;
+            cfg.CheckForUpdates = CheckUpdatesCheck.IsChecked ?? true;
+            
+            cfg.Language = LanguageCombo.SelectedIndex == 0 ? "vi-VN" : "en-US";
+            
+            cfg.AiModel = AiModelCombo.SelectedIndex switch {
+                1 => "Gemini 1.5 Flash",
+                2 => "Claude 3 Haiku",
+                _ => "Gemini 1.5 Pro"
+            };
+            
+            cfg.ApiKey = ApiKeyBox.Text ?? "";
+            cfg.SystemPrompt = SystemPromptBox.Text ?? "";
+            cfg.PipeName = PipeNameBox.Text ?? "MSLCCaptionPipe";
+            cfg.VerboseLogging = VerboseLogCheck.IsChecked ?? false;
+            
+            ConfigManager.Save();
         }
 
         private void TabSelector_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -38,8 +85,16 @@ namespace m_mslc_overlay.Dialogs
             }
         }
 
+        private void ResetBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            // Simple reset to defaults
+            ConfigManager.Current = new AppConfig();
+            LoadSettings();
+        }
+
         private void CloseBtn_Click(object? sender, RoutedEventArgs e)
         {
+            SaveSettings();
             Close();
         }
     }
