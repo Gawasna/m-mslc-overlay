@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -16,6 +17,8 @@ namespace m_mslc_overlay
         private LiveCaptionPipeService _pipeService;
         private InjectorService _injectorService;
         private AIService _aiService;
+        private SystemMonitor _sysMonitor;
+        private DispatcherTimer _resourceTimer;
 
         private string _translationBuffer = "";
 
@@ -35,6 +38,11 @@ namespace m_mslc_overlay
             _pipeService = new LiveCaptionPipeService();
             _injectorService = new InjectorService();
             _aiService = new AIService();
+            
+            _sysMonitor = new SystemMonitor();
+            _resourceTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _resourceTimer.Tick += OnResourceTimerTick;
+            _resourceTimer.Start();
             
             _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
             TopicInput.TextChanged += (s, e) => {
@@ -156,10 +164,17 @@ namespace m_mslc_overlay
             this.Closing += (s, e) => {
                 _hiderService.Dispose();
                 _pipeService.Dispose();
+                _resourceTimer.Stop();
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
             DetectTargetProcess();
+        }
+
+        private void OnResourceTimerTick(object? sender, EventArgs e)
+        {
+            var metrics = _sysMonitor.GetMetrics();
+            ResourceUsageText.Text = $"SYS: {metrics.sysCpu:F1}% CPU {metrics.sysRamMb:F0}MB | APP: {metrics.appCpu:F1}% CPU {metrics.appRamMb:F0}MB";
         }
 
         private void DetectTargetProcess()
