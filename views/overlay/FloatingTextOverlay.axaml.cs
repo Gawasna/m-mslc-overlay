@@ -7,10 +7,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 
 using m_mslc_overlay.services;
 
-namespace m_mslc_overlay.views.components;
+namespace m_mslc_overlay.views.overlay;
 
 public partial class FloatingTextOverlay : Window
 {
@@ -33,7 +34,11 @@ public partial class FloatingTextOverlay : Window
     }
 
     private readonly MainWindow? _mainWindow;
-    private CancellationTokenSource? _typewriterCts;
+    private DispatcherTimer? _typewriterTimer;
+    private int _typewriterIndex = 0;
+    private string _currentSentence = "";
+    private string _baseText = "";
+    private int _delayTicks = 0;
     private readonly AppContainerHiderService _hiderService = new AppContainerHiderService();
 
     public bool UseTypewriter { get; set; } = true;
@@ -74,9 +79,10 @@ public partial class FloatingTextOverlay : Window
 
     public void SetImmediateText(string text)
     {
-        // Hủy typewriter pump để tránh xung đột ghi đè lên text hiển thị trực tiếp
-        _typewriterCts?.Cancel();
-        _typewriterCts = null;
+        if (_typewriterTimer != null)
+        {
+            _typewriterTimer.Stop();
+        }
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
             DisplayTextBlock.Text = text;
@@ -86,15 +92,37 @@ public partial class FloatingTextOverlay : Window
 
     private void Window_PointerPressed(object sender, Avalonia.Input.PointerPressedEventArgs e)
     {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var point = e.GetCurrentPoint(this);
+        if (point.Properties.IsLeftButtonPressed)
         {
-            this.BeginMoveDrag(e);
+            var pos = e.GetPosition(this);
+            double width = this.Bounds.Width;
+            double height = this.Bounds.Height;
+            double margin = 8.0;
+
+            bool isLeft = pos.X < margin;
+            bool isRight = pos.X > width - margin;
+            bool isTop = pos.Y < margin;
+            bool isBottom = pos.Y > height - margin;
+
+            if (isLeft && isTop) this.BeginResizeDrag(WindowEdge.NorthWest, e);
+            else if (isRight && isTop) this.BeginResizeDrag(WindowEdge.NorthEast, e);
+            else if (isLeft && isBottom) this.BeginResizeDrag(WindowEdge.SouthWest, e);
+            else if (isRight && isBottom) this.BeginResizeDrag(WindowEdge.SouthEast, e);
+            else if (isLeft) this.BeginResizeDrag(WindowEdge.West, e);
+            else if (isRight) this.BeginResizeDrag(WindowEdge.East, e);
+            else if (isTop) this.BeginResizeDrag(WindowEdge.North, e);
+            else if (isBottom) this.BeginResizeDrag(WindowEdge.South, e);
+            else
+            {
+                this.BeginMoveDrag(e);
+            }
         }
     }
 
     private void Close_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _typewriterCts?.Cancel();
+        _typewriterTimer?.Stop();
         this.Close();
     }
 
@@ -230,84 +258,60 @@ public partial class FloatingTextOverlay : Window
 
     public void StartTypewriterPump()
     {
-        // Tránh chạy nhiều task song song nếu pump đang hoạt động
-        if (_typewriterCts != null && !_typewriterCts.IsCancellationRequested) return;
+        if (_typewriterTimer != null && _typewriterTimer.IsEnabled) return;
 
-        _typewriterCts?.Cancel();
-        _typewriterCts?.Dispose();
-        _typewriterCts = new CancellationTokenSource();
-        var token = _typewriterCts.Token;
+        _typewriterTimer?.Stop();
+        _typewriterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
+        _typewriterTimer.Tick += OnTypewriterTick;
+        _typewriterTimer.Start();
 
         DisplayTextBlock.Text = "";
+    }
 
-        // Chạy ngầm một vòng lặp vĩnh viễn lúc cửa sổ đang bật để tiêu thụ Queue
-        Task.Run(async () =>
+    private void OnTypewriterTick(object? sender, EventArgs e)
+    {
+        if (_delayTicks > 0)
         {
-            try
+            _delayTicks--;
+            return;
+        }
+
+        int queueLength = _sentenceQueue.Count;
+
+        if (_typewriterIndex < _currentSentence.Length)
+        {
+            if (queueLength > 4)
             {
-                while (!token.IsCancellationRequested)
-                {
-                    if (_sentenceQueue.TryDequeue(out string? currentSentence) && currentSentence != null)
-                    {
-                        string baseText = "";
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
-                            int currentLength = DisplayTextBlock.Text?.Length ?? 0;
-                            // Xoá màn hình nếu đang giữ quá nhiều chữ tránh tràn RAM
-                            if (currentLength > 400) DisplayTextBlock.Text = "";
-                            
-                            baseText = DisplayTextBlock.Text ?? "";
-                        });
-
-                        int queueLength = _sentenceQueue.Count;
-
-                        // EMERGENCY MODE: Nếu tồn đọng quá 5 câu, huỷ animation đánh máy, phọt toàn bộ text ra ngay
-                        if (queueLength > 4)
-                        {
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                                DisplayTextBlock.Text = baseText + currentSentence;
-                                TextScrollViewer.ScrollToEnd();
-                            });
-                            await Task.Delay(50, token); // Delay tối thiểu
-                            continue;
-                        }
-
-                        // TÍNH TOÁN CẤP SỐ NHÂN TỐC ĐỘ:
-                        // Nếu queue > 2, nhảy hẳn 3 chữ cái mỗi nhịp. Nếu thưa dần thì nhảy 1-2 chữ.
-                        int charStep = queueLength > 2 ? 4 : (queueLength > 0 ? 2 : 1);
-                        int delayMs = queueLength > 0 ? 10 : 30; 
-                        int sentenceDelay = queueLength > 0 ? 100 : 400;
-
-                        for (int i = 0; i < currentSentence.Length; i += charStep)
-                        {
-                            if (token.IsCancellationRequested) break;
-                            
-                            int len = Math.Min(i + charStep, currentSentence.Length);
-                            string textToRender = baseText + currentSentence.Substring(0, len);
-
-                            // Dùng Post (Fire-and-forget) thay vì InvokeAsync(đợi kết quả) để giảm thắt cổ chai UI Thread
-                            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                                DisplayTextBlock.Text = textToRender;
-                                if (len == currentSentence.Length || len % 12 == 0)
-                                {
-                                    TextScrollViewer.ScrollToEnd();
-                                }
-                            });
-                            
-                            await Task.Delay(delayMs, token);
-                        }
-                        
-                        await Task.Delay(sentenceDelay, token);
-                    }
-                    else
-                    {
-                        // Khi rỗng Queue, đợi một chu kỳ ngắn
-                        await Task.Delay(100, token);
-                    }
-                }
+                _typewriterIndex = _currentSentence.Length;
             }
-            catch (TaskCanceledException)
+            else
             {
+                int charStep = queueLength > 2 ? 4 : (queueLength > 0 ? 2 : 1);
+                _typewriterIndex = Math.Min(_typewriterIndex + charStep, _currentSentence.Length);
             }
-        });
+
+            DisplayTextBlock.Text = _baseText + _currentSentence.Substring(0, _typewriterIndex);
+
+            if (_typewriterIndex == _currentSentence.Length || _typewriterIndex % 12 == 0)
+            {
+                TextScrollViewer.ScrollToEnd();
+            }
+
+            if (_typewriterIndex == _currentSentence.Length)
+            {
+                _delayTicks = queueLength > 0 ? 3 : 12; // 90ms vs 360ms
+            }
+            return;
+        }
+
+        if (_sentenceQueue.TryDequeue(out string? nextSentence) && nextSentence != null)
+        {
+            int currentLength = DisplayTextBlock.Text?.Length ?? 0;
+            if (currentLength > 400) DisplayTextBlock.Text = "";
+
+            _baseText = DisplayTextBlock.Text ?? "";
+            _currentSentence = nextSentence;
+            _typewriterIndex = 0;
+        }
     }
 }

@@ -23,8 +23,9 @@
                     </Style>
                 </ListBox.Styles>
                 <ListBoxItem Content="{DynamicResource Tab_General}" IsSelected="True" />
-                <ListBoxItem Content="{DynamicResource Tab_AiTranslation}" />
+                <ListBoxItem Content="{DynamicResource Tab_Translation}" />
                 <ListBoxItem Content="{DynamicResource Tab_Appearance}" />
+                <ListBoxItem Content="{DynamicResource Tab_Network}" />
                 <ListBoxItem Content="{DynamicResource Tab_Advanced}" />
             </ListBox>
         </Border>
@@ -53,28 +54,64 @@
                         </StackPanel>
                     </StackPanel>
                     
-                    <!-- AI Translation Tab -->
-                    <StackPanel x:Name="TabAI" IsVisible="False" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_AiTranslation}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
-                        <StackPanel Spacing="16">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{DynamicResource Pref_AI_Model}" FontSize="12" Foreground="#666666"/>
-                                <ComboBox x:Name="AiModelCombo" Width="240" SelectedIndex="0">
-                                    <ComboBoxItem Content="Gemini 1.5 Pro"/>
-                                    <ComboBoxItem Content="Gemini 1.5 Flash"/>
-                                    <ComboBoxItem Content="Claude 3 Haiku"/>
-                                </ComboBox>
-                            </StackPanel>
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{DynamicResource Pref_AI_ApiKey}" FontSize="12" Foreground="#666666"/>
-                                <TextBox x:Name="ApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="sk-proj-..."/>
-                                <Button Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{DynamicResource Pref_AI_SystemPrompt}" FontSize="12" Foreground="#666666"/>
-                                <TextBox x:Name="SystemPromptBox" Height="100" AcceptsReturn="True" TextWrapping="Wrap" Watermark="You are a helpful translator..."/>
-                            </StackPanel>
-                        </StackPanel>
+                    <!-- Translation Tab -->
+                    <StackPanel x:Name="TabTranslation" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_Translation}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TabControl Margin="0,-8,0,0">
+                            <TabControl.Styles>
+                                <Style Selector="TabItem">
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="Padding" Value="12,8"/>
+                                    <Setter Property="MinHeight" Value="36"/>
+                                </Style>
+                            </TabControl.Styles>
+                            <!-- Engine Dịch -->
+                            <TabItem Header="{DynamicResource Pref_Trans_Engine}">
+                                <StackPanel Spacing="16" Margin="0,16,0,0">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Translation Engine" FontSize="12" Foreground="#666666"/>
+                                        <ComboBox x:Name="TranslationEngineCombo" Width="240" SelectedIndex="0">
+                                            <ComboBoxItem Content="DeepL API"/>
+                                            <ComboBoxItem Content="Cloud AI (Ollama/Gemini)"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="DeepL API Key" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="DeepLApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="..."/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </TabItem>
+                            
+                            <!-- AI Dịch -->
+                            <TabItem Header="{DynamicResource Pref_Trans_CloudAI}">
+                                <StackPanel Spacing="16" Margin="0,16,0,0">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{DynamicResource Pref_AI_Model}" FontSize="12" Foreground="#666666"/>
+                                        <ComboBox x:Name="AiModelCombo" Width="240" SelectedIndex="0">
+                                            <ComboBoxItem Content="Gemini 1.5 Pro"/>
+                                            <ComboBoxItem Content="Gemini 1.5 Flash"/>
+                                            <ComboBoxItem Content="Claude 3 Haiku"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{DynamicResource Pref_AI_ApiKey}" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="ApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="sk-proj-..."/>
+                                        <Button Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{DynamicResource Pref_AI_SystemPrompt}" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="SystemPromptBox" Height="100" AcceptsReturn="True" TextWrapping="Wrap" Watermark="You are a helpful translator..."/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </TabItem>
+
+                            <!-- Local AI -->
+                            <TabItem Header="{DynamicResource Pref_Trans_LocalAI}">
+                                <StackPanel Spacing="16" Margin="0,16,0,0">
+                                    <TextBlock Text="Cấu hình Local AI sẽ được bổ sung sau." Foreground="#666666"/>
+                                </StackPanel>
+                            </TabItem>
+                        </TabControl>
                     </StackPanel>
                     
                     <!-- Appearance Tab -->
@@ -82,6 +119,17 @@
                         <TextBlock Text="{DynamicResource Tab_Appearance}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
                         <!-- Mock content for Appearance -->
                         <TextBlock Text="Cấu hình giao diện sẽ được bổ sung sau." Foreground="#666666"/>
+                    </StackPanel>
+
+                    <!-- Network Tab -->
+                    <StackPanel x:Name="TabNetwork" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_Network}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{DynamicResource Pref_Advanced_Network}" FontSize="12" Foreground="#666666"/>
+                                <TextBox x:Name="NetworkProxyBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:8080"/>
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
                     
                     <!-- Advanced Tab -->

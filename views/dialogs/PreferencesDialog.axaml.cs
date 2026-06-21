@@ -22,6 +22,9 @@ namespace m_mslc_overlay.views.dialogs
             
             LanguageCombo.SelectedIndex = cfg.Language == "vi-VN" ? 0 : 1;
             
+            TranslationEngineCombo.SelectedIndex = cfg.TranslationEngine == "DeepL API" ? 0 : 1;
+            DeepLApiKeyBox.Text = cfg.DeepLApiKey;
+            
             AiModelCombo.SelectedIndex = cfg.AiModel switch {
                 "Gemini 1.5 Flash" => 1,
                 "Claude 3 Haiku" => 2,
@@ -43,6 +46,9 @@ namespace m_mslc_overlay.views.dialogs
             
             cfg.Language = LanguageCombo.SelectedIndex == 0 ? "vi-VN" : "en-US";
             
+            cfg.TranslationEngine = TranslationEngineCombo.SelectedIndex == 0 ? "DeepL API" : "Cloud AI (Ollama/Gemini)";
+            cfg.DeepLApiKey = DeepLApiKeyBox.Text ?? "";
+            
             cfg.AiModel = AiModelCombo.SelectedIndex switch {
                 1 => "Gemini 1.5 Flash",
                 2 => "Claude 3 Haiku",
@@ -63,8 +69,9 @@ namespace m_mslc_overlay.views.dialogs
             
             // Hide all tabs
             if (TabGeneral != null) TabGeneral.IsVisible = false;
-            if (TabAI != null) TabAI.IsVisible = false;
+            if (TabTranslation != null) TabTranslation.IsVisible = false;
             if (TabAppearance != null) TabAppearance.IsVisible = false;
+            if (TabNetwork != null) TabNetwork.IsVisible = false;
             if (TabAdvanced != null) TabAdvanced.IsVisible = false;
 
             // Show selected tab
@@ -74,12 +81,15 @@ namespace m_mslc_overlay.views.dialogs
                     if (TabGeneral != null) TabGeneral.IsVisible = true;
                     break;
                 case 1:
-                    if (TabAI != null) TabAI.IsVisible = true;
+                    if (TabTranslation != null) TabTranslation.IsVisible = true;
                     break;
                 case 2:
                     if (TabAppearance != null) TabAppearance.IsVisible = true;
                     break;
                 case 3:
+                    if (TabNetwork != null) TabNetwork.IsVisible = true;
+                    break;
+                case 4:
                     if (TabAdvanced != null) TabAdvanced.IsVisible = true;
                     break;
             }

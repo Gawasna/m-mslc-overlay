@@ -34,6 +34,92 @@ namespace m_mslc_overlay.services
             await _translateSemaphore.WaitAsync();
             try
             {
+                if (ConfigManager.Current.TranslationEngine == "DeepL API")
+                {
+                    await TranslateWithDeepLAsync(originalText);
+                }
+                else
+                {
+                    await TranslateWithOllamaAsync(originalText);
+                }
+            }
+            finally
+            {
+                _translateSemaphore.Release();
+            }
+        }
+
+        private async Task TranslateWithDeepLAsync(string originalText)
+        {
+            try
+            {
+                string apiKey = ConfigManager.Current.DeepLApiKey;
+                if (string.IsNullOrWhiteSpace(apiKey))
+                {
+                    string msg = "Lỗi: Chưa cấu hình DeepL API Key.";
+                    OnTranslationTokenReceived?.Invoke(msg);
+                    OnTranslationCompleted?.Invoke(msg);
+                    return;
+                }
+
+                // Determine endpoint based on key type (free keys end with :fx)
+                string endpoint = apiKey.EndsWith(":fx") 
+                    ? "https://api-free.deepl.com/v2/translate" 
+                    : "https://api.deepl.com/v2/translate";
+
+                // Map target language string to DeepL code
+                string targetLangCode = TargetLanguage switch {
+                    "Tiếng Việt" => "VI",
+                    "Tiếng Nhật" => "JA",
+                    "Tiếng Trung" => "ZH",
+                    "English" => "EN",
+                    _ => "VI"
+                };
+
+                var requestBody = new
+                {
+                    text = new[] { originalText },
+                    target_lang = targetLangCode
+                };
+
+                string jsonContent = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = content
+                };
+                request.Headers.Add("Authorization", $"DeepL-Auth-Key {apiKey}");
+
+                var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                string responseStr = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseStr);
+                var translations = doc.RootElement.GetProperty("translations");
+                
+                if (translations.GetArrayLength() > 0)
+                {
+                    string translatedText = translations[0].GetProperty("text").GetString() ?? "";
+                    if (!string.IsNullOrWhiteSpace(translatedText))
+                    {
+                        // Fire only completed so that MainWindow can enqueue for typewriter effect
+                        OnTranslationCompleted?.Invoke(translatedText);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AIService] Lỗi gọi DeepL API: {ex.Message}");
+                string errMsg = $"[Lỗi DeepL: {ex.Message}]";
+                OnTranslationCompleted?.Invoke(errMsg);
+            }
+        }
+
+        private async Task TranslateWithOllamaAsync(string originalText)
+        {
+            try
+            {
                 var requestBody = new
                 {
                     model = "qwen2.5:3b",
@@ -92,10 +178,6 @@ namespace m_mslc_overlay.services
             catch (Exception ex)
             {
                 Debug.WriteLine($"[AIService] Lỗi gọi Ollama API: {ex.Message}");
-            }
-            finally
-            {
-                _translateSemaphore.Release();
             }
         }
     }
