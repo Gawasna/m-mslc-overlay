@@ -22,6 +22,9 @@ namespace m_mslc_overlay.views.dialogs
             
             LanguageCombo.SelectedIndex = cfg.Language == "vi-VN" ? 0 : 1;
             
+            TranslationEngineCombo.SelectedIndex = cfg.TranslationEngine == "DeepL API" ? 0 : 1;
+            DeepLApiKeyBox.Text = cfg.DeepLApiKey;
+            
             AiModelCombo.SelectedIndex = cfg.AiModel switch {
                 "Gemini 1.5 Flash" => 1,
                 "Claude 3 Haiku" => 2,
@@ -42,6 +45,9 @@ namespace m_mslc_overlay.views.dialogs
             cfg.CheckForUpdates = CheckUpdatesCheck.IsChecked ?? true;
             
             cfg.Language = LanguageCombo.SelectedIndex == 0 ? "vi-VN" : "en-US";
+            
+            cfg.TranslationEngine = TranslationEngineCombo.SelectedIndex == 0 ? "DeepL API" : "Cloud AI (Ollama/Gemini)";
+            cfg.DeepLApiKey = DeepLApiKeyBox.Text ?? "";
             
             cfg.AiModel = AiModelCombo.SelectedIndex switch {
                 1 => "Gemini 1.5 Flash",

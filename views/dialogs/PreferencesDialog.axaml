@@ -68,7 +68,17 @@
                             <!-- Engine Dịch -->
                             <TabItem Header="{DynamicResource Pref_Trans_Engine}">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
-                                    <TextBlock Text="Cấu hình Engine Dịch sẽ được bổ sung sau." Foreground="#666666"/>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Translation Engine" FontSize="12" Foreground="#666666"/>
+                                        <ComboBox x:Name="TranslationEngineCombo" Width="240" SelectedIndex="0">
+                                            <ComboBoxItem Content="DeepL API"/>
+                                            <ComboBoxItem Content="Cloud AI (Ollama/Gemini)"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="DeepL API Key" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="DeepLApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="..."/>
+                                    </StackPanel>
                                 </StackPanel>
                             </TabItem>
                             
