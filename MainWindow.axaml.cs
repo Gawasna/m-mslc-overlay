@@ -138,8 +138,23 @@ namespace m_mslc_overlay
 
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
-                            // Đảm bảo hiển thị bản dịch hoàn chỉnh chính xác
-                            _currentOverlay.SetImmediateText(fullSentence);
+                            if (ConfigManager.Current.TranslationEngine == "DeepL API")
+                            {
+                                if (_currentOverlay.UseTypewriter)
+                                {
+                                    _currentOverlay.StartTypewriterPump();
+                                    _currentOverlay.EnqueueText(fullSentence + " ");
+                                }
+                                else
+                                {
+                                    _currentOverlay.SetImmediateText(fullSentence);
+                                }
+                            }
+                            else
+                            {
+                                // Streaming engines fallback
+                                _currentOverlay.SetImmediateText(fullSentence);
+                            }
                         }
                     }
                 });

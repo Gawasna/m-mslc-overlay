@@ -103,8 +103,7 @@ namespace m_mslc_overlay.services
                     string translatedText = translations[0].GetProperty("text").GetString() ?? "";
                     if (!string.IsNullOrWhiteSpace(translatedText))
                     {
-                        // Fire token and completed immediately since DeepL doesn't stream
-                        OnTranslationTokenReceived?.Invoke(translatedText);
+                        // Fire only completed so that MainWindow can enqueue for typewriter effect
                         OnTranslationCompleted?.Invoke(translatedText);
                     }
                 }
@@ -113,7 +112,6 @@ namespace m_mslc_overlay.services
             {
                 Debug.WriteLine($"[AIService] Lỗi gọi DeepL API: {ex.Message}");
                 string errMsg = $"[Lỗi DeepL: {ex.Message}]";
-                OnTranslationTokenReceived?.Invoke(errMsg);
                 OnTranslationCompleted?.Invoke(errMsg);
             }
         }
