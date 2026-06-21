@@ -11,7 +11,7 @@ using Avalonia.Threading;
 
 using m_mslc_overlay.services;
 
-namespace m_mslc_overlay.views.components;
+namespace m_mslc_overlay.views.overlay;
 
 public partial class FloatingTextOverlay : Window
 {
@@ -92,9 +92,31 @@ public partial class FloatingTextOverlay : Window
 
     private void Window_PointerPressed(object sender, Avalonia.Input.PointerPressedEventArgs e)
     {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var point = e.GetCurrentPoint(this);
+        if (point.Properties.IsLeftButtonPressed)
         {
-            this.BeginMoveDrag(e);
+            var pos = e.GetPosition(this);
+            double width = this.Bounds.Width;
+            double height = this.Bounds.Height;
+            double margin = 8.0;
+
+            bool isLeft = pos.X < margin;
+            bool isRight = pos.X > width - margin;
+            bool isTop = pos.Y < margin;
+            bool isBottom = pos.Y > height - margin;
+
+            if (isLeft && isTop) this.BeginResizeDrag(WindowEdge.NorthWest, e);
+            else if (isRight && isTop) this.BeginResizeDrag(WindowEdge.NorthEast, e);
+            else if (isLeft && isBottom) this.BeginResizeDrag(WindowEdge.SouthWest, e);
+            else if (isRight && isBottom) this.BeginResizeDrag(WindowEdge.SouthEast, e);
+            else if (isLeft) this.BeginResizeDrag(WindowEdge.West, e);
+            else if (isRight) this.BeginResizeDrag(WindowEdge.East, e);
+            else if (isTop) this.BeginResizeDrag(WindowEdge.North, e);
+            else if (isBottom) this.BeginResizeDrag(WindowEdge.South, e);
+            else
+            {
+                this.BeginMoveDrag(e);
+            }
         }
     }
 

@@ -6,6 +6,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using m_mslc_overlay.views.components;
+using m_mslc_overlay.views.overlay;
 using m_mslc_overlay.services;
 
 namespace m_mslc_overlay

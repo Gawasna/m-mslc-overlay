@@ -1,0 +1,191 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.overlay.FloatingTextOverlay"
+        x:Name="RootWindow"
+        Title="{DynamicResource Title_FloatingTextOverlay}"
+        Width="600" Height="237"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        SystemDecorations="None"
+        Topmost="True">
+    <Window.Resources>
+        <SolidColorBrush x:Key="MenuFlyoutPresenterBackground">#CC1C1C1C</SolidColorBrush>
+        <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush">#1AFFFFFF</SolidColorBrush>
+        <Thickness x:Key="MenuFlyoutPresenterBorderThickness">1</Thickness>
+        <CornerRadius x:Key="MenuFlyoutPresenterCornerRadius">8</CornerRadius>
+        <Thickness x:Key="MenuFlyoutPresenterThemePadding">8</Thickness>
+        <x:Double x:Key="MenuFlyoutSubItemPopupHorizontalOffset">0</x:Double>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.IconBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.IconBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#333333"/>
+        </Style>
+        <Style Selector="Button.IconBtn:pointerover Path">
+            <Setter Property="Stroke" Value="#EAEAEA"/>
+        </Style>
+        <!-- Style cho MenuFlyout (Primary Menu) -->
+        <Style Selector="MenuFlyoutPresenter">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinWidth" Value="240"/>
+        </Style>
+
+        <!-- Style cho MenuItem -->
+        <Style Selector="MenuItem">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,1"/>
+        </Style>
+
+        <!-- Sửa lỗi đè lệch trái của Submenu khi bị flip: Ép chiều rộng cố định cho Border bên trong Popup để Avalonia tính toán tọa độ flip chính xác ngay từ đầu -->
+        <Style Selector="MenuItem /template/ Popup > Border">
+            <Setter Property="Width" Value="220"/>
+        </Style>
+
+        <!-- Ép Submenu luôn mở sang bên trái của Menu chính để tránh cấn biên phải và sửa lỗi đè chồng -->
+        <Style Selector="MenuItem /template/ Popup#PART_Popup">
+            <Setter Property="Placement" Value="LeftEdgeAlignedTop"/>
+        </Style>
+
+        <!-- Hover state cho MenuItem -->
+        <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="MenuItem:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+
+        <!-- Ngăn không cho thay đổi màu chữ (Foreground) khi hover/selected/pressed -->
+        <Style Selector="MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+        </Style>
+        <Style Selector="MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+        </Style>
+        <Style Selector="MenuItem:pressed /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+        </Style>
+
+        <!-- Đồng bộ màu Chevron (mũi tên chỉ submenu) không đổi màu khi hover -->
+        <Style Selector="MenuItem /template/ ContentPresenter#PART_ChevronPresenter">
+            <Setter Property="Foreground" Value="#888888"/>
+        </Style>
+        <Style Selector="MenuItem:pointerover /template/ ContentPresenter#PART_ChevronPresenter">
+            <Setter Property="Foreground" Value="#888888"/>
+        </Style>
+        <Style Selector="MenuItem:selected /template/ ContentPresenter#PART_ChevronPresenter">
+            <Setter Property="Foreground" Value="#888888"/>
+        </Style>
+
+        <!-- Khắc phục SVG Box làm khuất icon (issue-0002) -->
+        <Style Selector="Button.IconBtn Path">
+            <Setter Property="ClipToBounds" Value="False" />
+            <Setter Property="Margin" Value="2" />
+        </Style>
+    </Window.Styles>
+    
+    <Border x:Name="MainBorder" 
+            Background="{Binding OverlayBackground, ElementName=RootWindow}"
+            BorderBrush="#333333"
+            BorderThickness="1"
+            CornerRadius="6"
+            Padding="16,12"
+            Margin="2"
+            BoxShadow="0 4 16 0 #99000000"
+            PointerPressed="Window_PointerPressed">
+
+        <Grid ColumnDefinitions="*, Auto, Auto">
+            
+            <!-- Text Area -->
+            <ScrollViewer x:Name="TextScrollViewer" Grid.Column="0" Margin="0,0,24,0" VerticalAlignment="Center" Height="150" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="DisplayTextBlock" 
+                           FontSize="{Binding OverlayFontSize, ElementName=RootWindow}"
+                           Foreground="#A0A0A0"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </ScrollViewer>
+
+            <!-- Divider -->
+            <Rectangle Grid.Column="1" Width="1" Height="24" Fill="#383838" VerticalAlignment="Center"/>
+
+            <!-- Controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" Margin="16,0,0,0" VerticalAlignment="Center">
+                
+                <Button Classes="IconBtn" ToolTip.Tip="{DynamicResource Button_Settings}">
+                    <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                            <MenuItem Header="{DynamicResource Menu_Position}">
+                                <MenuItem.Icon>
+                                    <Path Data="{StaticResource IconMove}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                </MenuItem.Icon>
+                                <MenuItem Header="{DynamicResource Menu_ResetPosition}" Click="ResetPosition_Click"/>
+                            </MenuItem>
+                            <MenuItem Header="{DynamicResource Menu_TargetLanguage}">
+                                <MenuItem.Icon>
+                                    <Path Data="{StaticResource IconGlobe}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                </MenuItem.Icon>
+                                <MenuItem Header="{DynamicResource Menu_LangVietnamese}" Click="SetLanguage_Vietnamese_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_LangJapanese}" Click="SetLanguage_Japanese_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_LangChinese}" Click="SetLanguage_Chinese_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_LangEnglish}" Click="SetLanguage_English_Click"/>
+                            </MenuItem>
+                            <MenuItem Header="{DynamicResource Menu_FontSize}">
+                                <MenuItem.Icon>
+                                    <Path Data="{StaticResource IconType}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                </MenuItem.Icon>
+                                <MenuItem Header="{DynamicResource Menu_FontSizeSmall}" Click="SetFontSize_Small_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_FontSizeMedium}" Click="SetFontSize_Medium_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_FontSizeLarge}" Click="SetFontSize_Large_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_FontSizeExtraLarge}" Click="SetFontSize_ExtraLarge_Click"/>
+                            </MenuItem>
+                            <MenuItem Header="{DynamicResource Menu_TextEffect}">
+                                <MenuItem.Icon>
+                                    <Path Data="{StaticResource IconSliders}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                </MenuItem.Icon>
+                                <MenuItem Header="{DynamicResource Menu_EffectTypewriter}" Click="SetEffect_Typewriter_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_EffectInstant}" Click="SetEffect_Instant_Click"/>
+                            </MenuItem>
+                            <MenuItem Header="{DynamicResource Menu_BgOpacity}">
+                                <MenuItem.Icon>
+                                    <Path Data="{StaticResource IconSetting}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                </MenuItem.Icon>
+                                <MenuItem Header="{DynamicResource Menu_BgOpacity100}" Click="SetBgOpacity_100_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_BgOpacity80}" Click="SetBgOpacity_80_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_BgOpacity60}" Click="SetBgOpacity_60_Click"/>
+                                <MenuItem Header="{DynamicResource Menu_BgOpacity40}" Click="SetBgOpacity_40_Click"/>
+                            </MenuItem>
+                            <MenuItem Header="{DynamicResource Menu_TestSample}" Click="TestTypewriter_Click">
+                                <MenuItem.Icon>
+                                    <Path Data="{StaticResource IconReplay}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator Background="#1AFFFFFF" Height="1" Margin="0,4"/>
+                            <MenuItem Header="{DynamicResource Menu_HelpInfo}" Click="Help_Click">
+                                <MenuItem.Icon>
+                                    <Path Data="{StaticResource IconHelp}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                    <Path Data="{StaticResource IconSetting}" Stroke="#A0A0A0" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Width="18" Height="18" Stretch="Uniform"/>
+                </Button>
+                
+                <Button Classes="IconBtn" ToolTip.Tip="{DynamicResource Button_Close}" Click="Close_Click">
+                    <Path Data="{StaticResource IconClose}" Stroke="#A0A0A0" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Width="18" Height="18" Stretch="Uniform"/>
+                </Button>
+                
+            </StackPanel>
+
+        </Grid>
+    </Border>
+</Window>

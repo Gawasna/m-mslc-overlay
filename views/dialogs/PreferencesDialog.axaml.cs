@@ -65,6 +65,7 @@ namespace m_mslc_overlay.views.dialogs
             if (TabGeneral != null) TabGeneral.IsVisible = false;
             if (TabTranslation != null) TabTranslation.IsVisible = false;
             if (TabAppearance != null) TabAppearance.IsVisible = false;
+            if (TabNetwork != null) TabNetwork.IsVisible = false;
             if (TabAdvanced != null) TabAdvanced.IsVisible = false;
 
             // Show selected tab
@@ -80,6 +81,9 @@ namespace m_mslc_overlay.views.dialogs
                     if (TabAppearance != null) TabAppearance.IsVisible = true;
                     break;
                 case 3:
+                    if (TabNetwork != null) TabNetwork.IsVisible = true;
+                    break;
+                case 4:
                     if (TabAdvanced != null) TabAdvanced.IsVisible = true;
                     break;
             }

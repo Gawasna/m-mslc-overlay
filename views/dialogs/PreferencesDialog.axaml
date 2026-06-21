@@ -25,6 +25,7 @@
                 <ListBoxItem Content="{DynamicResource Tab_General}" IsSelected="True" />
                 <ListBoxItem Content="{DynamicResource Tab_Translation}" />
                 <ListBoxItem Content="{DynamicResource Tab_Appearance}" />
+                <ListBoxItem Content="{DynamicResource Tab_Network}" />
                 <ListBoxItem Content="{DynamicResource Tab_Advanced}" />
             </ListBox>
         </Border>
@@ -109,6 +110,17 @@
                         <!-- Mock content for Appearance -->
                         <TextBlock Text="Cấu hình giao diện sẽ được bổ sung sau." Foreground="#666666"/>
                     </StackPanel>
+
+                    <!-- Network Tab -->
+                    <StackPanel x:Name="TabNetwork" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_Network}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{DynamicResource Pref_Advanced_Network}" FontSize="12" Foreground="#666666"/>
+                                <TextBox x:Name="NetworkProxyBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:8080"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
                     
                     <!-- Advanced Tab -->
                     <StackPanel x:Name="TabAdvanced" IsVisible="False" Spacing="24">
@@ -124,10 +136,6 @@
                                     <TextBox Grid.Column="0" Text="./logs/" IsReadOnly="True" Margin="0,0,8,0"/>
                                     <Button Grid.Column="1" Content="{DynamicResource Pref_Advanced_OpenDir}"/>
                                 </Grid>
-                            </StackPanel>
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{DynamicResource Pref_Advanced_Network}" FontSize="12" Foreground="#666666"/>
-                                <TextBox x:Name="NetworkProxyBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:8080"/>
                             </StackPanel>
                             <CheckBox x:Name="VerboseLogCheck" Content="Ghi log chi tiết (Verbose Logging)" IsChecked="False" Margin="0,8,0,0"/>
                         </StackPanel>

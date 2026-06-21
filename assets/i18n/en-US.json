@@ -91,6 +91,7 @@
   "Tab_General": "General",
   "Tab_Translation": "Translation",
   "Tab_Appearance": "Appearance",
+  "Tab_Network": "Network",
   "Tab_Advanced": "Advanced",
   "Pref_General_Startup": "Start with Windows",
   "Pref_General_TrayIcon": "Minimize to System Tray on close",
