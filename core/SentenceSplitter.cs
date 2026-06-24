@@ -8,6 +8,7 @@ namespace m_mslc_overlay.core
         // ── internal state ────────────────────────────────────────────────
         private string _prevText = "";
         private int _confirmedLen = 0;
+        private ulong _lastOffset = 0;
 
         // time-gated final
         private string? _pendingFinal = null;
@@ -33,6 +34,7 @@ namespace m_mslc_overlay.core
             _pendingFinal = null;
             _pendingFinalTime = DateTime.MinValue;
             _emittedSentences.Clear();
+            _lastOffset = 0;
             // SentenceIndex intentionally NOT reset — monotonically increasing
         }
 
@@ -40,26 +42,50 @@ namespace m_mslc_overlay.core
         /// Call on every text packet received from the pipe.
         /// Returns zero or more newly-committed sentences.
         /// </summary>
-        public List<string> ExtractNewSentences(string text, bool isFinal)
+        public List<string> ExtractNewSentences(string text, bool isFinal, ulong offset = 0)
         {
             var results = new List<string>();
+
+            // Force emit unconfirmed tail if offset changes (Prevents lost/skipped sentences)
+            if (offset != 0 && _lastOffset != 0 && offset != _lastOffset)
+            {
+                if (_confirmedLen < _prevText.Length)
+                {
+                    var tail = _prevText.Substring(_confirmedLen).TrimStart();
+                    if (!string.IsNullOrWhiteSpace(tail))
+                    {
+                        // Smart filtering: Avoid emitting fragments that Azure simply carried over to the new offset
+                        if (string.IsNullOrEmpty(text) || !text.StartsWith(tail, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TryEmit(tail, results);
+                        }
+                    }
+                }
+                ResetForNextUtterance();
+                _pendingFinal = null;
+            }
+            if (offset != 0) _lastOffset = offset;
 
             if (string.IsNullOrEmpty(text))
                 return results;
 
-            // ── regression guard (smart rollback, not full reset) ─────────
-            if (text.Length < _prevText.Length)
+            // ── regression guard (ATOM2 generalized LCP) ─────────
+            if (!string.IsNullOrEmpty(_prevText))
             {
                 int commonLen = CommonPrefixLength(text, _prevText);
-
-                if (commonLen < _confirmedLen)
+                if (commonLen < _prevText.Length)
                 {
-                    // correction landed inside already-confirmed region —
-                    // must roll back confirmedLen to the common boundary
-                    _confirmedLen = commonLen;
+                    if (commonLen < _confirmedLen)
+                    {
+                        _confirmedLen = commonLen;
+                    }
                 }
-                // if correction is entirely after _confirmedLen: nothing to do
             }
+            else if (text.Length < _confirmedLen)
+            {
+                _confirmedLen = text.Length;
+            }
+            
             _prevText = text;
 
             // ── isFinal path ──────────────────────────────────────────────
@@ -147,12 +173,36 @@ namespace m_mslc_overlay.core
             if (string.IsNullOrWhiteSpace(sentence))
                 return false;
 
-            var normalized = sentence.Trim();
-            if (_emittedSentences.Contains(normalized))
+            // Chống nhiễu: Lọc các câu chỉ toàn dấu câu (VD: ".")
+            bool hasAlnum = false;
+            foreach (char c in sentence)
+            {
+                if (char.IsLetterOrDigit(c))
+                {
+                    hasAlnum = true;
+                    break;
+                }
+            }
+            if (!hasAlnum)
                 return false;
 
-            _emittedSentences.Add(normalized);
-            results.Add(normalized);
+            var normalized = sentence.Trim();
+            
+            // Chống lặp câu (Punctuation-insensitive deduplication)
+            // Khử trùng lặp giữa "sentence" và "sentence."
+            var stripped = new System.Text.StringBuilder();
+            foreach (char c in normalized)
+            {
+                if (!char.IsPunctuation(c))
+                    stripped.Append(char.ToLowerInvariant(c));
+            }
+            var dedupKey = stripped.ToString().Trim();
+
+            if (_emittedSentences.Contains(dedupKey))
+                return false;
+
+            _emittedSentences.Add(dedupKey);
+            results.Add(normalized); // Emit the original with punctuation
             SentenceIndex++;
             return true;
         }
