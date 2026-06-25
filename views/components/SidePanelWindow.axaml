@@ -1,16 +1,427 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.views.components.SidePanelWindow"
-        Title="Side Panel (Mockup)"
-        Background="#1E1E1E"
-        MinWidth="400"
-        MinHeight="300"
-        SystemDecorations="Full">
-    <Grid>
-        <TextBlock Text="Side Panel (Mockup)" 
-                   Foreground="White" 
-                   HorizontalAlignment="Center" 
-                   VerticalAlignment="Center" 
-                   FontSize="24"/>
+        Title="MSLC Side Panel - Live Controller"
+        Background="{StaticResource BgWindowBrush}"
+        MinWidth="400" MinHeight="600"
+        Width="480" Height="800"
+        SystemDecorations="None"
+        WindowStartupLocation="Manual"
+        PointerPressed="Window_PointerPressed"
+        PointerMoved="Window_PointerMoved">
+
+    <Window.Resources>
+        <!-- Custom SVG Icons -->
+        <StreamGeometry x:Key="IconSearch">M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z</StreamGeometry>
+        <StreamGeometry x:Key="IconDownload">M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M7 10l5 5 5-5 M12 15V3</StreamGeometry>
+        <StreamGeometry x:Key="IconCopy">M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2 M9 5a2 2 0 002 2h2a2 2 0 002-2 M9 5a2 2 0 012-2h2a2 2 0 012 2</StreamGeometry>
+        <StreamGeometry x:Key="IconTrash">M3 6h18 M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6 m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2</StreamGeometry>
+        <StreamGeometry x:Key="IconArrowDownToLine">M12 17V3 M5 10l7 7 7-7 M19 21H5</StreamGeometry>
+        <StreamGeometry x:Key="IconArrowLeft">M19 12H5 M12 19l-7-7 7-7</StreamGeometry>
+        <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
+        <StreamGeometry x:Key="IconReplay">M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5</StreamGeometry>
+        <StreamGeometry x:Key="IconClose">M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z</StreamGeometry>
+
+        <!-- Theme Resource Overrides to enforce orange styling for Fluent controls -->
+        <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#FF8400" />
+        <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#E07300" />
+        
+        <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#FF8400" />
+        <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#FF8400" />
+        <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#E07300" />
+        <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#C26300" />
+        
+        <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF8400" />
+        <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#E07300" />
+        <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C26300" />
+    </Window.Resources>
+
+    <Window.Styles>
+        <!-- Custom TitleBar Buttons Style -->
+        <Style Selector="Button.TitleBarBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.TitleBarBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E5E5E5"/>
+        </Style>
+        <Style Selector="Button.CloseBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E81123"/>
+        </Style>
+        <Style Selector="Button.CloseBtn:pointerover PathIcon">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.CloseBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F1707A"/>
+        </Style>
+        <Style Selector="Button.CloseBtn:pressed PathIcon">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- ToggleButton Style -->
+        <Style Selector="ToggleButton">
+            <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource BgCardBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton:checked PathIcon">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto, Auto, *, Auto">
+        <!-- 1. Custom Title Bar (32px) -->
+        <Border Grid.Row="0" 
+                Height="32" 
+                Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}" 
+                BorderThickness="0,0,0,1"
+                PointerPressed="TitleBar_PointerPressed">
+            <Grid ColumnDefinitions="*, Auto">
+                <!-- Title Text -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                    <TextBlock Text="MSLC Side Panel - Live Controller &amp; Transcript" 
+                               FontSize="11" 
+                               FontWeight="Bold" 
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <!-- System Action Buttons (Minimize/Close Custom styling) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0" VerticalAlignment="Stretch">
+                    <!-- Minimize Button -->
+                    <Button Click="MinimizeButton_Click"
+                            Width="46" Height="31" 
+                            Classes="TitleBarBtn"
+                            ToolTip.Tip="Minimize">
+                        <Rectangle Width="10" Height="1" Fill="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                    <!-- Close Button -->
+                    <Button Click="CloseButton_Click"
+                            Width="46" Height="31" 
+                            Classes="TitleBarBtn CloseBtn"
+                            ToolTip.Tip="Close">
+                        <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. Flat Tab Control (36px) -->
+        <Border Grid.Row="1" 
+                Height="36" 
+                Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}" 
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*, *">
+                <!-- Tab 1: Transcript & History -->
+                <Border x:Name="TabTranscriptIndicator" Grid.Column="0" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="0,0,0,2">
+                    <Button x:Name="TabTranscriptBtn" Click="TabTranscript_Click"
+                            Background="Transparent" BorderThickness="0" CornerRadius="0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                        <TextBlock x:Name="TabTranscriptText" Text="Transcript &amp; History" 
+                                   FontSize="11" FontWeight="Bold" 
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                    </Button>
+                </Border>
+
+                <!-- Tab 2: Live Subtitle Generator -->
+                <Border x:Name="TabGeneratorIndicator" Grid.Column="1" BorderBrush="Transparent" BorderThickness="0,0,0,2">
+                    <Button x:Name="TabGeneratorBtn" Click="TabGenerator_Click"
+                            Background="Transparent" BorderThickness="0" CornerRadius="0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                        <TextBlock x:Name="TabGeneratorText" Text="Live Subtitle Generator" 
+                                   FontSize="11" FontWeight="Normal" 
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </Button>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 3. Dynamic Content Area (Fill) -->
+        <Grid Grid.Row="2">
+            <!-- PANEL 1: TRANSCRIPT VIEW -->
+            <Grid x:Name="TranscriptPanel" RowDefinitions="Auto, *" IsVisible="True">
+                <!-- Transcript Toolbar (40px) -->
+                <Border Grid.Row="0" Height="40" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="12,0">
+                    <DockPanel LastChildFill="False">
+                        <!-- Left: Search Box (Enhanced TextBox layout with InnerLeftContent) -->
+                        <TextBox x:Name="SearchBox" 
+                                 Watermark="Search transcript..." 
+                                 FontSize="10" 
+                                 Width="180" Height="26"
+                                 VerticalContentAlignment="Center"
+                                 Background="{StaticResource BgWindowBrush}" 
+                                 BorderBrush="{StaticResource BorderLightBrush}" 
+                                 BorderThickness="1" 
+                                 CornerRadius="4"
+                                 DockPanel.Dock="Left"
+                                 VerticalAlignment="Center">
+                            <TextBox.InnerLeftContent>
+                                <PathIcon Data="{StaticResource IconSearch}" Width="11" Height="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </TextBox.InnerLeftContent>
+                        </TextBox>
+
+                        <!-- Right: Action Buttons -->
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <!-- Export -->
+                            <Button Click="ExportBtn_Click" Width="26" Height="26" Padding="0" Classes="SecondaryBtn" ToolTip.Tip="Export to File">
+                                <PathIcon Data="{StaticResource IconDownload}" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </Button>
+                            <!-- Copy All -->
+                            <Button Click="CopyAllBtn_Click" Width="26" Height="26" Padding="0" Classes="SecondaryBtn" ToolTip.Tip="Copy All">
+                                <PathIcon Data="{StaticResource IconCopy}" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </Button>
+                            <!-- Auto Scroll (Toggle) -->
+                            <ToggleButton x:Name="AutoScrollToggle" IsChecked="True" Width="26" Height="26" Padding="0" ToolTip.Tip="Toggle Auto Scroll">
+                                <PathIcon Data="{StaticResource IconArrowDownToLine}" Width="12" Height="12"/>
+                            </ToggleButton>
+                            <!-- Clear History -->
+                            <Button Click="ClearHistoryBtn_Click" Width="26" Height="26" Padding="0" Classes="SecondaryBtn" ToolTip.Tip="Clear History">
+                                <PathIcon Data="{StaticResource IconTrash}" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </Button>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Transcript List Area -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource BgWindowBrush}">
+                    <Border Padding="12">
+                        <StackPanel x:Name="TranscriptItemsContainer" Spacing="8">
+                            
+                            <!-- Mock Item 1 -->
+                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                                <Grid RowDefinitions="Auto, Auto, Auto">
+                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
+                                        <TextBlock Text="[10:45:12] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
+                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </Button>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1" Text="Hello everyone, welcome to the MSLC live stream today." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Row="2" Text="Xin chào mọi người, chào mừng đến với buổi phát trực tiếp MSLC hôm nay." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Mock Item 2 -->
+                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                                <Grid RowDefinitions="Auto, Auto, Auto">
+                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
+                                        <TextBlock Text="[10:45:25] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
+                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </Button>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1" Text="In this stream, we are going to showcase the new overlay feature." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Row="2" Text="Trong buổi phát sóng này, chúng tôi sẽ giới thiệu tính năng overlay mới." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Mock Item 3 -->
+                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                                <Grid RowDefinitions="Auto, Auto, Auto">
+                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
+                                        <TextBlock Text="[10:45:40] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
+                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </Button>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1" Text="This allows real-time translation with very low latency." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Row="2" Text="Tính năng này cho phép dịch thuật theo thời gian thực với độ trễ rất thấp." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Mock Item 4 -->
+                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                                <Grid RowDefinitions="Auto, Auto, Auto">
+                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
+                                        <TextBlock Text="[10:45:55] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
+                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </Button>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1" Text="You can customize the font sizes, backgrounds, and positions." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Row="2" Text="Bạn có thể tùy chỉnh kích thước phông chữ, hình nền và vị trí." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </Grid>
+                            </Border>
+
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- PANEL 2: LIVE GENERATOR VIEW -->
+            <ScrollViewer x:Name="GeneratorPanel" VerticalScrollBarVisibility="Auto" Background="{StaticResource BgWindowBrush}" IsVisible="False">
+                <Border Padding="12">
+                    <StackPanel Spacing="12">
+                        
+                        <!-- 1. Manual Subtitle Card -->
+                        <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Manual Subtitle Generator (Nhập phụ đề thủ công)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                
+                                <!-- Multiline TextBox -->
+                                <TextBox x:Name="ManualSubtitleInput" 
+                                         Height="60" AcceptsReturn="True" TextWrapping="Wrap"
+                                         Watermark="Nhập phụ đề hoặc thông báo muốn phát lên màn hình tại đây... (Nhấn Enter hoặc click Send)"
+                                         FontSize="10"/>
+                                
+                                <!-- Control Row -->
+                                <DockPanel LastChildFill="False">
+                                    <CheckBox DockPanel.Dock="Left" x:Name="AutoClearCheck" IsChecked="True" VerticalAlignment="Center">
+                                        <TextBlock Text="Auto-clear after send" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    </CheckBox>
+                                    <Button Click="SendManualBtn_Click" DockPanel.Dock="Right" Classes="PrimaryBtn" Height="26" Padding="16,0" VerticalAlignment="Center">
+                                        <TextBlock Text="Send to Overlay" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                    </Button>
+                                </DockPanel>
+
+                                <!-- Quick Buttons (Sized smaller and aligned properly) -->
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                                    <TextBlock Text="Quick:" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                    <Button Click="QuickAnnounceBtn_Click" Content="[Alo 1 2 3]" FontSize="9" Padding="8,0" Classes="SecondaryBtn" Height="22" MinHeight="0" MinWidth="0" VerticalContentAlignment="Center"/>
+                                    <Button Click="QuickAnnounceBtn_Click" Content="[Tạm nghỉ 5p]" FontSize="9" Padding="8,0" Classes="SecondaryBtn" Height="22" MinHeight="0" MinWidth="0" VerticalContentAlignment="Center"/>
+                                    <Button Click="QuickAnnounceBtn_Click" Content="[Lỗi kỹ thuật]" FontSize="9" Padding="8,0" Classes="SecondaryBtn" Height="22" MinHeight="0" MinWidth="0" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 2. Teleprompter / Script Prompter Card -->
+                        <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Teleprompter / Script Prompter (Kịch bản sẵn)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                
+                                <!-- Load Script Row -->
+                                <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,4">
+                                    <TextBox Grid.Column="0" x:Name="ScriptPathInput" Text="D:/scripts/presentation_v2.srt" Height="24" MinHeight="0" Padding="6,2" FontSize="9" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Button Grid.Column="1" Click="LoadScriptBtn_Click" Classes="SecondaryBtn" Height="24" MinHeight="0" Padding="10,0" VerticalAlignment="Center" VerticalContentAlignment="Center">
+                                        <TextBlock Text="Load Script" FontSize="9"/>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Script Preview Block -->
+                                <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                                    <StackPanel Spacing="6">
+                                        <!-- Previous Line -->
+                                        <TextBlock Text="[00:03] Thank you for joining our keynote." FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        
+                                        <!-- Active Line Highlight -->
+                                        <Border Background="#1AFF8400" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="1" CornerRadius="2" Padding="4,2">
+                                            <TextBlock Text="[00:08] Today we will announce our new translation engine." FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" TextWrapping="Wrap"/>
+                                        </Border>
+                                        
+                                        <!-- Next Line -->
+                                        <TextBlock Text="[00:15] It provides real-time multi-agent sync." FontSize="9" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Prompter Control Row -->
+                                <Grid ColumnDefinitions="*, *, *">
+                                    <!-- Prev -->
+                                    <Button Click="PrompterPrev_Click" Grid.Column="0" Classes="SecondaryBtn" Height="28" MinHeight="0" Margin="0,0,4,0" VerticalContentAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <PathIcon Data="{StaticResource IconArrowLeft}" Width="10" Height="10" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Prev" FontSize="9" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <!-- Next -->
+                                    <Button Click="PrompterNext_Click" Grid.Column="1" Classes="PrimaryBtn" Height="28" MinHeight="0" Margin="2,0" VerticalContentAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconPlay}" Width="10" Height="10" Foreground="White"/>
+                                            <TextBlock Text="Next (Space)" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <!-- Reset -->
+                                    <Button Click="PrompterReset_Click" Grid.Column="2" Classes="SecondaryBtn" Height="28" MinHeight="0" Margin="4,0,0,0" VerticalContentAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <PathIcon Data="{StaticResource IconReplay}" Width="10" Height="10" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Reset" FontSize="9" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 3. Sync & Delay Card -->
+                        <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, Auto, *, Auto">
+                                <TextBlock Grid.Column="0" Text="Sync Delay:" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                
+                                <Button Click="SyncMinus_Click" Grid.Column="1" Classes="SecondaryBtn" Width="50" Height="22" MinHeight="0" VerticalAlignment="Center" Margin="0,0,8,0" VerticalContentAlignment="Center">
+                                    <TextBlock Text="-100ms" FontSize="9"/>
+                                </Button>
+                                
+                                <TextBlock Grid.Column="2" x:Name="SyncDelayText" Text="+300 ms" FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                
+                                <Button Click="SyncPlus_Click" Grid.Column="3" Classes="SecondaryBtn" Width="50" Height="22" MinHeight="0" VerticalAlignment="Center" VerticalContentAlignment="Center">
+                                    <TextBlock Text="+100ms" FontSize="9"/>
+                                </Button>
+                                
+                                <Border Grid.Column="4" Height="1" Background="Transparent"/>
+                                
+                                <!-- Toggle Pipeline Sync -->
+                                <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <ToggleSwitch x:Name="PipelineSyncSwitch" IsChecked="True" 
+                                                  OnContent="" OffContent="" 
+                                                  MinWidth="0" Margin="0"/>
+                                    <TextBlock Text="Pipeline Sync" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                    </StackPanel>
+                </Border>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- 4. Downbar (Status Bar) (24px) -->
+        <Border Grid.Row="3" 
+                Height="24" 
+                Background="{StaticResource BgWindowBrush}" 
+                BorderBrush="{StaticResource BorderLightBrush}" 
+                BorderThickness="0,1,0,0"
+                Padding="12,0">
+            <Grid ColumnDefinitions="*, Auto">
+                <!-- Left Info -->
+                <TextBlock Grid.Column="0" x:Name="StatusBarLeftText" 
+                           Text="Total: 142 lines | Saved" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
+                           FontSize="9" 
+                           VerticalAlignment="Center"/>
+                <!-- Right Info -->
+                <TextBlock Grid.Column="1" x:Name="StatusBarRightText" 
+                           Text="Auto-save: ON" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
+                           FontSize="9" 
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
