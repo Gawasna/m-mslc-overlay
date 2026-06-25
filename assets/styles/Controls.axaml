@@ -64,4 +64,60 @@
         <Setter Property="Background" Value="{StaticResource SecondaryPressedBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
+
+    <!-- Custom TitleBar Buttons Style -->
+    <Style Selector="Button.TitleBarBtn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.TitleBarBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#E5E5E5"/>
+    </Style>
+    <Style Selector="Button.CloseBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#E81123"/>
+    </Style>
+    <Style Selector="Button.CloseBtn:pointerover PathIcon">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.CloseBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#F1707A"/>
+    </Style>
+    <Style Selector="Button.CloseBtn:pressed PathIcon">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- ToggleButton Style -->
+    <Style Selector="ToggleButton">
+        <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource BgCardBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton:checked PathIcon">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/>
+    </Style>
 </Styles>

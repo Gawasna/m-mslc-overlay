@@ -10,90 +10,6 @@
         PointerPressed="Window_PointerPressed"
         PointerMoved="Window_PointerMoved">
 
-    <Window.Resources>
-        <!-- Custom SVG Icons -->
-        <StreamGeometry x:Key="IconSearch">M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z</StreamGeometry>
-        <StreamGeometry x:Key="IconDownload">M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M7 10l5 5 5-5 M12 15V3</StreamGeometry>
-        <StreamGeometry x:Key="IconCopy">M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2 M9 5a2 2 0 002 2h2a2 2 0 002-2 M9 5a2 2 0 012-2h2a2 2 0 012 2</StreamGeometry>
-        <StreamGeometry x:Key="IconTrash">M3 6h18 M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6 m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2</StreamGeometry>
-        <StreamGeometry x:Key="IconArrowDownToLine">M12 17V3 M5 10l7 7 7-7 M19 21H5</StreamGeometry>
-        <StreamGeometry x:Key="IconArrowLeft">M19 12H5 M12 19l-7-7 7-7</StreamGeometry>
-        <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
-        <StreamGeometry x:Key="IconReplay">M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5</StreamGeometry>
-        <StreamGeometry x:Key="IconClose">M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z</StreamGeometry>
-
-        <!-- Theme Resource Overrides to enforce orange styling for Fluent controls -->
-        <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#FF8400" />
-        <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#E07300" />
-        
-        <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#FF8400" />
-        <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#FF8400" />
-        <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#E07300" />
-        <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#C26300" />
-        
-        <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF8400" />
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#E07300" />
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C26300" />
-    </Window.Resources>
-
-    <Window.Styles>
-        <!-- Custom TitleBar Buttons Style -->
-        <Style Selector="Button.TitleBarBtn">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.TitleBarBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E5E5E5"/>
-        </Style>
-        <Style Selector="Button.CloseBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E81123"/>
-        </Style>
-        <Style Selector="Button.CloseBtn:pointerover PathIcon">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.CloseBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F1707A"/>
-        </Style>
-        <Style Selector="Button.CloseBtn:pressed PathIcon">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-
-        <!-- ToggleButton Style -->
-        <Style Selector="ToggleButton">
-            <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-        </Style>
-        <Style Selector="ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource BgCardBrush}"/>
-        </Style>
-        <Style Selector="ToggleButton:checked PathIcon">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}"/>
-        </Style>
-        <Style Selector="ToggleButton:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/>
-        </Style>
-    </Window.Styles>
-
     <Grid RowDefinitions="Auto, Auto, *, Auto">
         <!-- 1. Custom Title Bar (32px) -->
         <Border Grid.Row="0" 
@@ -126,7 +42,7 @@
                             Width="46" Height="31" 
                             Classes="TitleBarBtn CloseBtn"
                             ToolTip.Tip="Close">
-                        <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <PathIcon Data="{StaticResource IconClosePanel}" Width="10" Height="10" Foreground="{StaticResource TextPrimaryBrush}"/>
                     </Button>
                 </StackPanel>
             </Grid>

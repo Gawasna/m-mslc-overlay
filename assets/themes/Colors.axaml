@@ -24,4 +24,17 @@
     <!-- Status Brushes -->
     <SolidColorBrush x:Key="StatusInactiveBrush" Color="#CBCCC9" />
     <SolidColorBrush x:Key="StatusActiveBrush" Color="#00FF00" /> <!-- Green placeholder for active hook -->
+
+    <!-- Theme Resource Overrides to enforce orange styling for Fluent controls -->
+    <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#FF8400" />
+    <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#E07300" />
+    
+    <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#FF8400" />
+    <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#FF8400" />
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#E07300" />
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#C26300" />
+    
+    <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF8400" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#E07300" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C26300" />
 </ResourceDictionary>

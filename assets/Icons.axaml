@@ -23,4 +23,14 @@
 
     <!-- Nút Tìm hiểu thêm (Help) -->
     <StreamGeometry x:Key="IconHelp">M12 22A10 10 0 1 0 12 2a10 10 0 0 0 0 20z M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3 M12 17h.01</StreamGeometry>
+
+    <!-- Thêm các Icon mới từ SidePanel và MainWindow -->
+    <StreamGeometry x:Key="IconSearch">M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z</StreamGeometry>
+    <StreamGeometry x:Key="IconDownload">M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M7 10l5 5 5-5 M12 15V3</StreamGeometry>
+    <StreamGeometry x:Key="IconCopy">M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2 M9 5a2 2 0 002 2h2a2 2 0 002-2 M9 5a2 2 0 012-2h2a2 2 0 012 2</StreamGeometry>
+    <StreamGeometry x:Key="IconTrash">M3 6h18 M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6 m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2</StreamGeometry>
+    <StreamGeometry x:Key="IconArrowDownToLine">M12 17V3 M5 10l7 7 7-7 M19 21H5</StreamGeometry>
+    <StreamGeometry x:Key="IconArrowLeft">M19 12H5 M12 19l-7-7 7-7</StreamGeometry>
+    <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
+    <StreamGeometry x:Key="IconClosePanel">M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z</StreamGeometry>
 </ResourceDictionary>
