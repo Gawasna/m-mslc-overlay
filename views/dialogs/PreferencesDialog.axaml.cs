@@ -35,6 +35,7 @@ namespace m_mslc_overlay.views.dialogs
             SystemPromptBox.Text = cfg.SystemPrompt;
             PipeNameBox.Text = cfg.PipeName;
             VerboseLogCheck.IsChecked = cfg.VerboseLogging;
+            EnableHotkeysCheck.IsChecked = cfg.EnableGlobalHotkeys;
         }
 
         private void SaveSettings()
@@ -59,8 +60,14 @@ namespace m_mslc_overlay.views.dialogs
             cfg.SystemPrompt = SystemPromptBox.Text ?? "";
             cfg.PipeName = PipeNameBox.Text ?? "MSLCCaptionPipe";
             cfg.VerboseLogging = VerboseLogCheck.IsChecked ?? false;
+            cfg.EnableGlobalHotkeys = EnableHotkeysCheck.IsChecked ?? true;
             
             ConfigManager.Save();
+
+            if (this.Owner is MainWindow mainWin)
+            {
+                mainWin.UpdateHotkeyRegistration();
+            }
         }
 
         private void TabSelector_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -73,6 +80,7 @@ namespace m_mslc_overlay.views.dialogs
             if (TabAppearance != null) TabAppearance.IsVisible = false;
             if (TabNetwork != null) TabNetwork.IsVisible = false;
             if (TabAdvanced != null) TabAdvanced.IsVisible = false;
+            if (TabHotkeys != null) TabHotkeys.IsVisible = false;
 
             // Show selected tab
             switch (TabSelector.SelectedIndex)
@@ -91,6 +99,9 @@ namespace m_mslc_overlay.views.dialogs
                     break;
                 case 4:
                     if (TabAdvanced != null) TabAdvanced.IsVisible = true;
+                    break;
+                case 5:
+                    if (TabHotkeys != null) TabHotkeys.IsVisible = true;
                     break;
             }
         }

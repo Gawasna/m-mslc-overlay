@@ -109,5 +109,14 @@
   "Pref_Advanced_OpenDir": "Mở thư mục",
   "Pref_Advanced_Network": "Kết nối mạng (Proxy)",
   "Pref_Action_Reset": "Khôi phục mặc định",
-  "Pref_Action_Close": "Đóng"
+  "Pref_Action_Close": "Đóng",
+  "Tab_Hotkeys": "Phím tắt",
+  "Pref_Hotkeys_Enable": "Kích hoạt phím tắt toàn hệ thống (Global Hotkeys)",
+  "Pref_Hotkeys_ListTitle": "Danh sách các phím tắt mặc định:",
+  "Pref_Hotkeys_ToggleOverlay": "Ẩn / Hiện Overlay phụ đề",
+  "Pref_Hotkeys_ToggleTranslate": "Bật / Tắt dịch thuật",
+  "Pref_Hotkeys_CycleLanguage": "Chuyển đổi nhanh ngôn ngữ dịch",
+  "Pref_Hotkeys_ClearText": "Xoá sạch chữ trên Overlay",
+  "Pref_Hotkeys_FontSizeUp": "Tăng kích thước cỡ chữ",
+  "Pref_Hotkeys_FontSizeDown": "Giảm kích thước cỡ chữ"
 }

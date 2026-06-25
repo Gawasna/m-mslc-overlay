@@ -20,6 +20,7 @@ namespace m_mslc_overlay.services
         
         public string PipeName { get; set; } = "MSLCCaptionPipe";
         public bool VerboseLogging { get; set; } = false;
+        public bool EnableGlobalHotkeys { get; set; } = true;
     }
 
     public static class ConfigManager
