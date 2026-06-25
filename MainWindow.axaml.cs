@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -22,6 +23,7 @@ namespace m_mslc_overlay
         private DispatcherTimer _resourceTimer;
         private DispatcherTimer _uiUpdateTimer;
         private HotkeyManager? _hotkeyManager;
+        private FocusKeyController? _focusKeyController;
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -181,10 +183,12 @@ namespace m_mslc_overlay
                 _resourceTimer.Stop();
                 _uiUpdateTimer.Stop();
                 _hotkeyManager?.Dispose();
+                _focusKeyController?.Dispose();
             };
 
             this.Opened += (s, e) => {
                 InitializeHotkeys();
+                InitializeFocusKeys();
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
@@ -517,7 +521,7 @@ namespace m_mslc_overlay
                 _hotkeyManager = new HotkeyManager(this);
                 _hotkeyManager.Initialize();
 
-                // Register hotkeys: Alt + Shift + O/T/L/C/Up/Down
+                // Register hotkeys: Alt + Shift + O/T/L/C/Up/Down (Temporarily disabled as requested)
                 // 101: Toggle Overlay (Alt + Shift + O)
                 // 102: Toggle Translation (Alt + Shift + T)
                 // 103: Cycle Language (Alt + Shift + L)
@@ -525,18 +529,55 @@ namespace m_mslc_overlay
                 // 105: Increase Font Size (Alt + Shift + Up)
                 // 106: Decrease Font Size (Alt + Shift + Down)
 
-                _hotkeyManager.Register(101, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4F, ToggleOverlay);
-                _hotkeyManager.Register(102, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x54, ToggleTranslation);
-                _hotkeyManager.Register(103, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4C, CycleLanguage);
-                _hotkeyManager.Register(104, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x43, ClearOverlayText);
-                _hotkeyManager.Register(105, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x26, () => ChangeOverlayFontSize(2.0));
-                _hotkeyManager.Register(106, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x28, () => ChangeOverlayFontSize(-2.0));
+                // _hotkeyManager.Register(101, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4F, ToggleOverlay);
+                // _hotkeyManager.Register(102, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x54, ToggleTranslation);
+                // _hotkeyManager.Register(103, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4C, CycleLanguage);
+                // _hotkeyManager.Register(104, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x43, ClearOverlayText);
+                // _hotkeyManager.Register(105, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x26, () => ChangeOverlayFontSize(2.0));
+                // _hotkeyManager.Register(106, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x28, () => ChangeOverlayFontSize(-2.0));
 
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys initialized.\n");
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys manager initialized (Alt+Shift+X hotkeys temporarily disabled).\n");
             }
             catch (Exception ex)
             {
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize global hotkeys: {ex.Message}\n");
+            }
+        }
+
+        private void InitializeFocusKeys()
+        {
+            try
+            {
+                _focusKeyController = new FocusKeyController(this);
+
+                // 1. Register shortcuts with modifiers (e.g. Ctrl + Key)
+                _focusKeyController.Register(Key.O, KeyModifiers.Control, ToggleOverlay);
+                _focusKeyController.Register(Key.T, KeyModifiers.Control, ToggleTranslation);
+                _focusKeyController.Register(Key.L, KeyModifiers.Control, CycleLanguage);
+                _focusKeyController.Register(Key.C, KeyModifiers.Control, ClearOverlayText);
+                _focusKeyController.Register(Key.Up, KeyModifiers.Control, () => ChangeOverlayFontSize(2.0));
+                _focusKeyController.Register(Key.Down, KeyModifiers.Control, () => ChangeOverlayFontSize(-2.0));
+
+                // 2. Register fallback keys (Fx, A-Z) without modifiers (bypassed if typing in TextBox)
+                // Fx Keys
+                _focusKeyController.RegisterFallbackKey(Key.F1, ToggleOverlay);
+                _focusKeyController.RegisterFallbackKey(Key.F2, ToggleTranslation);
+                _focusKeyController.RegisterFallbackKey(Key.F3, CycleLanguage);
+                _focusKeyController.RegisterFallbackKey(Key.F4, ClearOverlayText);
+                _focusKeyController.RegisterFallbackKey(Key.F5, () => ChangeOverlayFontSize(2.0));
+                _focusKeyController.RegisterFallbackKey(Key.F6, () => ChangeOverlayFontSize(-2.0));
+
+                // A-Z Keys (active only when no text box has focus)
+                _focusKeyController.RegisterFallbackKey(Key.O, ToggleOverlay);
+                _focusKeyController.RegisterFallbackKey(Key.T, ToggleTranslation);
+                _focusKeyController.RegisterFallbackKey(Key.L, CycleLanguage);
+                _focusKeyController.RegisterFallbackKey(Key.C, ClearOverlayText);
+
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Focused window key controller initialized.\n");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize focused key controller: {ex.Message}\n");
             }
         }
 
