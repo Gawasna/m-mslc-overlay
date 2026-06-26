@@ -17,9 +17,11 @@ namespace m_mslc_overlay.services
         
         public string TranslationEngine { get; set; } = "Cloud AI (Ollama/Gemini)";
         public string DeepLApiKey { get; set; } = "";
+        public string OfflineTranslateUrl { get; set; } = "http://127.0.0.1:11435";
         
         public string PipeName { get; set; } = "MSLCCaptionPipe";
         public bool VerboseLogging { get; set; } = false;
+        public bool EnableGlobalHotkeys { get; set; } = true;
     }
 
     public static class ConfigManager

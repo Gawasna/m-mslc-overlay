@@ -24,4 +24,9 @@
   <ItemGroup>
     <AvaloniaResource Include="assets\**" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="docs\**" />
+    <None Include="docs\**" />
+  </ItemGroup>
 </Project>

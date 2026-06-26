@@ -18,7 +18,6 @@ namespace m_mslc_overlay.services
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _listenerTask;
         private readonly SentenceSplitter _splitter;
-        private string _shortSentenceBuffer = "";
 
         public bool IsRunning => _listenerTask != null && !_listenerTask.IsCompleted;
 
@@ -116,24 +115,14 @@ namespace m_mslc_overlay.services
                 
                 string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? "" : "";
                 bool isFinal = root.TryGetProperty("is_final", out var finalProp) && finalProp.GetBoolean();
+                ulong offset = root.TryGetProperty("offset", out var offsetProp) ? offsetProp.GetUInt64() : 0;
 
                 OnPartialCaptionReceived?.Invoke(text);
 
-                var sentences = _splitter.ExtractNewSentences(text, isFinal);
+                var sentences = _splitter.ExtractNewSentences(text, isFinal, offset);
                 foreach (var s in sentences)
                 {
-                    string combined = string.IsNullOrEmpty(_shortSentenceBuffer) ? s : _shortSentenceBuffer + " " + s;
-                    int wordCount = combined.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                    
-                    if (wordCount <= 3)
-                    {
-                        _shortSentenceBuffer = combined;
-                    }
-                    else
-                    {
-                        OnFinalSentenceReceived?.Invoke(combined);
-                        _shortSentenceBuffer = "";
-                    }
+                    OnFinalSentenceReceived?.Invoke(s);
                 }
             }
             catch (Exception ex)

@@ -27,6 +27,7 @@
                 <ListBoxItem Content="{DynamicResource Tab_Appearance}" />
                 <ListBoxItem Content="{DynamicResource Tab_Network}" />
                 <ListBoxItem Content="{DynamicResource Tab_Advanced}" />
+                <ListBoxItem Content="{DynamicResource Tab_Hotkeys}" />
             </ListBox>
         </Border>
         
@@ -73,6 +74,7 @@
                                         <ComboBox x:Name="TranslationEngineCombo" Width="240" SelectedIndex="0">
                                             <ComboBoxItem Content="DeepL API"/>
                                             <ComboBoxItem Content="Cloud AI (Ollama/Gemini)"/>
+                                            <ComboBoxItem Content="Offline CTranslate2 (GPU)"/>
                                         </ComboBox>
                                     </StackPanel>
                                     <StackPanel Spacing="8">
@@ -108,7 +110,14 @@
                             <!-- Local AI -->
                             <TabItem Header="{DynamicResource Pref_Trans_LocalAI}">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
-                                    <TextBlock Text="Cấu hình Local AI sẽ được bổ sung sau." Foreground="#666666"/>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{DynamicResource Pref_LocalAI_ServiceUrl}" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="OfflineTranslateUrlBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:11435"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <Button x:Name="TestOfflineConnectionBtn" Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center" Click="TestOfflineConnectionBtn_Click"/>
+                                        <TextBlock x:Name="OfflineStatusText" Text="" FontSize="12" Foreground="#666666" TextWrapping="Wrap" Width="400" HorizontalAlignment="Left"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </TabItem>
                         </TabControl>
@@ -148,6 +157,36 @@
                                 </Grid>
                             </StackPanel>
                             <CheckBox x:Name="VerboseLogCheck" Content="Ghi log chi tiết (Verbose Logging)" IsChecked="False" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Hotkeys Tab -->
+                    <StackPanel x:Name="TabHotkeys" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_Hotkeys}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <StackPanel Spacing="16">
+                            <CheckBox x:Name="EnableHotkeysCheck" Content="{DynamicResource Pref_Hotkeys_Enable}" IsChecked="True"/>
+                            
+                            <TextBlock Text="{DynamicResource Pref_Hotkeys_ListTitle}" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,0" Foreground="#333333"/>
+                            
+                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="220,*" Margin="0,4,0,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ToggleOverlay}" FontWeight="Medium" Padding="0,6"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Alt + Shift + O" Foreground="#FF8400" Padding="0,6"/>
+                                
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ToggleTranslate}" FontWeight="Medium" Padding="0,6"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Alt + Shift + T" Foreground="#FF8400" Padding="0,6"/>
+                                
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_CycleLanguage}" FontWeight="Medium" Padding="0,6"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Alt + Shift + L" Foreground="#FF8400" Padding="0,6"/>
+                                
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ClearText}" FontWeight="Medium" Padding="0,6"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="Alt + Shift + C" Foreground="#FF8400" Padding="0,6"/>
+                                
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_FontSizeUp}" FontWeight="Medium" Padding="0,6"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="Alt + Shift + Up" Foreground="#FF8400" Padding="0,6"/>
+                                
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_FontSizeDown}" FontWeight="Medium" Padding="0,6"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="Alt + Shift + Down" Foreground="#FF8400" Padding="0,6"/>
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
                     
