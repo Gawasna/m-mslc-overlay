@@ -38,6 +38,10 @@ namespace m_mslc_overlay.services
                 {
                     await TranslateWithDeepLAsync(originalText);
                 }
+                else if (ConfigManager.Current.TranslationEngine == "Offline CTranslate2")
+                {
+                    await TranslateWithOfflineCTranslate2Async(originalText);
+                }
                 else
                 {
                     await TranslateWithOllamaAsync(originalText);
@@ -46,6 +50,58 @@ namespace m_mslc_overlay.services
             finally
             {
                 _translateSemaphore.Release();
+            }
+        }
+
+        private async Task TranslateWithOfflineCTranslate2Async(string originalText)
+        {
+            try
+            {
+                // Ánh xạ TargetLanguage sang mã ngôn ngữ của NLLB-200
+                string targetLangCode = TargetLanguage switch {
+                    "Tiếng Việt" => "vie_Latn",
+                    "Tiếng Nhật" => "jpn_Jpan",
+                    "Tiếng Trung" => "zho_Hans",
+                    "English" => "eng_Latn",
+                    _ => "vie_Latn"
+                };
+
+                var requestBody = new
+                {
+                    text = originalText,
+                    source_lang = "eng_Latn",
+                    target_lang = targetLangCode
+                };
+
+                string jsonContent = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                string url = ConfigManager.Current.OfflineTranslateUrl;
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    url = "http://127.0.0.1:11435";
+                }
+
+                var response = await _httpClient.PostAsync($"{url.TrimEnd('/')}/translate", content);
+                response.EnsureSuccessStatusCode();
+
+                string responseStr = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseStr);
+                
+                if (doc.RootElement.TryGetProperty("translated_text", out var translatedTextProp))
+                {
+                    string translatedText = translatedTextProp.GetString() ?? "";
+                    if (!string.IsNullOrWhiteSpace(translatedText))
+                    {
+                        OnTranslationCompleted?.Invoke(translatedText.Trim());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AIService] Lỗi gọi Offline CTranslate2: {ex.Message}");
+                string errMsg = $"[Lỗi Offline NLLB: {ex.Message}]";
+                OnTranslationCompleted?.Invoke(errMsg);
             }
         }
 

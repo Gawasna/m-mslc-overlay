@@ -118,5 +118,9 @@
   "Pref_Hotkeys_CycleLanguage": "Cycle Target Language",
   "Pref_Hotkeys_ClearText": "Clear Overlay Text",
   "Pref_Hotkeys_FontSizeUp": "Increase Font Size",
-  "Pref_Hotkeys_FontSizeDown": "Decrease Font Size"
+  "Pref_Hotkeys_FontSizeDown": "Decrease Font Size",
+  "Pref_LocalAI_ServiceUrl": "Offline CTranslate2 Service URL",
+  "Pref_LocalAI_Testing": "Testing connection to Offline Server...",
+  "Pref_LocalAI_ConnSuccess": "Connection successful!",
+  "Pref_LocalAI_ConnFailed": "Connection failed!"
 }

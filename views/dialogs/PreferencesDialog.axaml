@@ -74,6 +74,7 @@
                                         <ComboBox x:Name="TranslationEngineCombo" Width="240" SelectedIndex="0">
                                             <ComboBoxItem Content="DeepL API"/>
                                             <ComboBoxItem Content="Cloud AI (Ollama/Gemini)"/>
+                                            <ComboBoxItem Content="Offline CTranslate2 (GPU)"/>
                                         </ComboBox>
                                     </StackPanel>
                                     <StackPanel Spacing="8">
@@ -109,7 +110,14 @@
                             <!-- Local AI -->
                             <TabItem Header="{DynamicResource Pref_Trans_LocalAI}">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
-                                    <TextBlock Text="Cấu hình Local AI sẽ được bổ sung sau." Foreground="#666666"/>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{DynamicResource Pref_LocalAI_ServiceUrl}" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="OfflineTranslateUrlBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:11435"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <Button x:Name="TestOfflineConnectionBtn" Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center" Click="TestOfflineConnectionBtn_Click"/>
+                                        <TextBlock x:Name="OfflineStatusText" Text="" FontSize="12" Foreground="#666666" TextWrapping="Wrap" Width="400" HorizontalAlignment="Left"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </TabItem>
                         </TabControl>

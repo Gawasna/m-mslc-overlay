@@ -88,22 +88,49 @@
                 <!-- Transcript Toolbar (40px) -->
                 <Border Grid.Row="0" Height="40" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="12,0">
                     <DockPanel LastChildFill="False">
-                        <!-- Left: Search Box (Enhanced TextBox layout with InnerLeftContent) -->
-                        <TextBox x:Name="SearchBox" 
-                                 Watermark="Search transcript..." 
-                                 FontSize="10" 
-                                 Width="180" Height="26"
-                                 VerticalContentAlignment="Center"
-                                 Background="{StaticResource BgWindowBrush}" 
-                                 BorderBrush="{StaticResource BorderLightBrush}" 
-                                 BorderThickness="1" 
-                                 CornerRadius="4"
-                                 DockPanel.Dock="Left"
-                                 VerticalAlignment="Center">
-                            <TextBox.InnerLeftContent>
-                                <PathIcon Data="{StaticResource IconSearch}" Width="11" Height="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                            </TextBox.InnerLeftContent>
-                        </TextBox>
+                        <!-- Left: Search Box, Font Selector, Line Spacing Selector -->
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBox x:Name="SearchBox" 
+                                     Watermark="Search transcript..." 
+                                     FontSize="10" 
+                                     Width="120" Height="26"
+                                     VerticalContentAlignment="Center"
+                                     Background="{StaticResource BgWindowBrush}" 
+                                     BorderBrush="{StaticResource BorderLightBrush}" 
+                                     BorderThickness="1" 
+                                     CornerRadius="4"
+                                     VerticalAlignment="Center">
+                                <TextBox.InnerLeftContent>
+                                    <PathIcon Data="{StaticResource IconSearch}" Width="11" Height="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </TextBox.InnerLeftContent>
+                            </TextBox>
+                            
+                            <!-- Font Family Selector (Georgia, Lora, JetBrains Mono, Inter, Segoe UI) -->
+                            <ComboBox x:Name="FontFamilySelector" 
+                                      Width="110" Height="26" FontSize="10" 
+                                      SelectedIndex="0" 
+                                      VerticalAlignment="Center" 
+                                      VerticalContentAlignment="Center"
+                                      SelectionChanged="FontFamilySelector_SelectionChanged">
+                                <ComboBoxItem Content="Georgia"/>
+                                <ComboBoxItem Content="Lora"/>
+                                <ComboBoxItem Content="JetBrains Mono"/>
+                                <ComboBoxItem Content="Inter"/>
+                                <ComboBoxItem Content="Segoe UI"/>
+                            </ComboBox>
+                            
+                            <!-- Line Spacing Selector (1.15x, 1.5x, 2.0x) -->
+                            <ComboBox x:Name="LineSpacingSelector" 
+                                      Width="60" Height="26" FontSize="10" 
+                                      SelectedIndex="0" 
+                                      VerticalAlignment="Center" 
+                                      VerticalContentAlignment="Center"
+                                      SelectionChanged="LineSpacingSelector_SelectionChanged">
+                                <ComboBoxItem Content="1.15x"/>
+                                <ComboBoxItem Content="1.5x"/>
+                                <ComboBoxItem Content="2.0x"/>
+                            </ComboBox>
+                        </StackPanel>
 
                         <!-- Right: Action Buttons -->
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -127,67 +154,68 @@
                     </DockPanel>
                 </Border>
 
-                <!-- Transcript List Area -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource BgWindowBrush}">
-                    <Border Padding="12">
-                        <StackPanel x:Name="TranscriptItemsContainer" Spacing="8">
+                <!-- Transcript List Area (Paper Style) -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource BgWindowBrush}" Padding="16,16">
+                    <!-- Paper Sheet Container -->
+                    <Border Background="#FFFFFF" 
+                            BorderBrush="{StaticResource BorderLightBrush}" 
+                            BorderThickness="1" 
+                            CornerRadius="2"
+                            Margin="0,0,0,16"
+                            Padding="24"
+                            BoxShadow="0 4 12 0 #15000000">
+                        <StackPanel Spacing="16">
+                            <!-- Paper Header -->
+                            <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,8">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="LIVE STREAM TRANSCRIPT" 
+                                               FontSize="12" 
+                                               FontWeight="Bold" 
+                                               FontFamily="Georgia"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Session: Live Translation" 
+                                               FontSize="9" 
+                                               Foreground="{StaticResource TextSecondaryBrush}" 
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+                                
+                                <!-- Language Selector EN | VI -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+                                    <ToggleButton x:Name="BtnLangEn" Content="EN" 
+                                                  Click="BtnLangEn_Click"
+                                                  IsChecked="False"
+                                                  Width="34" Height="24" FontSize="10" Padding="0"
+                                                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                  CornerRadius="4,0,0,4" BorderThickness="1,1,0,1" BorderBrush="{StaticResource BorderLightBrush}"/>
+                                    <ToggleButton x:Name="BtnLangVi" Content="VI" 
+                                                  Click="BtnLangVi_Click"
+                                                  IsChecked="True"
+                                                  Width="34" Height="24" FontSize="10" Padding="0"
+                                                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                  CornerRadius="0,4,4,0" BorderThickness="1" BorderBrush="{StaticResource BorderLightBrush}"/>
+                                </StackPanel>
+                            </Grid>
                             
-                            <!-- Mock Item 1 -->
-                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
-                                <Grid RowDefinitions="Auto, Auto, Auto">
-                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
-                                        <TextBlock Text="[10:45:12] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
-                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        </Button>
-                                    </DockPanel>
-                                    <TextBlock Grid.Row="1" Text="Hello everyone, welcome to the MSLC live stream today." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Row="2" Text="Xin chào mọi người, chào mừng đến với buổi phát trực tiếp MSLC hôm nay." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                </Grid>
-                            </Border>
+                            <Separator Height="1" Background="{StaticResource BorderLightBrush}" Margin="0,0,0,8"/>
+                            
+                            <!-- Transcript Paper Content (Paragraphs) -->
+                            <StackPanel x:Name="TextEnContainer" Spacing="12" IsVisible="False">
+                                <TextBlock FontFamily="Georgia" FontSize="12" LineHeight="19" TextWrapping="Wrap" Foreground="#222222"
+                                           Text="Hello everyone, welcome to the MSLC live stream today. In this stream, we are going to showcase the new overlay feature. This allows real-time translation with very low latency. You can customize the font sizes, backgrounds, and positions."/>
+                                <TextBlock FontFamily="Georgia" FontSize="12" LineHeight="19" TextWrapping="Wrap" Foreground="#222222"
+                                           Text="We have been working hard on this release to bring you the best possible experience. The system now integrates smoothly with multi-agent translation pipelines, providing contextual adjustments and reducing translation errors by up to forty percent."/>
+                                <TextBlock FontFamily="Georgia" FontSize="12" LineHeight="19" TextWrapping="Wrap" Foreground="#222222"
+                                           Text="Please feel free to ask any questions in the chat, and our moderators will help answer them. We will start the demo in just a few minutes, so stay tuned!"/>
+                            </StackPanel>
 
-                            <!-- Mock Item 2 -->
-                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
-                                <Grid RowDefinitions="Auto, Auto, Auto">
-                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
-                                        <TextBlock Text="[10:45:25] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
-                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        </Button>
-                                    </DockPanel>
-                                    <TextBlock Grid.Row="1" Text="In this stream, we are going to showcase the new overlay feature." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Row="2" Text="Trong buổi phát sóng này, chúng tôi sẽ giới thiệu tính năng overlay mới." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                </Grid>
-                            </Border>
-
-                            <!-- Mock Item 3 -->
-                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
-                                <Grid RowDefinitions="Auto, Auto, Auto">
-                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
-                                        <TextBlock Text="[10:45:40] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
-                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        </Button>
-                                    </DockPanel>
-                                    <TextBlock Grid.Row="1" Text="This allows real-time translation with very low latency." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Row="2" Text="Tính năng này cho phép dịch thuật theo thời gian thực với độ trễ rất thấp." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                </Grid>
-                            </Border>
-
-                            <!-- Mock Item 4 -->
-                            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
-                                <Grid RowDefinitions="Auto, Auto, Auto">
-                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,4">
-                                        <TextBlock Text="[10:45:55] EN (Original)" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        <Button DockPanel.Dock="Right" Click="CopyItemBtn_Click" Background="Transparent" BorderThickness="0" Width="16" Height="16" Padding="0">
-                                            <PathIcon Data="{StaticResource IconCopy}" Width="10" Height="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        </Button>
-                                    </DockPanel>
-                                    <TextBlock Grid.Row="1" Text="You can customize the font sizes, backgrounds, and positions." FontSize="10" FontStyle="Italic" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Row="2" Text="Bạn có thể tùy chỉnh kích thước phông chữ, hình nền và vị trí." FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                </Grid>
-                            </Border>
-
+                            <StackPanel x:Name="TextViContainer" Spacing="12" IsVisible="True">
+                                <TextBlock FontFamily="Georgia" FontSize="12" LineHeight="19" TextWrapping="Wrap" Foreground="#222222"
+                                           Text="Xin chào mọi người, chào mừng đến với buổi phát trực tiếp MSLC hôm nay. Trong buổi phát sóng này, chúng tôi sẽ giới thiệu tính năng overlay mới. Tính năng này cho phép dịch thuật theo thời gian thực với độ trễ rất thấp. Bạn có thể tùy chỉnh kích thước phông chữ, hình nền và vị trí."/>
+                                <TextBlock FontFamily="Georgia" FontSize="12" LineHeight="19" TextWrapping="Wrap" Foreground="#222222"
+                                           Text="Chúng tôi đã làm việc chăm chỉ cho bản phát hành này để mang lại cho bạn trải nghiệm tốt nhất có thể. Hệ thống hiện tích hợp mượt mà với các đường ống dịch thuật đa tác nhân, cung cấp các điều chỉnh theo ngữ cảnh và giảm tới bốn mươi phần trăm lỗi dịch thuật."/>
+                                <TextBlock FontFamily="Georgia" FontSize="12" LineHeight="19" TextWrapping="Wrap" Foreground="#222222"
+                                           Text="Vui lòng đặt bất kỳ câu hỏi nào trong phần chat, điều phối viên của chúng tôi sẽ giúp trả lời. Chúng tôi sẽ bắt đầu bản demo chỉ sau vài phút nữa, hãy chú ý theo dõi!"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </ScrollViewer>

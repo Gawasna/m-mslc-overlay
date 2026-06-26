@@ -199,5 +199,101 @@ namespace m_mslc_overlay.views.components
             // Mock sync delay plus
             SyncDelayText.Text = "+400 ms";
         }
+
+        private void BtnLangEn_Click(object? sender, RoutedEventArgs e)
+        {
+            BtnLangEn.IsChecked = true;
+            BtnLangVi.IsChecked = false;
+            TextEnContainer.IsVisible = true;
+            TextViContainer.IsVisible = false;
+        }
+
+        private void BtnLangVi_Click(object? sender, RoutedEventArgs e)
+        {
+            BtnLangEn.IsChecked = false;
+            BtnLangVi.IsChecked = true;
+            TextEnContainer.IsVisible = false;
+            TextViContainer.IsVisible = true;
+        }
+
+        private void FontFamilySelector_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            ApplyCurrentPaperStyles();
+        }
+
+        private void LineSpacingSelector_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            ApplyCurrentPaperStyles();
+        }
+
+        private void ApplyCurrentPaperStyles()
+        {
+            if (FontFamilySelector == null || LineSpacingSelector == null) return;
+
+            string font = "Georgia";
+            if (FontFamilySelector.SelectedItem is ComboBoxItem fontItem && fontItem.Content is string fontStr)
+            {
+                font = fontStr;
+            }
+
+            double lineHeight = 19.0;
+            if (LineSpacingSelector.SelectedItem is ComboBoxItem spacingItem && spacingItem.Content is string spacingStr)
+            {
+                if (spacingStr == "1.15x") lineHeight = 19.0;
+                else if (spacingStr == "1.5x") lineHeight = 25.0;
+                else if (spacingStr == "2.0x") lineHeight = 33.0;
+            }
+
+            UpdateParagraphStyles(font, lineHeight);
+        }
+
+        private void UpdateParagraphStyles(string fontFamily, double lineHeight)
+        {
+            try
+            {
+                var fontFamilyObj = GetFontFamilyByName(fontFamily);
+                
+                if (TextEnContainer != null)
+                {
+                    foreach (var child in TextEnContainer.Children)
+                    {
+                        if (child is TextBlock tb)
+                        {
+                            tb.FontFamily = fontFamilyObj;
+                            tb.LineHeight = lineHeight;
+                        }
+                    }
+                }
+                
+                if (TextViContainer != null)
+                {
+                    foreach (var child in TextViContainer.Children)
+                    {
+                        if (child is TextBlock tb)
+                        {
+                            tb.FontFamily = fontFamilyObj;
+                            tb.LineHeight = lineHeight;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback safe handling
+            }
+        }
+
+        private FontFamily GetFontFamilyByName(string name)
+        {
+            return name switch
+            {
+                "Lora" => new FontFamily("avares://m-mslc-overlay/assets/fonts/#Lora"),
+                "JetBrains Mono" => new FontFamily("avares://m-mslc-overlay/assets/fonts/#JetBrains Mono"),
+                "Georgia" => new FontFamily("avares://m-mslc-overlay/assets/fonts/#Georgia"),
+                "Inter" => new FontFamily("avares://m-mslc-overlay/assets/fonts/#Inter"),
+                "Segoe UI" => new FontFamily("Segoe UI"),
+                _ => FontFamily.Default
+            };
+        }
     }
 }

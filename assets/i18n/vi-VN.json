@@ -118,5 +118,9 @@
   "Pref_Hotkeys_CycleLanguage": "Chuyển đổi nhanh ngôn ngữ dịch",
   "Pref_Hotkeys_ClearText": "Xoá sạch chữ trên Overlay",
   "Pref_Hotkeys_FontSizeUp": "Tăng kích thước cỡ chữ",
-  "Pref_Hotkeys_FontSizeDown": "Giảm kích thước cỡ chữ"
+  "Pref_Hotkeys_FontSizeDown": "Giảm kích thước cỡ chữ",
+  "Pref_LocalAI_ServiceUrl": "Địa chỉ dịch vụ Offline CTranslate2",
+  "Pref_LocalAI_Testing": "Đang kết nối thử nghiệm đến Offline Server...",
+  "Pref_LocalAI_ConnSuccess": "Kết nối thành công!",
+  "Pref_LocalAI_ConnFailed": "Kết nối thất bại!"
 }
