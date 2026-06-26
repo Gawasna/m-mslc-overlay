@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -21,6 +22,8 @@ namespace m_mslc_overlay
         private SystemMonitor _sysMonitor;
         private DispatcherTimer _resourceTimer;
         private DispatcherTimer _uiUpdateTimer;
+        private HotkeyManager? _hotkeyManager;
+        private FocusKeyController? _focusKeyController;
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -179,6 +182,13 @@ namespace m_mslc_overlay
                 _pipeService.Dispose();
                 _resourceTimer.Stop();
                 _uiUpdateTimer.Stop();
+                _hotkeyManager?.Dispose();
+                _focusKeyController?.Dispose();
+            };
+
+            this.Opened += (s, e) => {
+                InitializeHotkeys();
+                InitializeFocusKeys();
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
@@ -500,6 +510,175 @@ namespace m_mslc_overlay
 
                 _sidePanelWindow.Show();
             }
+        }
+
+        private void InitializeHotkeys()
+        {
+            if (!ConfigManager.Current.EnableGlobalHotkeys) return;
+
+            try
+            {
+                _hotkeyManager = new HotkeyManager(this);
+                _hotkeyManager.Initialize();
+
+                // Register hotkeys: Alt + Shift + O/T/L/C/Up/Down (Temporarily disabled as requested)
+                // 101: Toggle Overlay (Alt + Shift + O)
+                // 102: Toggle Translation (Alt + Shift + T)
+                // 103: Cycle Language (Alt + Shift + L)
+                // 104: Clear Text (Alt + Shift + C)
+                // 105: Increase Font Size (Alt + Shift + Up)
+                // 106: Decrease Font Size (Alt + Shift + Down)
+
+                // _hotkeyManager.Register(101, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4F, ToggleOverlay);
+                // _hotkeyManager.Register(102, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x54, ToggleTranslation);
+                // _hotkeyManager.Register(103, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4C, CycleLanguage);
+                // _hotkeyManager.Register(104, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x43, ClearOverlayText);
+                // _hotkeyManager.Register(105, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x26, () => ChangeOverlayFontSize(2.0));
+                // _hotkeyManager.Register(106, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x28, () => ChangeOverlayFontSize(-2.0));
+
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys manager initialized (Alt+Shift+X hotkeys temporarily disabled).\n");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize global hotkeys: {ex.Message}\n");
+            }
+        }
+
+        private void InitializeFocusKeys()
+        {
+            try
+            {
+                _focusKeyController = new FocusKeyController(this);
+
+                // 1. Register shortcuts with modifiers (e.g. Ctrl + Key)
+                _focusKeyController.Register(Key.O, KeyModifiers.Control, ToggleOverlay);
+                _focusKeyController.Register(Key.T, KeyModifiers.Control, ToggleTranslation);
+                _focusKeyController.Register(Key.L, KeyModifiers.Control, CycleLanguage);
+                _focusKeyController.Register(Key.C, KeyModifiers.Control, ClearOverlayText);
+                _focusKeyController.Register(Key.Up, KeyModifiers.Control, () => ChangeOverlayFontSize(2.0));
+                _focusKeyController.Register(Key.Down, KeyModifiers.Control, () => ChangeOverlayFontSize(-2.0));
+
+                // 2. Register fallback keys (Fx, A-Z) without modifiers (bypassed if typing in TextBox)
+                // Fx Keys
+                _focusKeyController.RegisterFallbackKey(Key.F1, ToggleOverlay);
+                _focusKeyController.RegisterFallbackKey(Key.F2, ToggleTranslation);
+                _focusKeyController.RegisterFallbackKey(Key.F3, CycleLanguage);
+                _focusKeyController.RegisterFallbackKey(Key.F4, ClearOverlayText);
+                _focusKeyController.RegisterFallbackKey(Key.F5, () => ChangeOverlayFontSize(2.0));
+                _focusKeyController.RegisterFallbackKey(Key.F6, () => ChangeOverlayFontSize(-2.0));
+
+                // A-Z Keys (active only when no text box has focus)
+                _focusKeyController.RegisterFallbackKey(Key.O, ToggleOverlay);
+                _focusKeyController.RegisterFallbackKey(Key.T, ToggleTranslation);
+                _focusKeyController.RegisterFallbackKey(Key.L, CycleLanguage);
+                _focusKeyController.RegisterFallbackKey(Key.C, ClearOverlayText);
+
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Focused window key controller initialized.\n");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize focused key controller: {ex.Message}\n");
+            }
+        }
+
+        public void UpdateHotkeyRegistration()
+        {
+            if (ConfigManager.Current.EnableGlobalHotkeys)
+            {
+                if (_hotkeyManager == null)
+                {
+                    InitializeHotkeys();
+                }
+            }
+            else
+            {
+                if (_hotkeyManager != null)
+                {
+                    _hotkeyManager.Dispose();
+                    _hotkeyManager = null;
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys disabled.\n");
+                }
+            }
+        }
+
+        public void ToggleOverlay()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                if (_currentOverlay == null || !_currentOverlay.IsVisible)
+                {
+                    _currentOverlay = new FloatingTextOverlay(this);
+                    _currentOverlay.Show();
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Floating Overlay opened.\n");
+                }
+                else
+                {
+                    _currentOverlay.Close();
+                    _currentOverlay = null;
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Floating Overlay closed.\n");
+                }
+            });
+        }
+
+        public void ToggleTranslation()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                IsTranslationEnabled = !IsTranslationEnabled;
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Translation toggled to: {IsTranslationEnabled}\n");
+            });
+        }
+
+        public void CycleLanguage()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                if (!IsTranslationEnabled)
+                {
+                    _aiService.TargetLanguage = "Tiếng Việt";
+                    IsTranslationEnabled = true;
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Target language set to: Tiếng Việt\n");
+                    _currentOverlay?.SetImmediateText(LanguageManager.GetString("Msg_LangVietnamese"));
+                }
+                else if (_aiService.TargetLanguage == "Tiếng Việt")
+                {
+                    _aiService.TargetLanguage = "Tiếng Nhật";
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Target language set to: Tiếng Nhật\n");
+                    _currentOverlay?.SetImmediateText(LanguageManager.GetString("Msg_LangJapanese"));
+                }
+                else if (_aiService.TargetLanguage == "Tiếng Nhật")
+                {
+                    _aiService.TargetLanguage = "Tiếng Trung";
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Target language set to: Tiếng Trung\n");
+                    _currentOverlay?.SetImmediateText(LanguageManager.GetString("Msg_LangChinese"));
+                }
+                else
+                {
+                    IsTranslationEnabled = false;
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Target language set to: English (Raw Mode)\n");
+                    _currentOverlay?.SetImmediateText(LanguageManager.GetString("Msg_LangEnglish"));
+                }
+            });
+        }
+
+        public void ClearOverlayText()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                if (_currentOverlay != null && _currentOverlay.IsVisible)
+                {
+                    _currentOverlay.ClearQueueAndText();
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Overlay text cleared.\n");
+                }
+            });
+        }
+
+        public void ChangeOverlayFontSize(double delta)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                if (_currentOverlay != null && _currentOverlay.IsVisible)
+                {
+                    double newSize = Math.Clamp(_currentOverlay.OverlayFontSize + delta, 12.0, 40.0);
+                    _currentOverlay.OverlayFontSize = newSize;
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Font size changed to {newSize:F1}\n");
+                }
+            });
         }
     }
 }

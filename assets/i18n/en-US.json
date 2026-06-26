@@ -109,5 +109,18 @@
   "Pref_Advanced_OpenDir": "Open Folder",
   "Pref_Advanced_Network": "Network (Proxy)",
   "Pref_Action_Reset": "Reset to Defaults",
-  "Pref_Action_Close": "Close"
+  "Pref_Action_Close": "Close",
+  "Tab_Hotkeys": "Hotkeys",
+  "Pref_Hotkeys_Enable": "Enable system-wide hotkeys (Global Hotkeys)",
+  "Pref_Hotkeys_ListTitle": "Default Hotkeys list:",
+  "Pref_Hotkeys_ToggleOverlay": "Toggle Overlay Visibility",
+  "Pref_Hotkeys_ToggleTranslate": "Toggle Translation",
+  "Pref_Hotkeys_CycleLanguage": "Cycle Target Language",
+  "Pref_Hotkeys_ClearText": "Clear Overlay Text",
+  "Pref_Hotkeys_FontSizeUp": "Increase Font Size",
+  "Pref_Hotkeys_FontSizeDown": "Decrease Font Size",
+  "Pref_LocalAI_ServiceUrl": "Offline CTranslate2 Service URL",
+  "Pref_LocalAI_Testing": "Testing connection to Offline Server...",
+  "Pref_LocalAI_ConnSuccess": "Connection successful!",
+  "Pref_LocalAI_ConnFailed": "Connection failed!"
 }

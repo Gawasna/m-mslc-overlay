@@ -10,8 +10,6 @@
     <Window.Resources>
         <!-- Zap/Lightning icon for DLL Injection -->
         <StreamGeometry x:Key="IconZap">M13 2L3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
-        <!-- Play icon for starting Pipe / Opening Overlay -->
-        <StreamGeometry x:Key="IconPlay">M8 5v14l11-7z</StreamGeometry>
     </Window.Resources>
 
 
