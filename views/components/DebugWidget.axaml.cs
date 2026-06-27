@@ -48,8 +48,8 @@ namespace m_mslc_overlay.views.components
         private void Pipe_OnPartialCaptionReceived(string text) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-PARTIAL] {text}", "#00FFFF"));
 
-        private void Pipe_OnFinalSentenceReceived(string text) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-FINAL] {text}", "#00FF00"));
+        private void Pipe_OnFinalSentenceReceived(string text, string reason) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-FINAL][{reason}] {text}", "#00FF00"));
 
         private void Pipe_OnError(string err) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-ERROR] {err}", "#FF4444"));
@@ -112,9 +112,9 @@ namespace m_mslc_overlay.views.components
                 Log($"Received: {(isFinal ? "[F]" : "[~]")} {text}", "#00FFFF");
 
                 var sentences = _splitter.ExtractNewSentences(text, isFinal);
-                foreach (var sentence in sentences)
+                foreach (var (sentence, reason) in sentences)
                 {
-                    Log($"SENTENCE EXTRACTED -> {sentence}", "#00FF00");
+                    Log($"SENTENCE EXTRACTED [{reason}] -> {sentence}", "#00FF00");
                 }
             }
             catch (Exception ex)

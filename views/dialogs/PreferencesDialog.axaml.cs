@@ -12,6 +12,27 @@ namespace m_mslc_overlay.views.dialogs
             InitializeComponent();
             ConfigManager.Load();
             LoadSettings();
+
+            OfflineTranslationServerManager.OnStateChanged += OnServerStateChanged;
+            
+            // Đăng ký các sự kiện cài đặt
+            OfflineTranslationInstaller.OnLogReceived += OnInstallerLogReceived;
+            OfflineTranslationInstaller.OnProgressChanged += OnInstallerProgressChanged;
+            OfflineTranslationInstaller.OnInstallationCompleted += OnInstallerCompleted;
+
+            this.Closed += (s, e) => {
+                OfflineTranslationServerManager.OnStateChanged -= OnServerStateChanged;
+                OfflineTranslationInstaller.OnLogReceived -= OnInstallerLogReceived;
+                OfflineTranslationInstaller.OnProgressChanged -= OnInstallerProgressChanged;
+                OfflineTranslationInstaller.OnInstallationCompleted -= OnInstallerCompleted;
+            };
+        }
+
+        private void OnServerStateChanged(OfflineServerState state)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                UpdateServerStateUI(state);
+            });
         }
 
         private void LoadSettings()
@@ -31,6 +52,7 @@ namespace m_mslc_overlay.views.dialogs
             };
             DeepLApiKeyBox.Text = cfg.DeepLApiKey;
             OfflineTranslateUrlBox.Text = cfg.OfflineTranslateUrl;
+            OfflineServerDirBox.Text = cfg.OfflineServerDir;
             
             AiModelCombo.SelectedIndex = cfg.AiModel switch {
                 "Gemini 1.5 Flash" => 1,
@@ -43,11 +65,15 @@ namespace m_mslc_overlay.views.dialogs
             PipeNameBox.Text = cfg.PipeName;
             VerboseLogCheck.IsChecked = cfg.VerboseLogging;
             EnableHotkeysCheck.IsChecked = cfg.EnableGlobalHotkeys;
+
+            UpdateServerStateUI(OfflineTranslationServerManager.State);
         }
 
         private void SaveSettings()
         {
             var cfg = ConfigManager.Current;
+            string oldEngine = cfg.TranslationEngine;
+
             cfg.RunAtStartup = StartupCheck.IsChecked ?? false;
             cfg.StartMinimizedToTray = TrayIconCheck.IsChecked ?? true;
             cfg.CheckForUpdates = CheckUpdatesCheck.IsChecked ?? true;
@@ -62,6 +88,7 @@ namespace m_mslc_overlay.views.dialogs
             };
             cfg.DeepLApiKey = DeepLApiKeyBox.Text ?? "";
             cfg.OfflineTranslateUrl = OfflineTranslateUrlBox.Text ?? "http://127.0.0.1:11435";
+            cfg.OfflineServerDir = OfflineServerDirBox.Text ?? "plugins/atom26";
             
             cfg.AiModel = AiModelCombo.SelectedIndex switch {
                 1 => "Gemini 1.5 Flash",
@@ -76,6 +103,26 @@ namespace m_mslc_overlay.views.dialogs
             cfg.EnableGlobalHotkeys = EnableHotkeysCheck.IsChecked ?? true;
             
             ConfigManager.Save();
+
+            // Quản lý vòng đời Offline Server khi cấu hình Engine thay đổi
+            if (oldEngine != cfg.TranslationEngine)
+            {
+                if (cfg.TranslationEngine == "Offline CTranslate2")
+                {
+                    LoggerService.Log("[PreferencesDialog] Translation engine switched to Offline CTranslate2. Starting offline server...");
+                    // Parse port from URL if custom, else use default 11435
+                    if (Uri.TryCreate(cfg.OfflineTranslateUrl, UriKind.Absolute, out var uri))
+                    {
+                        OfflineTranslationServerManager.ServerPort = uri.Port;
+                    }
+                    _ = OfflineTranslationServerManager.StartServerAsync();
+                }
+                else if (oldEngine == "Offline CTranslate2")
+                {
+                    LoggerService.Log("[PreferencesDialog] Translation engine switched away from Offline CTranslate2. Stopping offline server...");
+                    OfflineTranslationServerManager.StopServer();
+                }
+            }
 
             if (this.Owner is MainWindow mainWin)
             {
@@ -172,6 +219,128 @@ namespace m_mslc_overlay.views.dialogs
         {
             SaveSettings();
             Close();
+        }
+
+        private void UpdateServerStateUI(OfflineServerState state)
+        {
+            if (OfflineServerStateText == null) return;
+
+            switch (state)
+            {
+                case OfflineServerState.Stopped:
+                    OfflineServerStateText.Text = "Đã dừng";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Gray;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = false;
+                    break;
+                case OfflineServerState.Starting:
+                    OfflineServerStateText.Text = "Đang khởi động...";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Orange;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+                case OfflineServerState.Ready:
+                    OfflineServerStateText.Text = "Sẵn sàng (Đang chạy)";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Green;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+                case OfflineServerState.ModelMissing:
+                    OfflineServerStateText.Text = "Thiếu mô hình (Model Missing)";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+                case OfflineServerState.Failed:
+                    OfflineServerStateText.Text = $"Lỗi: {OfflineTranslationServerManager.LastErrorMessage}";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+            }
+        }
+
+        private async void StartOfflineServerBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            string url = OfflineTranslateUrlBox.Text ?? "";
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                OfflineTranslationServerManager.ServerPort = uri.Port;
+            }
+            await OfflineTranslationServerManager.StartServerAsync();
+        }
+
+        private void StopOfflineServerBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            OfflineTranslationServerManager.StopServer();
+        }
+
+        private readonly System.Text.StringBuilder _installerLogs = new System.Text.StringBuilder();
+
+        private void OnInstallerLogReceived(string logLine)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                _installerLogs.AppendLine(logLine);
+                if (InstallLogBox != null)
+                {
+                    InstallLogBox.Text = _installerLogs.ToString();
+                    InstallLogBox.CaretIndex = InstallLogBox.Text.Length;
+                }
+            });
+        }
+
+        private void OnInstallerProgressChanged(double val)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                if (InstallProgressBar != null)
+                {
+                    InstallProgressBar.Value = val;
+                }
+            });
+        }
+
+        private void OnInstallerCompleted(bool success, string msg)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                if (StartInstallBtn != null) StartInstallBtn.IsEnabled = true;
+                if (CancelInstallBtn != null) CancelInstallBtn.IsEnabled = false;
+
+                if (success)
+                {
+                    // Tự động kiểm tra lại trạng thái server để đồng bộ UI
+                    _ = OfflineTranslationServerManager.StartServerAsync();
+                }
+            });
+        }
+
+        private void StartInstallBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            if (StartInstallBtn == null || CancelInstallBtn == null || InstallModelCombo == null || InstallLogBox == null) return;
+
+            _installerLogs.Clear();
+            InstallLogBox.Text = "";
+            StartInstallBtn.IsEnabled = false;
+            CancelInstallBtn.IsEnabled = true;
+
+            string modelId = "facebook/nllb-200-distilled-600m";
+            string modelOutputDir = "models/nllb-600m-int8";
+
+            if (InstallModelCombo.SelectedIndex == 1)
+            {
+                modelId = "Helsinki-NLP/opus-mt-en-vi";
+                modelOutputDir = "models/opus-en-vi-int8";
+            }
+
+            // Đảm bảo cập nhật UI states của nút start/stop server
+            if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
+            if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = false;
+
+            _ = OfflineTranslationInstaller.StartInstallAsync(modelId, modelOutputDir);
+        }
+
+        private void CancelInstallBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            OfflineTranslationInstaller.Cancel();
         }
     }
 }

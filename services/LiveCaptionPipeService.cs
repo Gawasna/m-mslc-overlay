@@ -17,14 +17,17 @@ namespace m_mslc_overlay.services
         private const string PipeName = "LiveCaptionPipe";
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _listenerTask;
+        private Task? _tickTask;
         private readonly SentenceSplitter _splitter;
 
         public bool IsRunning => _listenerTask != null && !_listenerTask.IsCompleted;
 
         public event Action<string>? OnPartialCaptionReceived;
-        public event Action<string>? OnFinalSentenceReceived;
+        public event Action<string, string>? OnFinalSentenceReceived;
         public event Action<string>? OnStatusChanged;
         public event Action<string>? OnError;
+
+        public double AverageSpeechSpeed => _splitter.AverageSpeechSpeed;
 
         public LiveCaptionPipeService()
         {
@@ -37,6 +40,7 @@ namespace m_mslc_overlay.services
 
             _cancellationTokenSource = new CancellationTokenSource();
             _listenerTask = Task.Run(() => ListenLoopAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
+            _tickTask = Task.Run(() => TickLoopAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
             OnStatusChanged?.Invoke("Pipe listener started.");
         }
 
@@ -116,18 +120,44 @@ namespace m_mslc_overlay.services
                 string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? "" : "";
                 bool isFinal = root.TryGetProperty("is_final", out var finalProp) && finalProp.GetBoolean();
                 ulong offset = root.TryGetProperty("offset", out var offsetProp) ? offsetProp.GetUInt64() : 0;
+                ulong duration = root.TryGetProperty("duration", out var durProp) ? durProp.GetUInt64() : 0;
 
                 OnPartialCaptionReceived?.Invoke(text);
 
-                var sentences = _splitter.ExtractNewSentences(text, isFinal, offset);
-                foreach (var s in sentences)
+                var sentences = _splitter.ExtractNewSentences(text, isFinal, offset, duration);
+                foreach (var (s, reason) in sentences)
                 {
-                    OnFinalSentenceReceived?.Invoke(s);
+                    OnFinalSentenceReceived?.Invoke(s, reason);
                 }
             }
             catch (Exception ex)
             {
                 OnError?.Invoke($"JSON parsing error: {ex.Message}");
+            }
+        }
+
+        private async Task TickLoopAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(100, token);
+                    
+                    var sentences = _splitter.Tick();
+                    foreach (var (s, reason) in sentences)
+                    {
+                        OnFinalSentenceReceived?.Invoke(s, reason);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    OnError?.Invoke($"Tick error: {ex.Message}");
+                }
             }
         }
 

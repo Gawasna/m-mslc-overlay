@@ -120,6 +120,27 @@ public partial class FloatingTextOverlay : Window
         }
     }
 
+    private void Window_PointerMoved(object sender, Avalonia.Input.PointerEventArgs e)
+    {
+        var pos = e.GetPosition(this);
+        double width = this.Bounds.Width;
+        double height = this.Bounds.Height;
+        double margin = 8.0;
+
+        bool isLeft = pos.X < margin;
+        bool isRight = pos.X > width - margin;
+        bool isTop = pos.Y < margin;
+        bool isBottom = pos.Y > height - margin;
+
+        if (isLeft && isTop) this.Cursor = new Cursor(StandardCursorType.TopLeftCorner);
+        else if (isRight && isTop) this.Cursor = new Cursor(StandardCursorType.TopRightCorner);
+        else if (isLeft && isBottom) this.Cursor = new Cursor(StandardCursorType.BottomLeftCorner);
+        else if (isRight && isBottom) this.Cursor = new Cursor(StandardCursorType.BottomRightCorner);
+        else if (isLeft || isRight) this.Cursor = new Cursor(StandardCursorType.SizeWestEast);
+        else if (isTop || isBottom) this.Cursor = new Cursor(StandardCursorType.SizeNorthSouth);
+        else this.Cursor = new Cursor(StandardCursorType.Arrow);
+    }
+
     private void Close_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _typewriterTimer?.Stop();

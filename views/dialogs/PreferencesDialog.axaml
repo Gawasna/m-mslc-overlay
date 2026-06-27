@@ -114,10 +114,57 @@
                                         <TextBlock Text="{DynamicResource Pref_LocalAI_ServiceUrl}" FontSize="12" Foreground="#666666"/>
                                         <TextBox x:Name="OfflineTranslateUrlBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:11435"/>
                                     </StackPanel>
+
                                     <StackPanel Spacing="8">
+                                        <TextBlock Text="Plugin Server Directory (Thư mục Server dịch offline)" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="OfflineServerDirBox" Width="400" HorizontalAlignment="Left" Watermark="plugins/atom26"/>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Trạng thái Plugin Server:" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock x:Name="OfflineServerStateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
+                                        
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                            <Button x:Name="StartOfflineServerBtn" Content="Khởi động Server" Width="130" HorizontalContentAlignment="Center" Click="StartOfflineServerBtn_Click"/>
+                                            <Button x:Name="StopOfflineServerBtn" Content="Dừng Server" Width="130" HorizontalContentAlignment="Center" Click="StopOfflineServerBtn_Click"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="8" Margin="0,8,0,0">
                                         <Button x:Name="TestOfflineConnectionBtn" Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center" Click="TestOfflineConnectionBtn_Click"/>
                                         <TextBlock x:Name="OfflineStatusText" Text="" FontSize="12" Foreground="#666666" TextWrapping="Wrap" Width="400" HorizontalAlignment="Left"/>
                                     </StackPanel>
+
+                                    <!-- Plugin Setup Assistant -->
+                                    <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,8,0,0" Width="450" HorizontalAlignment="Left" Background="#FAF9F6">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="Plugin Installation Assistant (Cài đặt &amp; Tải Mô hình)" FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
+                                            
+                                            <!-- Model Selection -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Lựa chọn Mô hình dịch thuật:" FontSize="11" Foreground="#666666"/>
+                                                <ComboBox x:Name="InstallModelCombo" Width="420" SelectedIndex="0">
+                                                    <ComboBoxItem Content="NLLB-200 600M (600MB - Khuyến nghị, chất lượng tốt)"/>
+                                                    <ComboBoxItem Content="OPUS-MT English-Vietnamese (150MB - Siêu nhẹ, tiết kiệm VRAM)"/>
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <!-- Install Controls -->
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button x:Name="StartInstallBtn" Content="Bắt đầu Cài đặt" Width="140" HorizontalContentAlignment="Center" Classes="PrimaryBtn" Click="StartInstallBtn_Click"/>
+                                                <Button x:Name="CancelInstallBtn" Content="Hủy cài đặt" Width="110" HorizontalContentAlignment="Center" Classes="SecondaryBtn" IsEnabled="False" Click="CancelInstallBtn_Click"/>
+                                            </StackPanel>
+
+                                            <!-- ProgressBar -->
+                                            <ProgressBar x:Name="InstallProgressBar" Minimum="0" Maximum="100" Value="0" ShowProgressText="True" Height="16" Width="420" HorizontalAlignment="Left"/>
+
+                                            <!-- Log Box -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Logs cài đặt chi tiết:" FontSize="11" Foreground="#666666"/>
+                                                <TextBox x:Name="InstallLogBox" Height="120" Width="420" HorizontalAlignment="Left" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontSize="9" FontFamily="Consolas,Monospace" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </TabItem>
                         </TabControl>
