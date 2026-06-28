@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.dialogs.InstallationDialog"
+        Title="Cài đặt Offline Translation Plugin"
+        Width="500" Height="430"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F9F9F9">
+    
+    <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+        
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,12">
+            <TextBlock x:Name="DialogTitleText" Text="Đang cài đặt Tiện ích Dịch thuật Offline" FontSize="18" FontWeight="Bold" Foreground="#111111"/>
+            <TextBlock x:Name="ModelNameText" Text="Mô hình: facebook/nllb-200-distilled-600m" FontSize="12" Foreground="#666666"/>
+            
+            <!-- Current step info -->
+            <TextBlock x:Name="CurrentStepText" Text="Đang khởi động..." FontSize="11" Foreground="#FF8400" FontWeight="Bold" Margin="0,4,0,0"/>
+        </StackPanel>
+        
+        <!-- Center Content (Progress & Logs) -->
+        <Grid Grid.Row="1" RowDefinitions="Auto, Auto, *">
+            
+            <!-- Progress Status -->
+            <TextBlock x:Name="StatusText" Grid.Row="0" Text="Đang chuẩn bị cài đặt..." FontSize="12" Foreground="#333333" Margin="0,0,0,6"/>
+            
+            <!-- Progress Bar -->
+            <ProgressBar x:Name="ProgressBar" Grid.Row="1" Minimum="0" Maximum="100" Value="0" ShowProgressText="True" Height="14" Margin="0,0,0,12"/>
+            
+            <!-- Logs console -->
+            <TextBox x:Name="LogBox" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontSize="10" FontFamily="Consolas,Monospace" Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" Padding="8"/>
+        </Grid>
+        
+        <!-- Footer Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,12,0,0">
+            <Button x:Name="CancelBtn" Content="Hủy cài đặt" Width="100" HorizontalContentAlignment="Center" Click="CancelBtn_Click"/>
+            <Button x:Name="CloseBtn" Content="Đóng" Width="100" HorizontalContentAlignment="Center" IsEnabled="False" Click="CloseBtn_Click"/>
+        </StackPanel>
+        
+    </Grid>
+</Window>

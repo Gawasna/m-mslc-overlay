@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using m_mslc_overlay.services;
@@ -14,17 +15,9 @@ namespace m_mslc_overlay.views.dialogs
             LoadSettings();
 
             OfflineTranslationServerManager.OnStateChanged += OnServerStateChanged;
-            
-            // Đăng ký các sự kiện cài đặt
-            OfflineTranslationInstaller.OnLogReceived += OnInstallerLogReceived;
-            OfflineTranslationInstaller.OnProgressChanged += OnInstallerProgressChanged;
-            OfflineTranslationInstaller.OnInstallationCompleted += OnInstallerCompleted;
 
             this.Closed += (s, e) => {
                 OfflineTranslationServerManager.OnStateChanged -= OnServerStateChanged;
-                OfflineTranslationInstaller.OnLogReceived -= OnInstallerLogReceived;
-                OfflineTranslationInstaller.OnProgressChanged -= OnInstallerProgressChanged;
-                OfflineTranslationInstaller.OnInstallationCompleted -= OnInstallerCompleted;
             };
         }
 
@@ -67,6 +60,7 @@ namespace m_mslc_overlay.views.dialogs
             EnableHotkeysCheck.IsChecked = cfg.EnableGlobalHotkeys;
 
             UpdateServerStateUI(OfflineTranslationServerManager.State);
+            UpdateModelSelectionUI();
         }
 
         private void SaveSettings()
@@ -275,52 +269,9 @@ namespace m_mslc_overlay.views.dialogs
             OfflineTranslationServerManager.StopServer();
         }
 
-        private readonly System.Text.StringBuilder _installerLogs = new System.Text.StringBuilder();
-
-        private void OnInstallerLogReceived(string logLine)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                _installerLogs.AppendLine(logLine);
-                if (InstallLogBox != null)
-                {
-                    InstallLogBox.Text = _installerLogs.ToString();
-                    InstallLogBox.CaretIndex = InstallLogBox.Text.Length;
-                }
-            });
-        }
-
-        private void OnInstallerProgressChanged(double val)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                if (InstallProgressBar != null)
-                {
-                    InstallProgressBar.Value = val;
-                }
-            });
-        }
-
-        private void OnInstallerCompleted(bool success, string msg)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                if (StartInstallBtn != null) StartInstallBtn.IsEnabled = true;
-                if (CancelInstallBtn != null) CancelInstallBtn.IsEnabled = false;
-
-                if (success)
-                {
-                    // Tự động kiểm tra lại trạng thái server để đồng bộ UI
-                    _ = OfflineTranslationServerManager.StartServerAsync();
-                }
-            });
-        }
-
         private void StartInstallBtn_Click(object? sender, RoutedEventArgs e)
         {
-            if (StartInstallBtn == null || CancelInstallBtn == null || InstallModelCombo == null || InstallLogBox == null) return;
-
-            _installerLogs.Clear();
-            InstallLogBox.Text = "";
-            StartInstallBtn.IsEnabled = false;
-            CancelInstallBtn.IsEnabled = true;
+            if (StartInstallBtn == null || InstallModelCombo == null) return;
 
             string modelId = "facebook/nllb-200-distilled-600m";
             string modelOutputDir = "models/nllb-600m-int8";
@@ -331,16 +282,139 @@ namespace m_mslc_overlay.views.dialogs
                 modelOutputDir = "models/opus-en-vi-int8";
             }
 
-            // Đảm bảo cập nhật UI states của nút start/stop server
-            if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
-            if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = false;
-
-            _ = OfflineTranslationInstaller.StartInstallAsync(modelId, modelOutputDir);
+            // Mở popup InstallationDialog để thực hiện và theo dõi cài đặt
+            var installDlg = new InstallationDialog(modelId, modelOutputDir);
+            installDlg.ShowDialog(this);
+            
+            // Cập nhật lại UI sau khi dialog cài đặt đóng
+            installDlg.Closed += (s, ev) => UpdateModelSelectionUI();
         }
 
-        private void CancelInstallBtn_Click(object? sender, RoutedEventArgs e)
+        private bool IsModelInstalled(string modelDirName)
         {
-            OfflineTranslationInstaller.Cancel();
+            try
+            {
+                string serverDir = OfflineTranslationServerManager.FindServerDirectory();
+                if (string.IsNullOrEmpty(serverDir))
+                {
+                    string configuredPath = ConfigManager.Current.OfflineServerDir;
+                    serverDir = Path.IsPathRooted(configuredPath) 
+                        ? configuredPath 
+                        : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                }
+                string path = Path.Combine(serverDir, "models", modelDirName);
+                return Directory.Exists(path) && File.Exists(Path.Combine(path, "model.bin"));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void UpdateModelSelectionUI()
+        {
+            bool nllbInstalled = IsModelInstalled("nllb-600m-int8");
+            bool opusInstalled = IsModelInstalled("opus-en-vi-int8");
+
+            if (UninstalledPanel == null || InstalledPanel == null || NllbRow == null || OpusRow == null) return;
+
+            if (!nllbInstalled && !opusInstalled)
+            {
+                UninstalledPanel.IsVisible = true;
+                InstalledPanel.IsVisible = false;
+            }
+            else
+            {
+                UninstalledPanel.IsVisible = false;
+                InstalledPanel.IsVisible = true;
+
+                NllbRow.IsVisible = nllbInstalled;
+                OpusRow.IsVisible = opusInstalled;
+
+                var cfg = ConfigManager.Current;
+                if (cfg.OfflineModel == "OPUS-MT" && opusInstalled)
+                {
+                    if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
+                }
+                else if (nllbInstalled)
+                {
+                    if (UseNllbRadio != null) UseNllbRadio.IsChecked = true;
+                    cfg.OfflineModel = "NLLB-200 600M";
+                }
+                else if (opusInstalled)
+                {
+                    if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
+                    cfg.OfflineModel = "OPUS-MT";
+                }
+            }
+        }
+
+        private void ShowInstallBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            if (UninstalledPanel != null) UninstalledPanel.IsVisible = true;
+        }
+
+        private void UseNllbRadio_Checked(object? sender, RoutedEventArgs e)
+        {
+            ConfigManager.Current.OfflineModel = "NLLB-200 600M";
+            ConfigManager.Save();
+        }
+
+        private void UseOpusRadio_Checked(object? sender, RoutedEventArgs e)
+        {
+            ConfigManager.Current.OfflineModel = "OPUS-MT";
+            ConfigManager.Save();
+        }
+
+        private void UpdateNllbBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            var installDlg = new InstallationDialog("facebook/nllb-200-distilled-600m", "models/nllb-600m-int8");
+            installDlg.ShowDialog(this);
+            installDlg.Closed += (s, ev) => UpdateModelSelectionUI();
+        }
+
+        private void UpdateOpusBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            var installDlg = new InstallationDialog("Helsinki-NLP/opus-mt-en-vi", "models/opus-en-vi-int8");
+            installDlg.ShowDialog(this);
+            installDlg.Closed += (s, ev) => UpdateModelSelectionUI();
+        }
+
+        private void DeleteNllbBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            DeleteModelFolder("nllb-600m-int8");
+            UpdateModelSelectionUI();
+        }
+
+        private void DeleteOpusBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            DeleteModelFolder("opus-en-vi-int8");
+            UpdateModelSelectionUI();
+        }
+
+        private void DeleteModelFolder(string modelDirName)
+        {
+            try
+            {
+                string serverDir = OfflineTranslationServerManager.FindServerDirectory();
+                if (string.IsNullOrEmpty(serverDir))
+                {
+                    string configuredPath = ConfigManager.Current.OfflineServerDir;
+                    serverDir = Path.IsPathRooted(configuredPath) 
+                        ? configuredPath 
+                        : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                }
+                string path = Path.Combine(serverDir, "models", modelDirName);
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                    LoggerService.Log($"[PreferencesDialog] Deleted model folder: {path}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Log($"[PreferencesDialog] Error deleting model folder {modelDirName}: {ex.Message}");
+            }
         }
     }
 }

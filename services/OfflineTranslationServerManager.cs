@@ -157,6 +157,11 @@ namespace m_mslc_overlay.services
                 // Thiết lập port qua biến môi trường
                 startInfo.EnvironmentVariables["PORT"] = ServerPort.ToString();
 
+                // Thiết lập đường dẫn mô hình được chọn qua biến môi trường MODEL_PATH
+                string selectedModel = ConfigManager.Current.OfflineModel;
+                string modelSubDir = selectedModel == "OPUS-MT" ? "models/opus-en-vi-int8" : "models/nllb-600m-int8";
+                startInfo.EnvironmentVariables["MODEL_PATH"] = modelSubDir;
+
                 _serverProcess = new Process { StartInfo = startInfo };
                 _serverProcess.OutputDataReceived += (s, e) => {
                     if (!string.IsNullOrEmpty(e.Data))

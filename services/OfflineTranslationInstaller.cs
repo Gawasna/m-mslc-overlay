@@ -144,12 +144,12 @@ namespace m_mslc_overlay.services
                 // Bước 4: Cài đặt các thư viện phụ thuộc (dependencies)
                 SetProgress(50);
                 Log("=== [Bước 4/5] Cài đặt các thư viện phụ thuộc (pip install) ===");
-                Log("Đang chạy 'pip install -r requirements.txt'... Việc này có thể mất từ 1-3 phút tùy thuộc tốc độ mạng.");
+                Log("Đang chạy 'pip install --no-cache-dir -r requirements.txt'... Việc này có thể mất từ 1-3 phút tùy thuộc tốc độ mạng.");
                 
                 // Nâng cấp pip trước để tránh lỗi tương thích
-                await RunCommandAsync(venvPython, "-m pip install --upgrade pip", targetDir);
+                await RunCommandAsync(venvPython, "-m pip install --no-cache-dir --upgrade pip", targetDir);
                 
-                bool pipSuccess = await RunCommandAsync(venvPip, "install -r requirements.txt", targetDir);
+                bool pipSuccess = await RunCommandAsync(venvPip, "install --no-cache-dir -r requirements.txt", targetDir);
                 if (!pipSuccess)
                 {
                     Log("Lỗi: Cài đặt dependencies thất bại.");
@@ -177,6 +177,10 @@ namespace m_mslc_overlay.services
                 Log("=== CÀI ĐẶT THÀNH CÔNG ===");
                 Log("Plugin Offline Translation đã được cấu hình thành công!");
                 Log("Bây giờ bạn đã có thể khởi chạy server dịch offline trực tiếp trên app.");
+                
+                // Chạy job ngầm dọn dẹp cache
+                CleanTempFolders(targetDir);
+
                 OnInstallationCompleted?.Invoke(true, "Cài đặt plugin thành công!");
             }
             catch (Exception ex)
@@ -189,6 +193,49 @@ namespace m_mslc_overlay.services
                 IsInstalling = false;
                 _currentProcess = null;
             }
+        }
+
+        private static void CleanTempFolders(string targetDir)
+        {
+            Task.Run(() => {
+                try
+                {
+                    Log("Đang chạy job ngầm dọn dẹp cache và các tệp cài đặt tạm thời...");
+
+                    // 1. Dọn dẹp thư mục temp_hf_cache nếu còn sót
+                    string tempHfCache = Path.Combine(targetDir, "models", "temp_hf_cache");
+                    if (Directory.Exists(tempHfCache))
+                    {
+                        Directory.Delete(tempHfCache, true);
+                        Log("Đã xóa thư mục cache Hugging Face tạm thời.");
+                    }
+                    
+                    // 2. Thực hiện dọn dẹp pip cache của python venv (nếu có)
+                    string venvPip = Path.Combine(targetDir, "venv", "Scripts", "pip.exe");
+                    if (File.Exists(venvPip))
+                    {
+                        var startInfo = new ProcessStartInfo
+                        {
+                            FileName = venvPip,
+                            Arguments = "cache purge",
+                            WorkingDirectory = targetDir,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        using (var p = Process.Start(startInfo))
+                        {
+                            p?.WaitForExit();
+                        }
+                        Log("Đã dọn dẹp thành công pip cache.");
+                    }
+                    
+                    Log("Hoàn tất dọn dẹp cache cài đặt.");
+                }
+                catch (Exception ex)
+                {
+                    LoggerService.Log($"{LogTag} Lỗi khi chạy job dọn dẹp cache ngầm: {ex.Message}");
+                }
+            });
         }
 
         private static void HandleCancel()
