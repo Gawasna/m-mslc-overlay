@@ -9,6 +9,7 @@ using System.IO;
 using m_mslc_overlay.views.components;
 using m_mslc_overlay.views.overlay;
 using m_mslc_overlay.services;
+using m_mslc_overlay.core;
 
 namespace m_mslc_overlay
 {
@@ -24,6 +25,9 @@ namespace m_mslc_overlay
         private DispatcherTimer _uiUpdateTimer;
         private HotkeyManager? _hotkeyManager;
         private FocusKeyController? _focusKeyController;
+
+        private bool _isTranslationEnabled = true;
+        private string _contextTopic = "Game/Phim";
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -48,6 +52,7 @@ namespace m_mslc_overlay
 
         public MainWindow()
         {
+            LoggerService.Initialize();
             InitializeComponent();
             _hiderService = new AppContainerHiderService();
             _pipeService = new LiveCaptionPipeService();
@@ -63,11 +68,7 @@ namespace m_mslc_overlay
             _uiUpdateTimer.Tick += OnUiUpdateTimerTick;
             _uiUpdateTimer.Start();
             
-            _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
-            TopicInput.TextChanged += (s, e) => {
-                _aiService.ContextTopic = TopicInput.Text ?? "Game/Phim";
-                UpdateDynamicStrings();
-            };
+            _aiService.ContextTopic = _contextTopic;
 
             // 1. Nhận luồng text thô partial (đang nhận dạng) từ Extractor
             _pipeService.OnPartialCaptionReceived += (txt) => {
@@ -76,17 +77,27 @@ namespace m_mslc_overlay
             };
 
             // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
-            _pipeService.OnFinalSentenceReceived += (txt) => {
+            _pipeService.OnFinalSentenceReceived += (txt, reason) => {
                 if (string.IsNullOrWhiteSpace(txt)) return;
 
                 // Định dạng timestamp cho câu thô
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                string logLine = $"[{timestamp}] {LanguageManager.GetString("Log_EnglishPrefix")}: {txt}\n";
+                
+                int avgSS = (int)_pipeService.AverageSpeechSpeed;
+                string flagAvgSS = $"[AvgSS:{avgSS}ms]";
+                
+                string prefix = flagAvgSS;
+                if (reason == "A4")
+                {
+                    prefix = $"{flagAvgSS} [Expect COMMIT By A4]";
+                }
+
+                string logLine = $"[{timestamp}] {prefix} {LanguageManager.GetString("Log_EnglishPrefix")}: {txt}\n";
                 AppendLog(logLine);
 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     // Nếu bật dịch thuật AI
-                    if (TranslateToggle.IsChecked == true)
+                    if (IsTranslationEnabled)
                     {
                         lock(_translationLock) {
                             _translationBuffer = ""; // Reset buffer bản dịch mới
@@ -117,7 +128,7 @@ namespace m_mslc_overlay
                 // Kiểm tra UI thread không lock, chỉ set cờ
                 bool isTranslated = false;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    isTranslated = TranslateToggle.IsChecked == true;
+                    isTranslated = IsTranslationEnabled;
                     if (isTranslated)
                     {
                         lock(_translationLock) {
@@ -132,7 +143,7 @@ namespace m_mslc_overlay
             // 4. Khi hoàn thành dịch 1 câu hoàn chỉnh
             _aiService.OnTranslationCompleted += (fullSentence) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    if (TranslateToggle.IsChecked == true)
+                    if (IsTranslationEnabled)
                     {
                         // In bản dịch tiếng Việt sang RawTextLog để dễ debug song song
                         string timestamp = DateTime.Now.ToString("HH:mm:ss");
@@ -184,6 +195,7 @@ namespace m_mslc_overlay
                 _uiUpdateTimer.Stop();
                 _hotkeyManager?.Dispose();
                 _focusKeyController?.Dispose();
+                OfflineTranslationServerManager.StopServer();
             };
 
             this.Opened += (s, e) => {
@@ -193,6 +205,17 @@ namespace m_mslc_overlay
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
             DetectTargetProcess();
+
+            // Khởi chạy Offline Translation Server nếu được cấu hình làm Engine dịch chính
+            if (ConfigManager.Current.TranslationEngine == "Offline CTranslate2")
+            {
+                LoggerService.Log("[MainWindow] Offline Translation Engine is active. Starting offline server...");
+                if (Uri.TryCreate(ConfigManager.Current.OfflineTranslateUrl, UriKind.Absolute, out var uri))
+                {
+                    OfflineTranslationServerManager.ServerPort = uri.Port;
+                }
+                _ = OfflineTranslationServerManager.StartServerAsync();
+            }
         }
 
         private void AppendLog(string logLine)
@@ -202,6 +225,7 @@ namespace m_mslc_overlay
                 if (_rawLogs.Count > 100) _rawLogs.RemoveAt(0);
                 _isLogDirty = true;
             }
+            LoggerService.Log(logLine);
         }
 
         private void OnUiUpdateTimerTick(object? sender, EventArgs e)
@@ -209,24 +233,21 @@ namespace m_mslc_overlay
             if (_isLogDirty)
             {
                 lock(_logLock) {
-                    RawTextLog.Text = string.Join("", _rawLogs);
-                    RawTextLog.CaretIndex = RawTextLog.Text.Length;
-                    LogScrollViewer.ScrollToEnd();
+                    // RawTextLog has been blanked from UI. Logs are saved via LoggerService.
                     _isLogDirty = false;
                 }
             }
 
             if (_isPartialCaptionDirty)
             {
-                LiveRawText.Text = string.IsNullOrWhiteSpace(_lastPartialCaption) ? LanguageManager.GetString("Status_NoActiveSpeech") : _lastPartialCaption;
-                if (_currentOverlay != null && _currentOverlay.IsVisible && TranslateToggle.IsChecked != true)
+                if (_currentOverlay != null && _currentOverlay.IsVisible && !IsTranslationEnabled)
                 {
                     _currentOverlay.SetImmediateText(_lastPartialCaption);
                 }
                 _isPartialCaptionDirty = false;
             }
 
-            if (_isTranslationDirty && TranslateToggle.IsChecked == true)
+            if (_isTranslationDirty && IsTranslationEnabled)
             {
                 string displayTxt;
                 lock(_translationLock) {
@@ -248,10 +269,11 @@ namespace m_mslc_overlay
 
         private void DetectTargetProcess()
         {
-            uint pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
-            if (pid != 0)
+            bool isRunning = LiveCaptionUtils.IsLiveCaptionRunning();
+            if (isRunning)
             {
                 _currentHookState = HookState.Detected;
+                _hiderService.PreFindTargetProcessId("LiveCaptions");
             }
             else
             {
@@ -262,11 +284,7 @@ namespace m_mslc_overlay
 
         private void UpdateDynamicStrings()
         {
-            uint pid = _hiderService.TargetProcessId;
-            if (pid == 0)
-            {
-                pid = _hiderService.PreFindTargetProcessId("LiveCaptions");
-            }
+            uint pid = LiveCaptionUtils.GetLiveCaptionProcessId();
 
             if (pid != 0)
             {
@@ -297,16 +315,8 @@ namespace m_mslc_overlay
                     break;
             }
 
-            if (string.IsNullOrWhiteSpace(LiveRawText.Text) || 
-                LiveRawText.Text == "No active speech detected." || 
-                LiveRawText.Text == "Chưa phát hiện giọng nói hoạt động." || 
-                LiveRawText.Text.StartsWith("["))
-            {
-                LiveRawText.Text = LanguageManager.GetString("Status_NoActiveSpeech");
-            }
-
             // Cập nhật thông tin AI Model & Topic
-            string topic = string.IsNullOrWhiteSpace(TopicInput.Text) ? "None" : TopicInput.Text;
+            string topic = string.IsNullOrWhiteSpace(ContextTopic) ? "None" : ContextTopic;
             StatusBarInfoText.Text = string.Format(LanguageManager.GetString("Status_InfoFormat"), "Gemini 1.5 Pro", topic);
 
             // Cập nhật trạng thái vận hành chính
@@ -367,14 +377,23 @@ namespace m_mslc_overlay
 
         public bool IsTranslationEnabled
         {
-            get => TranslateToggle.IsChecked ?? false;
-            set => Avalonia.Threading.Dispatcher.UIThread.Post(() => TranslateToggle.IsChecked = value);
+            get => _isTranslationEnabled;
+            set
+            {
+                _isTranslationEnabled = value;
+                Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
+            }
         }
 
         public string ContextTopic
         {
-            get => TopicInput.Text ?? "Game/Phim";
-            set => Avalonia.Threading.Dispatcher.UIThread.Post(() => TopicInput.Text = value);
+            get => _contextTopic;
+            set
+            {
+                _contextTopic = value;
+                _aiService.ContextTopic = value;
+                Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
+            }
         }
 
         private void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)

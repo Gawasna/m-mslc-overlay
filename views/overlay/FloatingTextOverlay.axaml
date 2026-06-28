@@ -7,7 +7,8 @@
         Background="Transparent"
         TransparencyLevelHint="Transparent"
         SystemDecorations="None"
-        Topmost="True">
+        Topmost="True"
+        PointerMoved="Window_PointerMoved">
     <Window.Resources>
         <SolidColorBrush x:Key="MenuFlyoutPresenterBackground">#CC1C1C1C</SolidColorBrush>
         <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush">#1AFFFFFF</SolidColorBrush>

@@ -103,83 +103,14 @@
             </DockPanel>
         </Border>
 
-        <!-- 3. Content Area (Form & Logs) -->
-        <Border Grid.Row="2" Padding="0">
-            <Grid ColumnDefinitions="280, *">
-            <!-- Left Side: Config Panel -->
-            <Border Grid.Column="0" 
-                    Background="#FFFFFF" 
-                    BorderBrush="#E5E5E5" 
-                    BorderThickness="1" 
-                    Padding="16">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="{DynamicResource Header_TranslationSettings}" FontSize="14" FontWeight="Bold" Foreground="#111111"/>
-                    
-                    <!-- Context Topic input -->
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{DynamicResource Label_ContextTopic}" FontSize="11" Foreground="#666666"/>
-                        <TextBox x:Name="TopicInput" Watermark="{DynamicResource Watermark_TopicInput}" Text="Game/Phim" Height="32"/>
-                    </StackPanel>
-                    
-                    <!-- Translation Switch -->
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{DynamicResource Label_AiTranslation}" FontSize="11" Foreground="#666666"/>
-                        <ToggleSwitch x:Name="TranslateToggle" 
-                                      OnContent="{DynamicResource Label_Enabled}" 
-                                      OffContent="{DynamicResource Label_Disabled}" 
-                                      IsChecked="True"/>
-                    </StackPanel>
-                    
-                    <TextBlock Text="{DynamicResource Label_HowToUse}" 
-                               FontSize="11" 
-                               Foreground="#666666" 
-                               TextWrapping="Wrap" 
-                               Margin="0,16,0,0"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Right Side: Logs Area -->
-            <Grid Grid.Column="1" RowDefinitions="Auto, *">
-                <!-- Live Subtitle Display -->
-                <Border Grid.Row="0" 
-                        Background="#FFFFFF" 
-                        BorderBrush="#E5E5E5" 
-                        BorderThickness="1" 
-                        Padding="16">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="{DynamicResource Header_LiveRawRecognition}" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
-                        <TextBlock x:Name="LiveRawText" 
-                                   Text="{DynamicResource Status_NoActiveSpeech}" 
-                                   FontSize="16" 
-                                   Foreground="#000000" 
-                                   TextWrapping="Wrap" 
-                                   Height="60"/>
-                    </StackPanel>
-                </Border>
-                
-                <!-- History Log display -->
-                <Border Grid.Row="1" 
-                        Background="#FFFFFF" 
-                        BorderBrush="#E5E5E5" 
-                        BorderThickness="1" 
-                        Padding="16">
-                    <Grid RowDefinitions="Auto, *">
-                        <TextBlock Grid.Row="0" Text="{DynamicResource Header_SessionHistory}" FontSize="12" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,8"/>
-                        <ScrollViewer x:Name="LogScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <TextBox x:Name="RawTextLog" 
-                                     IsReadOnly="True" 
-                                     TextWrapping="Wrap" 
-                                     AcceptsReturn="True" 
-                                     Background="Transparent" 
-                                     BorderThickness="0" 
-                                     Padding="0"
-                                     FontSize="12"
-                                     FontFamily="Consolas,Monospace"/>
-                        </ScrollViewer>
-                    </Grid>
-                </Border>
-            </Grid>
-            </Grid>
+        <!-- 3. Blank Section (Content Area) -->
+        <Border Grid.Row="2" 
+                Background="Transparent"
+                Padding="16">
+            <TextBlock Text="[Blank Section - Dynamic Content Here]" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center" 
+                       Foreground="{StaticResource TextSecondaryBrush}" />
         </Border>
 
         <!-- 4. Downbar (Status Bar) -->
