@@ -35,8 +35,8 @@
         <Border Grid.Column="1" Background="#FFFFFF" Padding="24">
             <Grid RowDefinitions="*, Auto">
                 
-                <!-- Tab contents wrapper -->
-                <Panel Grid.Row="0">
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                    <Panel>
                     
                     <!-- General Tab -->
                     <StackPanel x:Name="TabGeneral" IsVisible="True" Spacing="24">
@@ -110,11 +110,71 @@
                             <!-- Local AI -->
                             <TabItem Header="{DynamicResource Pref_Trans_LocalAI}">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
+                                    
+                                    <!-- Setup / Installation Assistant (Đưa lên đầu) -->
+                                    <StackPanel Spacing="8">
+                                        <!-- Tiêu đề và nút Add (+) -->
+                                        <Grid ColumnDefinitions="*, Auto" Width="400" HorizontalAlignment="Left">
+                                            <TextBlock Grid.Column="0" Text="Quản lý Mô hình Dịch thuật" FontSize="12" FontWeight="Bold" Foreground="#111111" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1" x:Name="ShowInstallBtn" Content="+" Width="24" Height="24" FontSize="14" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="ShowInstallBtn_Click" ToolTip.Tip="Cài đặt mô hình mới" Padding="0"/>
+                                        </Grid>
+                                        
+                                        <!-- Giao diện CHƯA CÀI ĐẶT (hoặc khi click +) -->
+                                        <StackPanel x:Name="UninstalledPanel" Spacing="6" Margin="0,4,0,0" IsVisible="True">
+                                            <TextBlock Text="Lựa chọn Mô hình dịch thuật để tải về:" FontSize="11" Foreground="#666666"/>
+                                            <Grid ColumnDefinitions="*, Auto" Width="400" HorizontalAlignment="Left">
+                                                <ComboBox Grid.Column="0" x:Name="InstallModelCombo" Width="280" SelectedIndex="0" Margin="0,0,8,0">
+                                                    <ComboBoxItem Content="NLLB-200 600M (600MB - Khuyến nghị)"/>
+                                                    <ComboBoxItem Content="OPUS-MT En-Vi (150MB - Siêu nhẹ)"/>
+                                                </ComboBox>
+                                                <Button Grid.Column="1" x:Name="StartInstallBtn" Content="Tải &amp; Cài đặt" Click="StartInstallBtn_Click" Classes="PrimaryBtn" Width="112" HorizontalContentAlignment="Center"/>
+                                            </Grid>
+                                        </StackPanel>
+                                        
+                                        <!-- Giao diện ĐÃ CÀI ĐẶT -->
+                                        <StackPanel x:Name="InstalledPanel" Spacing="6" Margin="0,4,0,0" IsVisible="False">
+                                            <!-- Dòng NLLB-200 -->
+                                            <Grid x:Name="NllbRow" ColumnDefinitions="Auto, *, Auto, Auto" Width="420" HorizontalAlignment="Left" Margin="0,2" VerticalAlignment="Center">
+                                                <RadioButton Grid.Column="0" x:Name="UseNllbRadio" GroupName="ModelGroup" IsChecked="True" Checked="UseNllbRadio_Checked" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="NLLB-200 600M (INT8)" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" Margin="8,0"/>
+                                                <Button Grid.Column="2" Content="Kiểm tra cập nhật" Click="UpdateNllbBtn_Click" FontSize="11" Margin="0,0,8,0" Padding="8,4"/>
+                                                <Button Grid.Column="3" Content="Xóa" Click="DeleteNllbBtn_Click" FontSize="11" Foreground="Red" Padding="8,4"/>
+                                            </Grid>
+                                            
+                                            <!-- Dòng OPUS-MT -->
+                                            <Grid x:Name="OpusRow" ColumnDefinitions="Auto, *, Auto, Auto" Width="420" HorizontalAlignment="Left" Margin="0,2" VerticalAlignment="Center">
+                                                <RadioButton Grid.Column="0" x:Name="UseOpusRadio" GroupName="ModelGroup" Checked="UseOpusRadio_Checked" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="OPUS-MT English-Vietnamese" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" Margin="8,0"/>
+                                                <Button Grid.Column="2" Content="Kiểm tra cập nhật" Click="UpdateOpusBtn_Click" FontSize="11" Margin="0,0,8,0" Padding="8,4"/>
+                                                <Button Grid.Column="3" Content="Xóa" Click="DeleteOpusBtn_Click" FontSize="11" Foreground="Red" Padding="8,4"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Divider -->
+                                    <Border BorderBrush="#E5E5E5" BorderThickness="0,1,0,0" Width="400" HorizontalAlignment="Left" Margin="0,4"/>
+
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="{DynamicResource Pref_LocalAI_ServiceUrl}" FontSize="12" Foreground="#666666"/>
                                         <TextBox x:Name="OfflineTranslateUrlBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:11435"/>
                                     </StackPanel>
+
                                     <StackPanel Spacing="8">
+                                        <TextBlock Text="Plugin Server Directory (Thư mục Server dịch offline)" FontSize="12" Foreground="#666666"/>
+                                        <TextBox x:Name="OfflineServerDirBox" Width="400" HorizontalAlignment="Left" Watermark="plugins/atom26"/>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Trạng thái Plugin Server:" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock x:Name="OfflineServerStateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
+                                        
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                            <Button x:Name="StartOfflineServerBtn" Content="Khởi động Server" Width="130" HorizontalContentAlignment="Center" Click="StartOfflineServerBtn_Click"/>
+                                            <Button x:Name="StopOfflineServerBtn" Content="Dừng Server" Width="130" HorizontalContentAlignment="Center" Click="StopOfflineServerBtn_Click"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="8" Margin="0,8,0,0">
                                         <Button x:Name="TestOfflineConnectionBtn" Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center" Click="TestOfflineConnectionBtn_Click"/>
                                         <TextBlock x:Name="OfflineStatusText" Text="" FontSize="12" Foreground="#666666" TextWrapping="Wrap" Width="400" HorizontalAlignment="Left"/>
                                     </StackPanel>
@@ -190,7 +250,8 @@
                         </StackPanel>
                     </StackPanel>
                     
-                </Panel>
+                    </Panel>
+                </ScrollViewer>
                 
                 <!-- Action Buttons -->
                 <Grid Grid.Row="1" ColumnDefinitions="Auto, *, Auto" Margin="0,24,0,0">

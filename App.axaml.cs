@@ -13,8 +13,13 @@ namespace m_mslc_overlay
 
         public override void OnFrameworkInitializationCompleted()
         {
-            // Load default language (Vietnamese)
-            m_mslc_overlay.services.LanguageManager.LoadLanguage("vi-VN");
+            // Load configuration first
+            m_mslc_overlay.services.ConfigManager.Load();
+
+            // Load saved language
+            string savedLang = m_mslc_overlay.services.ConfigManager.Current.Language;
+            if (string.IsNullOrEmpty(savedLang)) savedLang = "vi-VN";
+            m_mslc_overlay.services.LanguageManager.LoadLanguage(savedLang);
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
