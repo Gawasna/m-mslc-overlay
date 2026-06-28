@@ -10,6 +10,7 @@ namespace m_mslc_overlay.services
         public bool StartMinimizedToTray { get; set; } = true;
         public bool CheckForUpdates { get; set; } = true;
         public string Language { get; set; } = "vi-VN";
+        public string ExtractorTag { get; set; } = "";
         
         public string AiModel { get; set; } = "Gemini 1.5 Pro";
         public string ApiKey { get; set; } = "";

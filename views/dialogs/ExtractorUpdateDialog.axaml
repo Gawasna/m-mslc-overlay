@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.dialogs.ExtractorUpdateDialog"
+        Title="Cập nhật Active Extractor"
+        Width="520" Height="460"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F9F9F9">
+    
+    <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+        
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,12">
+            <TextBlock x:Name="DialogTitleText" Text="Trình cập nhật Active Extractor" FontSize="18" FontWeight="Bold" Foreground="#111111"/>
+            <Grid ColumnDefinitions="Auto, *, Auto, *" Margin="0,4,0,0">
+                <TextBlock Grid.Column="0" Text="Phiên bản hiện tại: " FontSize="12" Foreground="#666666"/>
+                <TextBlock x:Name="LocalVersionText" Grid.Column="1" Text="Chưa có" FontSize="12" FontWeight="Bold" Foreground="#333333"/>
+                <TextBlock Grid.Column="2" Text="Phiên bản mới nhất: " FontSize="12" Foreground="#666666" Margin="10,0,0,0"/>
+                <TextBlock x:Name="LatestVersionText" Grid.Column="3" Text="Đang kiểm tra..." FontSize="12" FontWeight="Bold" Foreground="#007ACC"/>
+            </Grid>
+            
+            <!-- Current step info -->
+            <TextBlock x:Name="CurrentStepText" Text="Nhấn 'Kiểm tra' để bắt đầu..." FontSize="11" Foreground="#FF8400" FontWeight="Bold" Margin="0,4,0,0"/>
+        </StackPanel>
+        
+        <!-- Center Content (Progress & Logs) -->
+        <Grid Grid.Row="1" RowDefinitions="Auto, Auto, *">
+            
+            <!-- Progress Status -->
+            <TextBlock x:Name="StatusText" Grid.Row="0" Text="Đang chờ người dùng..." FontSize="12" Foreground="#333333" Margin="0,0,0,6"/>
+            
+            <!-- Progress Bar -->
+            <ProgressBar x:Name="ProgressBar" Grid.Row="1" Minimum="0" Maximum="100" Value="0" ShowProgressText="True" Height="14" Margin="0,0,0,12" IsEnabled="False"/>
+            
+            <!-- Logs console -->
+            <TextBox x:Name="LogBox" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontSize="10" FontFamily="Consolas,Monospace" Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" Padding="8"/>
+        </Grid>
+        
+        <!-- Footer Actions -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto, *" Margin="0,12,0,0">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                <Button x:Name="CheckBtn" Content="Kiểm tra" Width="90" HorizontalContentAlignment="Center" Click="CheckBtn_Click"/>
+                <Button x:Name="UpdateBtn" Content="Cập nhật" Width="90" HorizontalContentAlignment="Center" IsEnabled="False" Click="UpdateBtn_Click"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button x:Name="CancelBtn" Content="Hủy" Width="90" HorizontalContentAlignment="Center" IsEnabled="False" Click="CancelBtn_Click"/>
+                <Button x:Name="CloseBtn" Content="Đóng" Width="90" HorizontalContentAlignment="Center" Click="CloseBtn_Click"/>
+            </StackPanel>
+        </Grid>
+        
+    </Grid>
+</Window>
