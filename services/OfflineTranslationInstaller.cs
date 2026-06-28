@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -356,6 +357,82 @@ namespace m_mslc_overlay.services
                 Log($"Lỗi khi chạy lệnh '{fileName} {arguments}': {ex.Message}");
                 return false;
             }
+        }
+
+        public enum UpdateCheckResult
+        {
+            UpToDate,
+            UpdateAvailable,
+            UpdateRequired,
+            Error
+        }
+
+        public static async Task<UpdateCheckResult> CheckForModelUpdateAsync(string modelId, string modelOutputDir)
+        {
+            string targetDir = OfflineTranslationServerManager.FindServerDirectory();
+            if (string.IsNullOrEmpty(targetDir))
+            {
+                string configuredPath = ConfigManager.Current.OfflineServerDir;
+                targetDir = Path.IsPathRooted(configuredPath) 
+                    ? configuredPath 
+                    : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+            }
+
+            string venvPython = Path.Combine(targetDir, "venv", "Scripts", "python.exe");
+            string downloaderScript = Path.Combine(targetDir, "model_downloader.py");
+
+            if (!File.Exists(venvPython) || !File.Exists(downloaderScript))
+            {
+                return UpdateCheckResult.UpdateRequired;
+            }
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = venvPython,
+                    Arguments = $"model_downloader.py --model \"{modelId}\" --output \"{modelOutputDir}\" --check-only",
+                    WorkingDirectory = targetDir,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using (var process = new Process { StartInfo = startInfo })
+                {
+                    var outputBuilder = new StringBuilder();
+                    process.OutputDataReceived += (s, e) => {
+                        if (e.Data != null) outputBuilder.AppendLine(e.Data);
+                    };
+
+                    process.Start();
+                    process.BeginOutputReadLine();
+                    await process.WaitForExitAsync();
+
+                    string output = outputBuilder.ToString();
+                    LoggerService.Log($"[OfflineTranslationInstaller] Check update output: {output.Trim()}");
+
+                    if (output.Contains("RESULT: UP_TO_DATE"))
+                    {
+                        return UpdateCheckResult.UpToDate;
+                    }
+                    if (output.Contains("RESULT: UPDATE_AVAILABLE"))
+                    {
+                        return UpdateCheckResult.UpdateAvailable;
+                    }
+                    if (output.Contains("RESULT: UPDATE_REQUIRED"))
+                    {
+                        return UpdateCheckResult.UpdateRequired;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Log($"[OfflineTranslationInstaller] Error checking update: {ex.Message}");
+            }
+
+            return UpdateCheckResult.Error;
         }
     }
 }

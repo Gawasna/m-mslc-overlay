@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using m_mslc_overlay.services;
@@ -269,7 +270,7 @@ namespace m_mslc_overlay.views.dialogs
             OfflineTranslationServerManager.StopServer();
         }
 
-        private void StartInstallBtn_Click(object? sender, RoutedEventArgs e)
+        private async void StartInstallBtn_Click(object? sender, RoutedEventArgs e)
         {
             if (StartInstallBtn == null || InstallModelCombo == null) return;
 
@@ -284,10 +285,10 @@ namespace m_mslc_overlay.views.dialogs
 
             // Mở popup InstallationDialog để thực hiện và theo dõi cài đặt
             var installDlg = new InstallationDialog(modelId, modelOutputDir);
-            installDlg.ShowDialog(this);
+            await installDlg.ShowDialog(this);
             
             // Cập nhật lại UI sau khi dialog cài đặt đóng
-            installDlg.Closed += (s, ev) => UpdateModelSelectionUI();
+            UpdateModelSelectionUI();
         }
 
         private bool IsModelInstalled(string modelDirName)
@@ -366,18 +367,97 @@ namespace m_mslc_overlay.views.dialogs
             ConfigManager.Save();
         }
 
-        private void UpdateNllbBtn_Click(object? sender, RoutedEventArgs e)
+        private async void UpdateNllbBtn_Click(object? sender, RoutedEventArgs e)
         {
-            var installDlg = new InstallationDialog("facebook/nllb-200-distilled-600m", "models/nllb-600m-int8");
-            installDlg.ShowDialog(this);
-            installDlg.Closed += (s, ev) => UpdateModelSelectionUI();
+            await HandleModelUpdateCheckAsync(
+                sender as Button,
+                "facebook/nllb-200-distilled-600m",
+                "models/nllb-600m-int8",
+                "NLLB-200 600M"
+            );
         }
 
-        private void UpdateOpusBtn_Click(object? sender, RoutedEventArgs e)
+        private async void UpdateOpusBtn_Click(object? sender, RoutedEventArgs e)
         {
-            var installDlg = new InstallationDialog("Helsinki-NLP/opus-mt-en-vi", "models/opus-en-vi-int8");
-            installDlg.ShowDialog(this);
-            installDlg.Closed += (s, ev) => UpdateModelSelectionUI();
+            await HandleModelUpdateCheckAsync(
+                sender as Button,
+                "Helsinki-NLP/opus-mt-en-vi",
+                "models/opus-en-vi-int8",
+                "OPUS-MT"
+            );
+        }
+
+        private async Task HandleModelUpdateCheckAsync(Button? btn, string modelId, string modelOutputDir, string displayName)
+        {
+            if (btn == null) return;
+
+            string originalText = btn.Content?.ToString() ?? "Kiểm tra cập nhật";
+            btn.Content = "Đang kiểm tra...";
+            btn.IsEnabled = false;
+
+            try
+            {
+                var checkResult = await OfflineTranslationInstaller.CheckForModelUpdateAsync(modelId, modelOutputDir);
+                
+                // Khôi phục nút bấm
+                btn.Content = originalText;
+                btn.IsEnabled = true;
+
+                switch (checkResult)
+                {
+                    case OfflineTranslationInstaller.UpdateCheckResult.UpToDate:
+                        await MessageDialog.ShowAsync(
+                            this,
+                            "Kiểm tra cập nhật",
+                            $"Mô hình {displayName} hiện tại đang ở phiên bản mới nhất trên Hugging Face Hub. Không cần cập nhật."
+                        );
+                        break;
+
+                    case OfflineTranslationInstaller.UpdateCheckResult.UpdateAvailable:
+                        bool doUpdate = await MessageDialog.ShowAsync(
+                            this,
+                            "Phát hiện bản cập nhật mới",
+                            $"Mô hình {displayName} có một phiên bản mới hơn trên Hugging Face Hub. Bạn có muốn tải xuống và cài đặt bản cập nhật này không?",
+                            showCancel: true
+                        );
+                        if (doUpdate)
+                        {
+                            var installDlg = new InstallationDialog(modelId, modelOutputDir);
+                            await installDlg.ShowDialog(this);
+                            UpdateModelSelectionUI();
+                        }
+                        break;
+
+                    case OfflineTranslationInstaller.UpdateCheckResult.UpdateRequired:
+                        bool doFreshInstall = await MessageDialog.ShowAsync(
+                            this,
+                            "Cài đặt mới",
+                            $"Không tìm thấy siêu dữ liệu hoặc mô hình {displayName} cục bộ hợp lệ. Bạn có muốn tiến hành cài đặt mới không?",
+                            showCancel: true
+                        );
+                        if (doFreshInstall)
+                        {
+                            var installDlg = new InstallationDialog(modelId, modelOutputDir);
+                            await installDlg.ShowDialog(this);
+                            UpdateModelSelectionUI();
+                        }
+                        break;
+
+                    case OfflineTranslationInstaller.UpdateCheckResult.Error:
+                        await MessageDialog.ShowAsync(
+                            this,
+                            "Lỗi kiểm tra",
+                            $"Không thể kết nối đến Hugging Face Hub hoặc tệp thực thi bị thiếu. Vui lòng kiểm tra lại kết nối mạng."
+                        );
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                btn.Content = originalText;
+                btn.IsEnabled = true;
+                LoggerService.Log($"[PreferencesDialog] Update check exception: {ex.Message}");
+            }
         }
 
         private void DeleteNllbBtn_Click(object? sender, RoutedEventArgs e)

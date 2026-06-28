@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.dialogs.MessageDialog"
+        Title="Thông báo"
+        Width="380" Height="160"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F9F9F9">
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        <TextBlock x:Name="MessageText" Grid.Row="0" Text="Nội dung thông báo" TextWrapping="Wrap" FontSize="13" Foreground="#333333" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <Button x:Name="OkBtn" Content="OK" Width="80" HorizontalContentAlignment="Center" Click="OkBtn_Click" Classes="PrimaryBtn"/>
+            <Button x:Name="CancelBtn" Content="Hủy" Width="80" HorizontalContentAlignment="Center" Click="CancelBtn_Click" IsVisible="False"/>
+        </StackPanel>
+    </Grid>
+</Window>

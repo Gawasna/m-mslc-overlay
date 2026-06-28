@@ -433,6 +433,12 @@ namespace m_mslc_overlay
             preferencesDialog.ShowDialog(this);
         }
 
+        private void ActiveExtractorCheckout_Click(object? sender, RoutedEventArgs e)
+        {
+            var updateDialog = new m_mslc_overlay.views.dialogs.ExtractorUpdateDialog();
+            updateDialog.ShowDialog(this);
+        }
+
         private void ChangeLanguage_Vi_Click(object? sender, RoutedEventArgs e)
         {
             LanguageManager.LoadLanguage("vi-VN");

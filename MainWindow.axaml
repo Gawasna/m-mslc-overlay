@@ -53,7 +53,7 @@
                 </MenuItem>
                 <MenuItem Header="{DynamicResource Menu_Tools}">
                     <MenuItem Header="{DynamicResource Menu_NamedPipeMonitor}" />
-                    <MenuItem Header="{DynamicResource Menu_ActiveExtractorCheckout}" />
+                    <MenuItem Header="{DynamicResource Menu_ActiveExtractorCheckout}" Click="ActiveExtractorCheckout_Click" />
                     <MenuItem Header="{DynamicResource Menu_SystemDiagnostics}" />
                 </MenuItem>
                 <MenuItem Header="{DynamicResource Menu_Help}">
@@ -104,14 +104,47 @@
         </Border>
 
         <!-- 3. Blank Section (Content Area) -->
-        <Border Grid.Row="2" 
-                Background="Transparent"
-                Padding="16">
-            <TextBlock Text="[Blank Section - Dynamic Content Here]" 
-                       HorizontalAlignment="Center" 
-                       VerticalAlignment="Center" 
-                       Foreground="{StaticResource TextSecondaryBrush}" />
-        </Border>
+        <Grid Grid.Row="2" ColumnDefinitions="240, *">
+            <!-- Sidebar_Panel -->
+            <Border Grid.Column="0" 
+                    Background="{StaticResource BgWindowBrush}" 
+                    BorderBrush="{StaticResource BorderLightBrush}" 
+                    BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="7*, 3*">
+                    <!-- Sidebar_Primary_Slot -->
+                    <Grid Grid.Row="0" RowDefinitions="Auto, *">
+                        <!-- Recent Block -->
+                        <Border Grid.Row="0" Height="24" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="12,0">
+                            <TextBlock Text="Recent" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Border>
+                        <!-- Primary_Blank_Placeholder -->
+                        <Border Grid.Row="1" Background="Transparent" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1">
+                            <TextBlock Text="Placeholder" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Sidebar_Utility_Slot -->
+                    <Grid Grid.Row="1" RowDefinitions="Auto, *">
+                        <!-- Status Block -->
+                        <Border Grid.Row="0" Height="24" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,1" Padding="12,0">
+                            <TextBlock Text="Status" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Border>
+                        <!-- Utility_Blank_Placeholder -->
+                        <Border Grid.Row="1" Background="Transparent" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1">
+                            <TextBlock Text="Placeholder" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Main_Viewport -->
+            <Border Grid.Column="1" Background="{StaticResource BgCardBrush}">
+                <TextBlock Text="label placeholder" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center" 
+                           Foreground="{StaticResource TextSecondaryBrush}" />
+            </Border>
+        </Grid>
 
         <!-- 4. Downbar (Status Bar) -->
         <Border Grid.Row="3" 

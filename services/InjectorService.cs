@@ -11,13 +11,20 @@ namespace m_mslc_overlay.services
         {
             try
             {
-                // Dò tìm vị trí thực thi của thư viện Host.exe để nhúng tham số PID
-                string rootDir = Directory.GetParent(AppContext.BaseDirectory)?.Parent?.Parent?.Parent?.FullName ?? AppContext.BaseDirectory;
-                var hostPath = Path.Combine(rootDir, "Host.exe");
+                // Ưu tiên dò tìm vị trí thực thi của thư viện Host.exe trong thư mục extractor
+                string hostPath = Path.Combine(AppContext.BaseDirectory, "extractor", "Host.exe");
                 
                 if (!File.Exists(hostPath))
                 {
+                    // Fallback 1: Thư mục BaseDirectory trực tiếp
                     hostPath = Path.Combine(AppContext.BaseDirectory, "Host.exe");
+                }
+
+                if (!File.Exists(hostPath))
+                {
+                    // Fallback 2: Thư mục cha (phát triển cục bộ)
+                    string rootDir = Directory.GetParent(AppContext.BaseDirectory)?.Parent?.Parent?.Parent?.FullName ?? AppContext.BaseDirectory;
+                    hostPath = Path.Combine(rootDir, "Host.exe");
                 }
 
                 if (!File.Exists(hostPath))
