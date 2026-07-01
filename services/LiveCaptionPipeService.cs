@@ -9,6 +9,8 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Runtime.Versioning;
 using m_mslc_overlay.core;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace m_mslc_overlay.services
 {
@@ -18,7 +20,14 @@ namespace m_mslc_overlay.services
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _listenerTask;
         private Task? _tickTask;
-        private readonly SentenceSplitter _splitter;
+        
+        private readonly AdaptiveCommitEngine _commitEngine;
+        private string _lastRawText = "";
+        private ulong _lastOffset = 0;
+
+        // Pacing state
+        private readonly List<double> _speechSpeedHistory = new();
+        private const double DefaultAvgSS = 330.0;
 
         public bool IsRunning => _listenerTask != null && !_listenerTask.IsCompleted;
 
@@ -27,11 +36,20 @@ namespace m_mslc_overlay.services
         public event Action<string>? OnStatusChanged;
         public event Action<string>? OnError;
 
-        public double AverageSpeechSpeed => _splitter.AverageSpeechSpeed;
+        public double AverageSpeechSpeed 
+        {
+            get 
+            {
+                lock (_speechSpeedHistory)
+                {
+                    return _speechSpeedHistory.Count > 0 ? _speechSpeedHistory.Average() : DefaultAvgSS;
+                }
+            }
+        }
 
         public LiveCaptionPipeService()
         {
-            _splitter = new SentenceSplitter();
+            _commitEngine = new AdaptiveCommitEngine();
         }
 
         public void Start()
@@ -83,7 +101,10 @@ namespace m_mslc_overlay.services
                     await pipeServer.WaitForConnectionAsync(token);
                     OnStatusChanged?.Invoke("Client connected to named pipe.");
 
-                    _splitter.Reset();
+                    _commitEngine.ResetState();
+                    _lastRawText = "";
+                    _lastOffset = 0;
+                    lock (_speechSpeedHistory) { _speechSpeedHistory.Clear(); }
 
                     using var reader = new StreamReader(pipeServer, Encoding.UTF8);
                     string? line;
@@ -124,11 +145,48 @@ namespace m_mslc_overlay.services
 
                 OnPartialCaptionReceived?.Invoke(text);
 
-                var sentences = _splitter.ExtractNewSentences(text, isFinal, offset, duration);
-                foreach (var (s, reason) in sentences)
+                double arrivalTimeMs = Environment.TickCount64;
+
+                // Handle Offset Changes (force flush old sentence)
+                if (offset != 0 && _lastOffset != 0 && offset != _lastOffset)
                 {
-                    OnFinalSentenceReceived?.Invoke(s, reason);
+                    var flushResult = _commitEngine.Evaluate(_lastRawText, arrivalTimeMs, true);
+                    if (flushResult.Type != CommitType.None && !string.IsNullOrWhiteSpace(flushResult.CommittedText))
+                    {
+                        OnFinalSentenceReceived?.Invoke(flushResult.CommittedText, "OffsetChange");
+                    }
+                    _lastRawText = "";
                 }
+                if (offset != 0) _lastOffset = offset;
+
+                // Pacing computation
+                if (!isFinal && duration > 0 && !string.IsNullOrWhiteSpace(text))
+                {
+                    double ms = duration / 10000.0;
+                    int wordCount = text.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                    if (wordCount >= 3)
+                    {
+                        double msPerWord = ms / wordCount;
+                        if (msPerWord >= 100 && msPerWord <= 1500)
+                        {
+                            lock (_speechSpeedHistory)
+                            {
+                                _speechSpeedHistory.Add(msPerWord);
+                                if (_speechSpeedHistory.Count > 15) _speechSpeedHistory.RemoveAt(0);
+                            }
+                        }
+                    }
+                }
+
+                // Core SSACE Evaluation
+                var result = _commitEngine.Evaluate(text, arrivalTimeMs, isFinal);
+                if (result.Type != CommitType.None && !string.IsNullOrWhiteSpace(result.CommittedText))
+                {
+                    string reason = result.Type == CommitType.Hard ? "HardCommit" : "SoftCommit";
+                    OnFinalSentenceReceived?.Invoke(result.CommittedText, reason);
+                }
+
+                _lastRawText = text;
             }
             catch (Exception ex)
             {
@@ -142,12 +200,14 @@ namespace m_mslc_overlay.services
             {
                 try
                 {
-                    await Task.Delay(100, token);
+                    // Active polling loop (50-100ms) for AdaptiveCommitEngine Debounce
+                    await Task.Delay(50, token);
                     
-                    var sentences = _splitter.Tick();
-                    foreach (var (s, reason) in sentences)
+                    double arrivalTimeMs = Environment.TickCount64;
+                    var result = _commitEngine.CheckDebounceTimeout(arrivalTimeMs);
+                    if (result.Type != CommitType.None && !string.IsNullOrWhiteSpace(result.CommittedText))
                     {
-                        OnFinalSentenceReceived?.Invoke(s, reason);
+                        OnFinalSentenceReceived?.Invoke(result.CommittedText, "DebounceCommit");
                     }
                 }
                 catch (OperationCanceledException)

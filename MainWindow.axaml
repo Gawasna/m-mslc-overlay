@@ -129,9 +129,35 @@
                         <Border Grid.Row="0" Height="24" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,1" Padding="12,0">
                             <TextBlock Text="Status" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
                         </Border>
-                        <!-- Utility_Blank_Placeholder -->
-                        <Border Grid.Row="1" Background="Transparent" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1">
-                            <TextBlock Text="Placeholder" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <!-- Status List -->
+                        <Border Grid.Row="1" Background="Transparent" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="12">
+                            <StackPanel Spacing="10">
+                                <!-- Python runtime -->
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse x:Name="StatusDotPython" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Python runtime" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- Live caption -->
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse x:Name="StatusDotCaption" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Live caption" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- CUDA status -->
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse x:Name="StatusDotCuda" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="CUDA status" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- Extractor module -->
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse x:Name="StatusDotExtractor" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Extractor module" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- Local Network -->
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse x:Name="StatusDotNetwork" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Local Network" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
                         </Border>
                     </Grid>
                 </Grid>
