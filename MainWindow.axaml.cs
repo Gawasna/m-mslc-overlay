@@ -265,6 +265,72 @@ namespace m_mslc_overlay
         {
             var metrics = _sysMonitor.GetMetrics();
             ResourceUsageText.Text = $"SYS: {metrics.sysCpu:F1}% CPU {metrics.sysRamMb:F0}MB | APP: {metrics.appCpu:F1}% CPU {metrics.appRamMb:F0}MB";
+            
+            _ = UpdateStatusVisualsAsync();
+        }
+
+        private bool? _cachedHasCuda = null;
+
+        private async System.Threading.Tasks.Task UpdateStatusVisualsAsync()
+        {
+            var gray = SolidColorBrush.Parse("#CBCCC9");
+            var yellow = SolidColorBrush.Parse("#FFAA00");
+            var red = SolidColorBrush.Parse("#FF3333");
+            var green = SolidColorBrush.Parse("#00FF88");
+
+            // 1. Python runtime
+            string serverDir = OfflineTranslationServerManager.FindServerDirectory();
+            StatusDotPython.Fill = string.IsNullOrEmpty(serverDir) ? gray : green;
+
+            // 2. Live caption
+            StatusDotCaption.Fill = _currentHookState switch
+            {
+                HookState.Waiting => gray,
+                HookState.Detected => yellow,
+                HookState.Injected => green,
+                HookState.Failed => red,
+                _ => gray
+            };
+
+            // 3. CUDA & 5. Local Network
+            if (OfflineTranslationServerManager.State == OfflineServerState.Ready)
+            {
+                StatusDotNetwork.Fill = green;
+                
+                if (_cachedHasCuda == null)
+                {
+                    try
+                    {
+                        using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMilliseconds(500) };
+                        var response = await httpClient.GetAsync($"http://127.0.0.1:{OfflineTranslationServerManager.ServerPort}/status");
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var content = await response.Content.ReadAsStringAsync();
+                            using var doc = System.Text.Json.JsonDocument.Parse(content);
+                            if (doc.RootElement.TryGetProperty("has_cuda", out var prop))
+                            {
+                                _cachedHasCuda = prop.GetBoolean();
+                            }
+                        }
+                    }
+                    catch {}
+                }
+                
+                StatusDotCuda.Fill = _cachedHasCuda == true ? green : (_cachedHasCuda == false ? yellow : gray);
+            }
+            else
+            {
+                StatusDotNetwork.Fill = OfflineTranslationServerManager.State == OfflineServerState.Starting ? yellow : gray;
+                StatusDotCuda.Fill = gray;
+                _cachedHasCuda = null; // reset if server goes down
+            }
+
+            // 4. Extractor module
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            bool hasHost = File.Exists(Path.Combine(baseDir, "extractor", "Host.exe")) || File.Exists(Path.Combine(baseDir, "Host.exe"));
+            bool hasAgent = File.Exists(Path.Combine(baseDir, "extractor", "Agent.dll")) || File.Exists(Path.Combine(baseDir, "Agent.dll"));
+            
+            StatusDotExtractor.Fill = (hasHost && hasAgent) ? green : red;
         }
 
         private void DetectTargetProcess()
