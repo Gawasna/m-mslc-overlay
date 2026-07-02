@@ -40,6 +40,7 @@ public partial class FloatingTextOverlay : Window
     private string _baseText = "";
     private int _delayTicks = 0;
     private readonly AppContainerHiderService _hiderService = new AppContainerHiderService();
+    private readonly System.Collections.Generic.List<string> _displayedSentences = new System.Collections.Generic.List<string>();
 
     public bool UseTypewriter { get; set; } = true;
 
@@ -77,6 +78,41 @@ public partial class FloatingTextOverlay : Window
         _hiderService.HideTargetApp("LiveCaptions");
     }
 
+    private int GetTotalLength(System.Collections.Generic.List<string> list)
+    {
+        int total = 0;
+        foreach (var s in list)
+        {
+            total += s.Length;
+        }
+        return total;
+    }
+
+    private void UpdateBaseText()
+    {
+        // Giới hạn hiển thị: tối đa 3 câu hoặc tổng độ dài các câu đã hiển thị không quá 300 ký tự
+        while (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
+        {
+            if (_displayedSentences.Count > 0)
+            {
+                _displayedSentences.RemoveAt(0);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (_displayedSentences.Count > 0)
+        {
+            _baseText = string.Join("  ", _displayedSentences) + "  ";
+        }
+        else
+        {
+            _baseText = "";
+        }
+    }
+
     public void SetImmediateText(string text)
     {
         if (_typewriterTimer != null)
@@ -84,8 +120,46 @@ public partial class FloatingTextOverlay : Window
             _typewriterTimer.Stop();
         }
 
+        // Dọn dẹp hàng đợi và các câu đã hiển thị (vì đây là thông báo trực tiếp từ hệ thống)
+        while (_sentenceQueue.TryDequeue(out _)) { }
+        _displayedSentences.Clear();
+        _baseText = "";
+        _currentSentence = "";
+        _typewriterIndex = 0;
+        _delayTicks = 0;
+
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
             DisplayTextBlock.Text = text;
+            TextScrollViewer.ScrollToEnd();
+        });
+    }
+
+    public void SetStreamingText(string partialText)
+    {
+        if (_typewriterTimer != null && _typewriterTimer.IsEnabled)
+        {
+            _typewriterTimer.Stop();
+        }
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            DisplayTextBlock.Text = _baseText + partialText;
+            TextScrollViewer.ScrollToEnd();
+        });
+    }
+
+    public void AddFinalText(string finalText)
+    {
+        if (string.IsNullOrWhiteSpace(finalText)) return;
+
+        if (_typewriterTimer != null && _typewriterTimer.IsEnabled)
+        {
+            _typewriterTimer.Stop();
+        }
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            _displayedSentences.Add(finalText.Trim());
+            UpdateBaseText();
+            DisplayTextBlock.Text = _baseText;
             TextScrollViewer.ScrollToEnd();
         });
     }
@@ -253,6 +327,11 @@ public partial class FloatingTextOverlay : Window
     {
         DisplayTextBlock.Text = "";
         while (_sentenceQueue.TryDequeue(out _)) { }
+        _displayedSentences.Clear();
+        _baseText = "";
+        _currentSentence = "";
+        _typewriterIndex = 0;
+        _delayTicks = 0;
         StartTypewriterPump();
         EnqueueText(LanguageManager.GetString("Msg_TestTypewriterSentence"));
     }
@@ -272,6 +351,11 @@ public partial class FloatingTextOverlay : Window
     public void ClearQueueAndText()
     {
         while (_sentenceQueue.TryDequeue(out _)) { }
+        _displayedSentences.Clear();
+        _baseText = "";
+        _currentSentence = "";
+        _typewriterIndex = 0;
+        _delayTicks = 0;
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
             DisplayTextBlock.Text = "";
         });
@@ -301,13 +385,15 @@ public partial class FloatingTextOverlay : Window
 
         if (_typewriterIndex < _currentSentence.Length)
         {
-            if (queueLength > 4)
+            if (queueLength > 6)
             {
                 _typewriterIndex = _currentSentence.Length;
             }
             else
             {
-                int charStep = queueLength > 2 ? 4 : (queueLength > 0 ? 2 : 1);
+                int charStep = 1;
+                if (queueLength > 4) charStep = 3;
+                else if (queueLength > 1) charStep = 2;
                 _typewriterIndex = Math.Min(_typewriterIndex + charStep, _currentSentence.Length);
             }
 
@@ -320,17 +406,20 @@ public partial class FloatingTextOverlay : Window
 
             if (_typewriterIndex == _currentSentence.Length)
             {
-                _delayTicks = queueLength > 0 ? 3 : 12; // 90ms vs 360ms
+                _delayTicks = queueLength > 0 ? 5 : 15; // 150ms vs 450ms
             }
             return;
         }
 
         if (_sentenceQueue.TryDequeue(out string? nextSentence) && nextSentence != null)
         {
-            int currentLength = DisplayTextBlock.Text?.Length ?? 0;
-            if (currentLength > 400) DisplayTextBlock.Text = "";
+            if (!string.IsNullOrEmpty(_currentSentence))
+            {
+                _displayedSentences.Add(_currentSentence.Trim());
+            }
 
-            _baseText = DisplayTextBlock.Text ?? "";
+            UpdateBaseText();
+
             _currentSentence = nextSentence;
             _typewriterIndex = 0;
         }

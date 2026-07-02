@@ -48,8 +48,8 @@ namespace m_mslc_overlay.views.components
         private void Pipe_OnPartialCaptionReceived(string text) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-PARTIAL] {text}", "#00FFFF"));
 
-        private void Pipe_OnFinalSentenceReceived(string text, string reason) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-FINAL][{reason}] {text}", "#00FF00"));
+        private void Pipe_OnFinalSentenceReceived(CommitMetadata meta) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-FINAL][{meta.Reason}]{(meta.IsDangling ? "[⚠DANGLING]" : "")} {meta.Text}", "#00FF00"));
 
         private void Pipe_OnError(string err) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => Log($"[PIPE-ERROR] {err}", "#FF4444"));

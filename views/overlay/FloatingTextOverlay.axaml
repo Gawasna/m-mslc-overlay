@@ -3,7 +3,7 @@
         x:Class="m_mslc_overlay.views.overlay.FloatingTextOverlay"
         x:Name="RootWindow"
         Title="{DynamicResource Title_FloatingTextOverlay}"
-        Width="600" Height="237"
+        Width="600" Height="255"
         Background="Transparent"
         TransparencyLevelHint="Transparent"
         SystemDecorations="None"
@@ -107,10 +107,10 @@
         <Grid ColumnDefinitions="*, Auto, Auto">
             
             <!-- Text Area -->
-            <ScrollViewer x:Name="TextScrollViewer" Grid.Column="0" Margin="0,0,24,0" VerticalAlignment="Center" Height="150" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="TextScrollViewer" Grid.Column="0" Margin="0,0,24,0" VerticalAlignment="Center" Height="170" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <TextBlock x:Name="DisplayTextBlock" 
                            FontSize="{Binding OverlayFontSize, ElementName=RootWindow}"
-                           Foreground="#A0A0A0"
+                           Foreground="#E5E5E5"
                            TextWrapping="Wrap"
                            TextAlignment="Center"
                            VerticalAlignment="Center"/>

@@ -34,6 +34,9 @@ namespace m_mslc_overlay.services
         /// <summary>
         /// Dò tìm và kiểm tra thư mục chứa server dịch thuật offline dựa trên cấu hình
         /// </summary>
+        // Cache để tránh log spam khi FindServerDirectory() được gọi liên tục từ polling loop
+        private static string _lastLoggedServerDir = string.Empty;
+
         public static string FindServerDirectory()
         {
             string configuredPath = ConfigManager.Current.OfflineServerDir;
@@ -52,7 +55,12 @@ namespace m_mslc_overlay.services
                 targetPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
             }
 
-            LoggerService.Log($"{LogTag} Target server directory resolved to: {targetPath}");
+            // Log chỉ khi path thay đổi — tránh spam từ polling loop gọi liên tục
+            if (targetPath != _lastLoggedServerDir)
+            {
+                _lastLoggedServerDir = targetPath;
+                LoggerService.Log($"{LogTag} Target server directory resolved to: {targetPath}");
+            }
 
             if (IsValidServerDirectory(targetPath))
             {
