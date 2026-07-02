@@ -164,6 +164,30 @@ public partial class FloatingTextOverlay : Window
         });
     }
 
+    /// <summary>
+    /// ATOM76/ATOM80: Hot-replace the last displayed sentence with new text.
+    /// Used by RevisionWindow to merge short fragments into the preceding translation.
+    /// No-op if _displayedSentences is empty.
+    /// </summary>
+    public void ReplaceLastText(string newText)
+    {
+        if (string.IsNullOrWhiteSpace(newText)) return;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            if (_displayedSentences.Count > 0)
+            {
+                _displayedSentences[_displayedSentences.Count - 1] = newText.Trim();
+            }
+            else
+            {
+                _displayedSentences.Add(newText.Trim());
+            }
+            UpdateBaseText();
+            DisplayTextBlock.Text = _baseText;
+            TextScrollViewer.ScrollToEnd();
+        });
+    }
+
     private void Window_PointerPressed(object sender, Avalonia.Input.PointerPressedEventArgs e)
     {
         var point = e.GetCurrentPoint(this);

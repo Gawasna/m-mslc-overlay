@@ -21,6 +21,8 @@ namespace m_mslc_overlay
         private InjectorService _injectorService;
         private AIService _aiService;
         private ShortSentenceBuffer _shortSentenceBuffer;
+        private readonly SegmentTracker _segmentTracker = new SegmentTracker();
+        private readonly RevisionWindowService _revisionWindow = new RevisionWindowService();
         private SystemMonitor _sysMonitor;
         private DispatcherTimer _resourceTimer;
         private DispatcherTimer _uiUpdateTimer;
@@ -71,7 +73,8 @@ namespace m_mslc_overlay
                         lock (_translationLock) {
                             _translationBuffer = "";
                         }
-                        _ = _aiService.TranslateSentenceAsync(mergedText);
+                        // ATOM81: enqueue via priority queue instead of direct async call
+                        _aiService.EnqueueTranslation(mergedText, "SoftCommit");
                     }
                     else
                     {
@@ -97,6 +100,12 @@ namespace m_mslc_overlay
             
             _aiService.ContextTopic = _contextTopic;
 
+            // ATOM80: log when a revision (hot-replace) occurs
+            _revisionWindow.OnRevise += (prev, merged) => {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [ATOM80 REVISE] «{prev}» → «{merged}»\n");
+            };
+
             // 1. Nhận luồng text thô partial (đang nhận dạng) từ Extractor
             _pipeService.OnPartialCaptionReceived += (txt) => {
                 _lastPartialCaption = txt;
@@ -117,6 +126,9 @@ namespace m_mslc_overlay
 
                 string logLine = $"[{timestamp}] {flagAvgSS}{danglingFlag}{mergedFlag} {LanguageManager.GetString("Log_EnglishPrefix")}: {meta.Text}\n";
                 AppendLog(logLine);
+
+                // ATOM79: track segment lifecycle
+                var segment = _segmentTracker.TrackCommit(meta);
 
                 // ATOM50: route through ShortSentenceBuffer — translation fires
                 // only when OnFlush is triggered (either by merge or timeout).
@@ -141,18 +153,32 @@ namespace m_mslc_overlay
             };
 
             // 4. Khi hoàn thành dịch 1 câu hoàn chỉnh
-            _aiService.OnTranslationCompleted += (fullSentence) => {
+            // ATOM81: handler now receives TranslationResult (includes source CommitMetadata)
+            _aiService.OnTranslationCompleted += (result) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     if (IsTranslationEnabled)
                     {
+                        string fullSentence = result.Translation;
                         // In bản dịch tiếng Việt sang RawTextLog để dễ debug song song
                         string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                        string logLine = $"[{timestamp}] {LanguageManager.GetString("Log_VietnamesePrefix")}: {fullSentence}\n-----------------------------------\n";
+                        string errFlag = result.IsError ? " [ERR]" : "";
+                        string logLine = $"[{timestamp}]{errFlag} {LanguageManager.GetString("Log_VietnamesePrefix")}: {fullSentence}\n-----------------------------------\n";
                         AppendLog(logLine);
+
+                        // ATOM79: link translation back to originating segment
+                        var linkedSeg = _segmentTracker.LinkTranslation(result);
 
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
-                            if (ConfigManager.Current.TranslationEngine == "DeepL API")
+                            // ATOM80: Check if this translation should replace the previous short one
+                            bool wasRevised = _revisionWindow.TryRevise(result);
+
+                            if (wasRevised)
+                            {
+                                // Hot-replace: replace last displayed translation instead of appending
+                                _currentOverlay.ReplaceLastText(fullSentence);
+                            }
+                            else if (ConfigManager.Current.TranslationEngine == "DeepL API")
                             {
                                 if (_currentOverlay.UseTypewriter)
                                 {
@@ -169,6 +195,13 @@ namespace m_mslc_overlay
                                 // Streaming engines fallback
                                 _currentOverlay.AddFinalText(fullSentence);
                             }
+
+                            // ATOM79: mark as rendered after overlay receives text
+                            if (linkedSeg != null)
+                                _segmentTracker.MarkRendered(linkedSeg);
+
+                            // ATOM80: after rendering, notify RevisionWindow to open window if this is a short translation
+                            _revisionWindow.OnTranslationRendered(result);
                         }
                     }
                 });
@@ -180,7 +213,11 @@ namespace m_mslc_overlay
                 AppendLog($"[{timestamp}] [SYSTEM] {statusMsg}\n");
                 // ATOM50: reset buffer on new pipe session to avoid stale pending
                 if (statusMsg.Contains("Client connected"))
+                {
                     _shortSentenceBuffer.Reset();
+                    _segmentTracker.Reset();  // ATOM79: clear stale segments on reconnect
+                    _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
+                }
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
 
@@ -194,6 +231,8 @@ namespace m_mslc_overlay
             this.Closing += (s, e) => {
                 _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
                 _shortSentenceBuffer.Dispose();
+                _aiService.Dispose();           // ATOM81: dispose priority queue and http client
+                _revisionWindow.Dispose();      // ATOM80
                 _hiderService.Dispose();
                 _pipeService.Dispose();
                 _resourceTimer.Stop();
@@ -760,6 +799,8 @@ namespace m_mslc_overlay
                 if (_currentOverlay != null && _currentOverlay.IsVisible)
                 {
                     _currentOverlay.ClearQueueAndText();
+                    _segmentTracker.MarkOverlayReset();  // ATOM79: ATOM75 overlay reset hook
+                    _revisionWindow.Reset();  // ATOM80: clear pending on manual overlay clear
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Overlay text cleared.\n");
                 }
             });
