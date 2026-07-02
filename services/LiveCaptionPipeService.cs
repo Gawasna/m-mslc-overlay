@@ -32,7 +32,7 @@ namespace m_mslc_overlay.services
         public bool IsRunning => _listenerTask != null && !_listenerTask.IsCompleted;
 
         public event Action<string>? OnPartialCaptionReceived;
-        public event Action<string, string>? OnFinalSentenceReceived;
+        public event Action<CommitMetadata>? OnFinalSentenceReceived;
         public event Action<string>? OnStatusChanged;
         public event Action<string>? OnError;
 
@@ -145,15 +145,28 @@ namespace m_mslc_overlay.services
 
                 OnPartialCaptionReceived?.Invoke(text);
 
-                double arrivalTimeMs = Environment.TickCount64;
+                double wallClockMs = Environment.TickCount64;
+                // acousticEndMs = endpoint của âm thanh cuối trong packet này (100ns ticks → ms)
+                // Fallback về wall-clock nếu SDK không cung cấp offset (edge case: offset=0)
+                double acousticEndMs = (offset > 0 && duration > 0)
+                    ? (double)(offset + duration) / 10_000.0
+                    : wallClockMs;
 
                 // Handle Offset Changes (force flush old sentence)
-                if (offset != 0 && _lastOffset != 0 && offset != _lastOffset)
+                // S19 guard: only trigger on significant offset jumps (>50ms = 500000 ticks)
+                // to avoid spurious flushes from SDK offset jitter within the same utterance.
+                bool isSignificantOffsetChange = offset != 0 && _lastOffset != 0
+                    && offset != _lastOffset
+                    && Math.Abs((long)offset - (long)_lastOffset) > 500_000;
+
+                if (isSignificantOffsetChange)
                 {
-                    var flushResult = _commitEngine.Evaluate(_lastRawText, arrivalTimeMs, true);
+                    var flushResult = _commitEngine.Evaluate(_lastRawText, acousticEndMs, wallClockMs, true);
                     if (flushResult.Type != CommitType.None && !string.IsNullOrWhiteSpace(flushResult.CommittedText))
                     {
-                        OnFinalSentenceReceived?.Invoke(flushResult.CommittedText, "OffsetChange");
+                        OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
+                            flushResult.CommittedText, "OffsetChange",
+                            acousticEndMs: acousticEndMs, utteranceOffset: _lastOffset));
                     }
                     _lastRawText = "";
                 }
@@ -179,14 +192,20 @@ namespace m_mslc_overlay.services
                 }
 
                 // Core SSACE Evaluation
-                var result = _commitEngine.Evaluate(text, arrivalTimeMs, isFinal);
+                var result = _commitEngine.Evaluate(text, acousticEndMs, wallClockMs, isFinal);
                 if (result.Type != CommitType.None && !string.IsNullOrWhiteSpace(result.CommittedText))
                 {
                     string reason = result.Type == CommitType.Hard ? "HardCommit" : "SoftCommit";
-                    OnFinalSentenceReceived?.Invoke(result.CommittedText, reason);
+                    OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
+                        result.CommittedText, reason,
+                        acousticEndMs: acousticEndMs,
+                        utteranceOffset: offset,
+                        isDangling: result.IsDangling));
                 }
 
-                _lastRawText = text;
+                // Sau FINAL, engine đã ResetState() — _lastRawText phải sạch để
+                // OffsetChange trên packet kế tiếp không flush lại text đã committed.
+                _lastRawText = isFinal ? "" : text;
             }
             catch (Exception ex)
             {
@@ -207,7 +226,9 @@ namespace m_mslc_overlay.services
                     var result = _commitEngine.CheckDebounceTimeout(arrivalTimeMs);
                     if (result.Type != CommitType.None && !string.IsNullOrWhiteSpace(result.CommittedText))
                     {
-                        OnFinalSentenceReceived?.Invoke(result.CommittedText, "DebounceCommit");
+                        OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
+                            result.CommittedText, "DebounceCommit",
+                            isDangling: result.IsDangling));
                     }
                 }
                 catch (OperationCanceledException)

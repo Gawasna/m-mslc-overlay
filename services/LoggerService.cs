@@ -82,7 +82,10 @@ namespace m_mslc_overlay.services
             {
                 try
                 {
-                    File.AppendAllText(_logPath, message);
+                    // Always ensure each log entry ends on its own line.
+                    // Callers must NOT append \n themselves — this is the single source of truth.
+                    string line = message.EndsWith('\n') ? message : message + "\n";
+                    File.AppendAllText(_logPath, line);
                 }
                 catch (Exception ex)
                 {

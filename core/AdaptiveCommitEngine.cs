@@ -16,6 +16,8 @@ namespace m_mslc_overlay.core
         public CommitType Type { get; set; } = CommitType.None;
         public string CommittedText { get; set; } = string.Empty;
         public string UncommittedText { get; set; } = string.Empty;
+        /// ATOM77: true if the last committed word is a dangling open-ended token.
+        public bool IsDangling { get; set; } = false;
     }
 
     public class AdaptiveCommitEngine
@@ -46,6 +48,23 @@ namespace m_mslc_overlay.core
         private static readonly HashSet<string> SoftCuesJa = new(StringComparer.Ordinal) 
             { "は", "が", "を", "か", "ね", "よ", "で", "es", "mas" };
 
+        // ATOM77: Open-ended trailing words — if the last word of a Head-3 candidate
+        // is in this set, delay the debounce by one additional cycle to avoid committing
+        // incomplete clauses (S20: "how much" without complement).
+        private static readonly HashSet<string> DanglingWordsEn = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "much", "how", "what", "which", "that", "who", "whom", "whose",
+            "the", "a", "an", "this", "these", "those", "my", "your", "his", "her", "its", "our", "their",
+            "very", "too", "so", "such", "quite", "rather", "more", "less", "most", "least",
+            "just", "only", "even", "also", "both", "either", "neither",
+            "if", "when", "while", "although", "because", "since", "unless",
+            "and", "or", "nor", "not"
+        };
+
+        // ATOM77: Tracks whether the current pending commit was already delayed once
+        // due to a dangling trailing word. Prevents infinite delay loops.
+        private bool _danglingDelayConsumed = false;
+
         public AdaptiveCommitEngine(string languageCode = "en", int minWordThreshold = 6, int lookaheadSafetyWindow = 2)
         {
             _languageCode = languageCode.ToLower();
@@ -53,7 +72,7 @@ namespace m_mslc_overlay.core
             _lookaheadSafetyWindow = lookaheadSafetyWindow;
         }
 
-        public CommitResult Evaluate(string currentText, double timestampMs, bool isFinalFromSdk)
+        public CommitResult Evaluate(string currentText, double acousticEndMs, double wallClockMs, bool isFinalFromSdk)
         {
             var result = new CommitResult();
             
@@ -63,6 +82,7 @@ namespace m_mslc_overlay.core
                 ResetState();
                 result.Type = CommitType.Hard;
                 result.CommittedText = committed;
+                result.IsDangling = false; // SDK FINAL is a clean boundary
                 return result;
             }
 
@@ -88,13 +108,13 @@ namespace m_mslc_overlay.core
             // Gap tracking timing logic & multi-word packet filtering
             // Store previous word timestamp before updating _lastWordTimestampMs
             double previousWordTimestamp = _lastWordTimestampMs;
-            _lastWordTimestampMs = timestampMs;
+            _lastWordTimestampMs = acousticEndMs;
 
             // Update stats only when a single word is added to avoid undercounting 
             // from multi-word packets emitted concurrently by the engine.
             if (currWords.Count - prevWords.Count == 1 && previousWordTimestamp > 0)
             {
-                double gap = timestampMs - previousWordTimestamp;
+                double gap = acousticEndMs - previousWordTimestamp;
                 UpdateGapStatistics(gap);
             }
 
@@ -102,6 +122,7 @@ namespace m_mslc_overlay.core
             if (_isPendingCommit && currWords.Count > prevWords.Count)
             {
                 _isPendingCommit = false;
+                _danglingDelayConsumed = false; // ATOM77: reset delay flag on continuation
             }
 
             if (stableWordCount <= _lastCommittedWordIndex)
@@ -141,22 +162,41 @@ namespace m_mslc_overlay.core
             {
                 // Dynamic threshold calculation based on running statistics (calibrating dynamically)
                 double dynamicThreshold = Math.Clamp(_runningMeanGap + 1.5 * _runningStDevGap, 700.0, 1800.0);
-                double currentIdleTime = timestampMs - previousWordTimestamp;
+                double currentIdleTime = acousticEndMs - previousWordTimestamp;
 
                 if (currentIdleTime > dynamicThreshold && stableWordCount >= _minWordThreshold)
                 {
                     // Trigger Pending Commit State (Debounce mechanism)
                     if (!_isPendingCommit)
                     {
-                        _isPendingCommit = true;
-                        _pendingTimestampMs = timestampMs;
-                        _pendingTargetWordIndex = stableWordCount;
+                        // ATOM77: Check if the last stable word is a dangling open-ended token.
+                        // If so, delay the debounce by one cycle to avoid incomplete clause commits (S20).
+                        bool isDanglingCandidate = false;
+                        if (!_danglingDelayConsumed && stableWordCount > 0 && stableWordCount <= currWords.Count)
+                        {
+                            string lastStableWord = CleanPunctuation(currWords[stableWordCount - 1]);
+                            isDanglingCandidate = DanglingWordsEn.Contains(lastStableWord);
+                        }
+
+                        if (isDanglingCandidate)
+                        {
+                            // Mark delay consumed — next trigger will proceed regardless of dangling word.
+                            _danglingDelayConsumed = true;
+                            // Do NOT set _isPendingCommit yet — skip this cycle.
+                        }
+                        else
+                        {
+                            _isPendingCommit = true;
+                            _pendingTimestampMs = wallClockMs;
+                            _pendingTargetWordIndex = stableWordCount;
+                            _danglingDelayConsumed = false;
+                        }
                     }
                 }
             }
 
             // Check if Debounce Timer expired for pending commit
-            if (_isPendingCommit && (timestampMs - _pendingTimestampMs >= _debounceDelayMs))
+            if (_isPendingCommit && (wallClockMs - _pendingTimestampMs >= _debounceDelayMs))
             {
                 commitBoundary = _pendingTargetWordIndex;
                 _isPendingCommit = false;
@@ -169,6 +209,10 @@ namespace m_mslc_overlay.core
                 result.UncommittedText = ReconstructText(currWords.Skip(commitBoundary));
                 _lastCommittedWordIndex = commitBoundary;
                 result.Type = CommitType.Soft;
+                // ATOM77: flag if last committed word is dangling (for metadata downstream)
+                string lastWord = CleanPunctuation(currWords[commitBoundary - 1]);
+                result.IsDangling = DanglingWordsEn.Contains(lastWord);
+                _danglingDelayConsumed = false; // reset after actual commit
             }
             else
             {
@@ -283,6 +327,7 @@ namespace m_mslc_overlay.core
             _lastCommittedWordIndex = 0;
             _lastWordTimestampMs = -1.0;
             _isPendingCommit = false;
+            _danglingDelayConsumed = false;
             _wordGaps.Clear();
         }
     }

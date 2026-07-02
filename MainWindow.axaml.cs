@@ -20,6 +20,7 @@ namespace m_mslc_overlay
         private LiveCaptionPipeService _pipeService;
         private InjectorService _injectorService;
         private AIService _aiService;
+        private ShortSentenceBuffer _shortSentenceBuffer;
         private SystemMonitor _sysMonitor;
         private DispatcherTimer _resourceTimer;
         private DispatcherTimer _uiUpdateTimer;
@@ -58,6 +59,32 @@ namespace m_mslc_overlay
             _pipeService = new LiveCaptionPipeService();
             _injectorService = new InjectorService();
             _aiService = new AIService();
+            _shortSentenceBuffer = new ShortSentenceBuffer();
+
+            // ATOM50: Short sentence buffer merges fragments (≤3 words) with the next
+            // long sentence before forwarding to translation, avoiding wasteful API calls
+            // for isolated tokens like "but", "So", "Because", "I".
+            _shortSentenceBuffer.OnFlush += (mergedText) => {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    if (IsTranslationEnabled)
+                    {
+                        lock (_translationLock) {
+                            _translationBuffer = "";
+                        }
+                        _ = _aiService.TranslateSentenceAsync(mergedText);
+                    }
+                    else
+                    {
+                        if (_currentOverlay != null && _currentOverlay.IsVisible)
+                        {
+                            if (_currentOverlay.UseTypewriter)
+                                _currentOverlay.EnqueueText(mergedText);
+                            else
+                                _currentOverlay.AddFinalText(mergedText);
+                        }
+                    }
+                });
+            };
             
             _sysMonitor = new SystemMonitor();
             _resourceTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -77,50 +104,23 @@ namespace m_mslc_overlay
             };
 
             // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
-            _pipeService.OnFinalSentenceReceived += (txt, reason) => {
-                if (string.IsNullOrWhiteSpace(txt)) return;
+            _pipeService.OnFinalSentenceReceived += (meta) => {
+                if (string.IsNullOrWhiteSpace(meta.Text)) return;
 
                 // Định dạng timestamp cho câu thô
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
                 
                 int avgSS = (int)_pipeService.AverageSpeechSpeed;
                 string flagAvgSS = $"[AvgSS:{avgSS}ms]";
-                
-                string prefix = flagAvgSS;
-                if (reason == "A4")
-                {
-                    prefix = $"{flagAvgSS} [Expect COMMIT By A4]";
-                }
+                string danglingFlag = meta.IsDangling ? " [⚠ DANGLING]" : "";
+                string mergedFlag = meta.WasMerged ? " [MERGED]" : "";
 
-                string logLine = $"[{timestamp}] {prefix} {LanguageManager.GetString("Log_EnglishPrefix")}: {txt}\n";
+                string logLine = $"[{timestamp}] {flagAvgSS}{danglingFlag}{mergedFlag} {LanguageManager.GetString("Log_EnglishPrefix")}: {meta.Text}\n";
                 AppendLog(logLine);
 
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    // Nếu bật dịch thuật AI
-                    if (IsTranslationEnabled)
-                    {
-                        lock(_translationLock) {
-                            _translationBuffer = ""; // Reset buffer bản dịch mới
-                        }
-                        // Chạy nền tác vụ gọi AI để tránh block thread UI
-                        _ = _aiService.TranslateSentenceAsync(txt);
-                    }
-                    else
-                    {
-                        // Nếu tắt dịch thuật (Raw Mode), cập nhật câu final hoàn chỉnh
-                        if (_currentOverlay != null && _currentOverlay.IsVisible)
-                        {
-                            if (_currentOverlay.UseTypewriter)
-                            {
-                                _currentOverlay.EnqueueText(txt);
-                            }
-                            else
-                            {
-                                _currentOverlay.SetImmediateText(txt);
-                            }
-                        }
-                    }
-                });
+                // ATOM50: route through ShortSentenceBuffer — translation fires
+                // only when OnFlush is triggered (either by merge or timeout).
+                _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
             };
 
             // 3. Nhận các token dịch từ AI
@@ -161,13 +161,13 @@ namespace m_mslc_overlay
                                 }
                                 else
                                 {
-                                    _currentOverlay.SetImmediateText(fullSentence);
+                                    _currentOverlay.AddFinalText(fullSentence);
                                 }
                             }
                             else
                             {
                                 // Streaming engines fallback
-                                _currentOverlay.SetImmediateText(fullSentence);
+                                _currentOverlay.AddFinalText(fullSentence);
                             }
                         }
                     }
@@ -178,6 +178,9 @@ namespace m_mslc_overlay
             _pipeService.OnStatusChanged += (statusMsg) => {
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
                 AppendLog($"[{timestamp}] [SYSTEM] {statusMsg}\n");
+                // ATOM50: reset buffer on new pipe session to avoid stale pending
+                if (statusMsg.Contains("Client connected"))
+                    _shortSentenceBuffer.Reset();
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
 
@@ -189,6 +192,8 @@ namespace m_mslc_overlay
             };
 
             this.Closing += (s, e) => {
+                _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
+                _shortSentenceBuffer.Dispose();
                 _hiderService.Dispose();
                 _pipeService.Dispose();
                 _resourceTimer.Stop();
@@ -242,7 +247,7 @@ namespace m_mslc_overlay
             {
                 if (_currentOverlay != null && _currentOverlay.IsVisible && !IsTranslationEnabled)
                 {
-                    _currentOverlay.SetImmediateText(_lastPartialCaption);
+                    _currentOverlay.SetStreamingText(_lastPartialCaption);
                 }
                 _isPartialCaptionDirty = false;
             }
@@ -255,7 +260,7 @@ namespace m_mslc_overlay
                 }
                 if (_currentOverlay != null && _currentOverlay.IsVisible)
                 {
-                    _currentOverlay.SetImmediateText(displayTxt);
+                    _currentOverlay.SetStreamingText(displayTxt);
                 }
                 _isTranslationDirty = false;
             }
