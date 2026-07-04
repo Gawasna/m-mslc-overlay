@@ -22,7 +22,10 @@ namespace m_mslc_overlay
         private AIService _aiService;
         private ShortSentenceBuffer _shortSentenceBuffer;
         private readonly SegmentTracker _segmentTracker = new SegmentTracker();
+        private readonly SegmentDisplayModel _segmentDisplayModel = new SegmentDisplayModel();
+        private readonly VisualStateMapper _visualStateMapper;
         private readonly RevisionWindowService _revisionWindow = new RevisionWindowService();
+        private readonly m_mslc_overlay.core.Animation.FadeAnimationController _fadeAnimationController;
         private SystemMonitor _sysMonitor;
         private DispatcherTimer _resourceTimer;
         private DispatcherTimer _uiUpdateTimer;
@@ -62,6 +65,8 @@ namespace m_mslc_overlay
             _injectorService = new InjectorService();
             _aiService = new AIService();
             _shortSentenceBuffer = new ShortSentenceBuffer();
+            _visualStateMapper = new VisualStateMapper(_segmentDisplayModel, _segmentTracker);
+            _fadeAnimationController = new m_mslc_overlay.core.Animation.FadeAnimationController(_revisionWindow);
 
             // ATOM50: Short sentence buffer merges fragments (≤3 words) with the next
             // long sentence before forwarding to translation, avoiding wasteful API calls
@@ -171,12 +176,12 @@ namespace m_mslc_overlay
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
                             // ATOM80: Check if this translation should replace the previous short one
-                            bool wasRevised = _revisionWindow.TryRevise(result);
+                            bool wasRevised = _revisionWindow.TryRevise(result, out string mergedText);
 
                             if (wasRevised)
                             {
                                 // Hot-replace: replace last displayed translation instead of appending
-                                _currentOverlay.ReplaceLastText(fullSentence);
+                                _currentOverlay.ReplaceLastText(mergedText);
                             }
                             else if (ConfigManager.Current.TranslationEngine == "DeepL API")
                             {
@@ -484,6 +489,8 @@ namespace m_mslc_overlay
         }
 
         public AIService AIService => _aiService;
+        public SegmentDisplayModel SegmentDisplayModel => _segmentDisplayModel;
+        public m_mslc_overlay.core.Animation.FadeAnimationController FadeAnimationController => _fadeAnimationController;
 
         public bool IsTranslationEnabled
         {

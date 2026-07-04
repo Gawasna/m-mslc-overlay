@@ -41,6 +41,7 @@ public partial class FloatingTextOverlay : Window
     private int _delayTicks = 0;
     private readonly AppContainerHiderService _hiderService = new AppContainerHiderService();
     private readonly System.Collections.Generic.List<string> _displayedSentences = new System.Collections.Generic.List<string>();
+    private readonly m_mslc_overlay.core.Animation.SlideAnimationController _slideAnimationController = new m_mslc_overlay.core.Animation.SlideAnimationController();
 
     public bool UseTypewriter { get; set; } = true;
 
@@ -90,17 +91,33 @@ public partial class FloatingTextOverlay : Window
 
     private void UpdateBaseText()
     {
+        bool needsSlide = false;
         // Giới hạn hiển thị: tối đa 3 câu hoặc tổng độ dài các câu đã hiển thị không quá 300 ký tự
-        while (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
+        if (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
         {
             if (_displayedSentences.Count > 0)
             {
-                _displayedSentences.RemoveAt(0);
+                needsSlide = true;
             }
-            else
-            {
-                break;
-            }
+        }
+
+        if (needsSlide)
+        {
+            m_mslc_overlay.services.LoggerService.Log($"[FloatingTextOverlay] Triggering SlideAnimationController for overflow");
+            _ = _slideAnimationController.AnimateSlideUpAsync(DisplayTextBlock, OverlayFontSize * 1.5, () => {
+                while (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
+                {
+                    if (_displayedSentences.Count > 0) _displayedSentences.RemoveAt(0);
+                    else break;
+                }
+                
+                if (_displayedSentences.Count > 0)
+                    _baseText = string.Join("  ", _displayedSentences) + "  ";
+                else
+                    _baseText = "";
+                DisplayTextBlock.Text = _baseText;
+            });
+            return;
         }
 
         if (_displayedSentences.Count > 0)
@@ -183,7 +200,15 @@ public partial class FloatingTextOverlay : Window
                 _displayedSentences.Add(newText.Trim());
             }
             UpdateBaseText();
-            DisplayTextBlock.Text = _baseText;
+            if (_mainWindow != null && _mainWindow.FadeAnimationController != null)
+            {
+                m_mslc_overlay.services.LoggerService.Log($"[FloatingTextOverlay] Triggering FadeAnimationController for ReplaceLastText");
+                _ = _mainWindow.FadeAnimationController.AnimateReplaceAsync(DisplayTextBlock, _baseText);
+            }
+            else
+            {
+                DisplayTextBlock.Text = _baseText;
+            }
             TextScrollViewer.ScrollToEnd();
         });
     }
