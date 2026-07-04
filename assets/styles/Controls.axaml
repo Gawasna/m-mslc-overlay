@@ -120,4 +120,63 @@
         <Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/>
     </Style>
+
+    <!-- Transcript: Word-style toolbar icon toggle button -->
+    <Style Selector="Button.ToolbarToggleBtn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.ToolbarToggleBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+    </Style>
+    <Style Selector="Button.ToolbarToggleBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+    </Style>
+
+    <!-- Transcript: Nav pane tab icon button -->
+    <Style Selector="Button.NavTabBtn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.NavTabBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+    </Style>
+    <Style Selector="Button.NavTabBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
+    </Style>
+
+    <!-- Sub-toolbar compact pill toggle (replaces CheckBox inside Border) -->
+    <Style Selector="ToggleButton.SubToolbarPill">
+        <Setter Property="Background" Value="{StaticResource BgCardBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Padding" Value="10,3"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="ToggleButton.SubToolbarPill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+    </Style>
+    <!-- Checked: orange tint pill — same PrimaryBrush as Edit Mode badge -->
+    <Style Selector="ToggleButton.SubToolbarPill:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FFF4E6"/>
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.SubToolbarPill:checked TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="ToggleButton.SubToolbarPill:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FFE8CC"/>
+    </Style>
+
 </Styles>

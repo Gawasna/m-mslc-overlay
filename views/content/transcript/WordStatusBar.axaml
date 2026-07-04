@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             x:Class="m_mslc_overlay.views.content.transcript.WordStatusBar"
+             x:DataType="vm:PaperSheetViewModel">
+
+    <!--
+        WordStatusBar: Document status bar at the bottom of the transcript viewport.
+        Uses StatusBarBgBrush (#1C1C1E dark charcoal) instead of flat blue
+        so it doesn't conflict with the app's orange primary schema while still
+        feeling "professional document editor" — similar to VS Code's status bar.
+    -->
+    <Border Background="{StaticResource StatusBarBgBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="12,0"
+            Height="22">
+
+        <Grid ColumnDefinitions="Auto, Auto, *, Auto, Auto, Auto">
+
+            <!-- Page indicator -->
+            <TextBlock Grid.Column="0"
+                       Text="{Binding PageNumber, StringFormat='Page {0}'}"
+                       FontSize="10" Foreground="{StaticResource StatusBarFgBrush}"
+                       VerticalAlignment="Center"
+                       Margin="0,0,16,0" />
+
+            <!-- Word count -->
+            <TextBlock Grid.Column="1"
+                       Text="{Binding WordCount, StringFormat='{}{0} words'}"
+                       FontSize="10" Foreground="{StaticResource StatusBarFgBrush}"
+                       VerticalAlignment="Center"
+                       Margin="0,0,16,0" />
+
+            <!-- Language indicator -->
+            <TextBlock Grid.Column="3"
+                       Text="{Binding DocumentLanguage}"
+                       FontSize="10" Foreground="#9CA3AF"
+                       VerticalAlignment="Center"
+                       Margin="0,0,16,0" />
+
+            <!-- Auto-scroll indicator -->
+            <TextBlock Grid.Column="4"
+                       Text="AUTO-SCROLL"
+                       FontSize="10" Foreground="{StaticResource PrimaryBrush}"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding AutoScroll}"
+                       Margin="0,0,12,0" />
+
+            <!-- Zoom controls -->
+            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <Button x:Name="ZoomOutBtn"
+                        Content="−" FontSize="11"
+                        Width="16" Height="16" Padding="0"
+                        Background="Transparent" BorderThickness="0"
+                        CornerRadius="0" Foreground="{StaticResource StatusBarFgBrush}" />
+                <TextBlock Text="{Binding ZoomPercent, StringFormat='{}{0}%'}"
+                           FontSize="10" Foreground="{StaticResource StatusBarFgBrush}"
+                           VerticalAlignment="Center" />
+                <Button x:Name="ZoomInBtn"
+                        Content="+" FontSize="11"
+                        Width="16" Height="16" Padding="0"
+                        Background="Transparent" BorderThickness="0"
+                        CornerRadius="0" Foreground="{StaticResource StatusBarFgBrush}" />
+            </StackPanel>
+
+        </Grid>
+    </Border>
+</UserControl>

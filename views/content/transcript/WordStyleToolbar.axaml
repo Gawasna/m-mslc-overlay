@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             x:Class="m_mslc_overlay.views.content.transcript.WordStyleToolbar"
+             x:DataType="vm:PaperSheetViewModel">
+
+    <!--
+        WordStyleToolbar: MS Word-style formatting bar.
+        No fixed Height — let content define row height (avoids clipping).
+        Colors use app's StaticResources to stay in the mono/orange schema.
+    -->
+    <Border Background="{StaticResource BgCardBrush}"
+            BorderBrush="{StaticResource BorderLightBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="8,4">
+
+        <ScrollViewer HorizontalScrollBarVisibility="Hidden"
+                      VerticalScrollBarVisibility="Disabled">
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+
+                <!-- Font family dropdown (mockup) -->
+                <Border Width="90" Height="24" CornerRadius="2"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        Background="{StaticResource BgWindowBrush}" Padding="6,0">
+                    <TextBlock Text="Georgia" FontSize="10" VerticalAlignment="Center"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                </Border>
+
+                <!-- Font size dropdown (mockup) -->
+                <Border Width="38" Height="24" CornerRadius="2"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        Background="{StaticResource BgWindowBrush}" Padding="6,0">
+                    <TextBlock Text="11" FontSize="10" VerticalAlignment="Center"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                </Border>
+
+                <!-- Separator -->
+                <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
+
+                <!-- B / I / U style toggles -->
+                <Button Content="B" FontWeight="Bold" FontSize="12"
+                        Width="24" Height="24" Padding="0" CornerRadius="2"
+                        Classes="ToolbarToggleBtn" ToolTip.Tip="Bold" />
+
+                <Button Content="I" FontStyle="Italic" FontSize="12"
+                        Width="24" Height="24" Padding="0" CornerRadius="2"
+                        Classes="ToolbarToggleBtn" ToolTip.Tip="Italic" />
+
+                <Button Width="24" Height="24" Padding="0" CornerRadius="2"
+                        Classes="ToolbarToggleBtn" ToolTip.Tip="Underline">
+                    <TextBlock Text="U" TextDecorations="Underline" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                </Button>
+
+                <!-- Separator -->
+                <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
+
+                <!-- Alignment buttons -->
+                <Button Content="L" FontSize="11" Width="24" Height="24"
+                        Padding="0" CornerRadius="2" Classes="ToolbarToggleBtn"
+                        ToolTip.Tip="Align Left" />
+                <Button Content="C" FontSize="11" Width="24" Height="24"
+                        Padding="0" CornerRadius="2" Classes="ToolbarToggleBtn"
+                        ToolTip.Tip="Align Center" />
+                <Button Content="R" FontSize="11" Width="24" Height="24"
+                        Padding="0" CornerRadius="2" Classes="ToolbarToggleBtn"
+                        ToolTip.Tip="Align Right" />
+
+                <!-- Separator -->
+                <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
+
+                <!-- Edit Mode badge — uses app's Primary orange accent -->
+                <Border CornerRadius="3" Background="{StaticResource PrimaryBrush}" Padding="10,3">
+                    <TextBlock Text="Edit Mode" FontSize="10" FontWeight="Bold"
+                               Foreground="White" VerticalAlignment="Center" />
+                </Border>
+
+                <!-- Review Mode badge -->
+                <Border CornerRadius="3" Background="Transparent"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="10,3">
+                    <TextBlock Text="Review" FontSize="10"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               VerticalAlignment="Center" />
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

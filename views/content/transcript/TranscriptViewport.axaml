@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             xmlns:transcript="using:m_mslc_overlay.views.content.transcript"
+             x:Class="m_mslc_overlay.views.content.transcript.TranscriptViewport"
+             x:DataType="vm:TranscriptViewportViewModel">
+
+    <!--
+        TranscriptViewport: Full content area below the application toolbars.
+        Layout: Grid (Rows = toolbar stack | content | status bar)
+                Content: Grid (Nav pane left | Paper sheet right)
+
+        IsVisible on RecordingHeaderBar and DocumentNavigationPane is bound to
+        the root DataContext (TranscriptViewportViewModel) via a wrapper Border.
+        This is needed because setting DataContext on the component and
+        IsVisible simultaneously creates a compiled-binding type conflict.
+    -->
+    <Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
+
+        <!-- ─── Row 0: Recording Header Bar ─────────────────────────────────── -->
+        <!-- IsVisible checked against root VM; DataContext delegated inside the control -->
+        <Border Grid.Row="0" IsVisible="{Binding Recording.IsRecording}">
+            <transcript:RecordingHeaderBar DataContext="{Binding Recording}" />
+        </Border>
+
+        <!-- ─── Row 1: Word-Style Toolbar ───────────────────────────────────── -->
+        <transcript:WordStyleToolbar Grid.Row="1"
+                                     DataContext="{Binding PaperSheet}" />
+
+        <!-- ─── Row 2: Sub-Toolbar ──────────────────────────────────────────── -->
+        <transcript:SubToolbar Grid.Row="2"
+                                DataContext="{Binding}" />
+
+        <!-- ─── Row 3: Main Content (Nav Pane + Paper Sheet) ─────────────────── -->
+        <Grid Grid.Row="3" ColumnDefinitions="Auto, *">
+
+            <!-- Left: Document Navigation Pane (conditionally shown) -->
+            <!-- IsVisible delegated to a wrapper so compiled binding targets root VM -->
+            <Border Grid.Column="0" IsVisible="{Binding NavPane.IsVisible}">
+                <transcript:DocumentNavigationPane DataContext="{Binding NavPane}" />
+            </Border>
+
+            <!-- Right: Paper Sheet viewport (fills remaining width) -->
+            <transcript:PaperSheet Grid.Column="1"
+                                   DataContext="{Binding PaperSheet}" />
+
+        </Grid>
+
+        <!-- ─── Row 4: Word Status Bar ──────────────────────────────────────── -->
+        <transcript:WordStatusBar Grid.Row="4"
+                                  DataContext="{Binding PaperSheet}" />
+
+    </Grid>
+</UserControl>
