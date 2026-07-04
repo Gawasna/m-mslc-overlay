@@ -18,7 +18,7 @@ namespace m_mslc_overlay.services
     public class RevisionWindowService : IDisposable
     {
         /// Grace period in milliseconds after a short translation renders.
-        public int WindowMs { get; set; } = 3000;
+        public int WindowMs { get; set; } = 400;
 
         /// Fired when a merge opportunity is detected.
         /// Args: (previousTranslation, mergedTranslation)
@@ -52,9 +52,8 @@ namespace m_mslc_overlay.services
 
         /// Called when the next translation arrives (OnTranslationCompleted).
         /// If within the window, merge and fire OnRevise; otherwise just reset window.
-        public bool TryRevise(TranslationResult nextResult, out string mergedText)
+        public bool TryRevise(TranslationResult nextResult)
         {
-            mergedText = nextResult.Translation;
             lock (_lock)
             {
                 if (_disposed || _pendingTranslation == null || _pendingMeta == null)
@@ -70,15 +69,11 @@ namespace m_mslc_overlay.services
                 if (!isDifferentUtterance) return false;
 
                 string prev = _pendingTranslation;
-                
-                // Since the next commit does not contain the previous short text (it was flushed separately),
-                // we must concatenate the previous translation with the new translation to preserve both.
-                string merged = prev + " " + nextResult.Translation;
+                string merged = nextResult.Translation;
 
                 // Fire revision — overlay will replace prev with merged
                 ClearPending();
                 OnRevise?.Invoke(prev, merged);
-                mergedText = merged;
                 return true;
             }
         }

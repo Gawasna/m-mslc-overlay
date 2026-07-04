@@ -176,12 +176,12 @@ namespace m_mslc_overlay
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
                             // ATOM80: Check if this translation should replace the previous short one
-                            bool wasRevised = _revisionWindow.TryRevise(result, out string mergedText);
+                            bool wasRevised = _revisionWindow.TryRevise(result);
 
                             if (wasRevised)
                             {
                                 // Hot-replace: replace last displayed translation instead of appending
-                                _currentOverlay.ReplaceLastText(mergedText);
+                                _currentOverlay.ReplaceLastText(fullSentence);
                             }
                             else if (ConfigManager.Current.TranslationEngine == "DeepL API")
                             {

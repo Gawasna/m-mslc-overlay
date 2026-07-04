@@ -20,8 +20,6 @@ namespace m_mslc_overlay.core
     {
         private readonly List<SegmentDisplayItem> _segments = new();
         private readonly object _lock = new();
-        private readonly IBrush _yellowBrush = SolidColorBrush.Parse("#FFAA00");
-        private readonly IBrush _grayBrush = SolidColorBrush.Parse("#808080");
 
         /// <summary>
         /// Adds a new segment to the display model from a SegmentRecord.
@@ -214,7 +212,7 @@ namespace m_mslc_overlay.core
                     item.IsItalic = true;
                     item.IsUnderlined = item.IsDangling;
                     item.TextColor = item.IsDangling
-                        ? _yellowBrush // Requirement 3.3: Yellow for dangling
+                        ? SolidColorBrush.Parse("#FFAA00") // Requirement 3.3: Yellow for dangling
                         : null;
                     break;
 
@@ -224,7 +222,7 @@ namespace m_mslc_overlay.core
                     item.IsItalic = false;
                     item.IsUnderlined = item.IsDangling;
                     item.TextColor = item.IsDangling
-                        ? _yellowBrush
+                        ? SolidColorBrush.Parse("#FFAA00")
                         : null;
                     break;
 
@@ -241,7 +239,7 @@ namespace m_mslc_overlay.core
                     item.Opacity = 0.3;
                     item.IsItalic = false;
                     item.IsUnderlined = false;
-                    item.TextColor = _grayBrush; // Gray
+                    item.TextColor = SolidColorBrush.Parse("#808080"); // Gray
                     break;
 
                 default:
