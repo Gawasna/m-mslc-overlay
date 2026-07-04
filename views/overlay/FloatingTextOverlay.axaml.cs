@@ -103,7 +103,8 @@ public partial class FloatingTextOverlay : Window
 
         if (needsSlide)
         {
-            m_mslc_overlay.services.LoggerService.Log($"[FloatingTextOverlay] Triggering SlideAnimationController for overflow");
+            int totalLen = GetTotalLength(_displayedSentences);
+            m_mslc_overlay.services.LoggerService.Log($"[FloatingTextOverlay] Overflow: {_displayedSentences.Count} sentences / {totalLen} chars → SlideUp");
             _ = _slideAnimationController.AnimateSlideUpAsync(DisplayTextBlock, OverlayFontSize * 1.5, () => {
                 while (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
                 {
@@ -175,6 +176,7 @@ public partial class FloatingTextOverlay : Window
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
             _displayedSentences.Add(finalText.Trim());
+            m_mslc_overlay.services.LoggerService.Log($"[Render] AddFinalText | sentences:{_displayedSentences.Count} | '{finalText.Trim().Substring(0, Math.Min(40, finalText.Trim().Length))}'");
             UpdateBaseText();
             DisplayTextBlock.Text = _baseText;
             TextScrollViewer.ScrollToEnd();
@@ -191,6 +193,10 @@ public partial class FloatingTextOverlay : Window
         if (string.IsNullOrWhiteSpace(newText)) return;
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            string oldText = _displayedSentences.Count > 0
+                ? _displayedSentences[_displayedSentences.Count - 1]
+                : "(empty)";
+
             if (_displayedSentences.Count > 0)
             {
                 _displayedSentences[_displayedSentences.Count - 1] = newText.Trim();
@@ -199,10 +205,15 @@ public partial class FloatingTextOverlay : Window
             {
                 _displayedSentences.Add(newText.Trim());
             }
+
+            string oldSnippet = oldText.Length > 30 ? oldText.Substring(0, 30) + "..." : oldText;
+            string newSnippet = newText.Trim().Length > 30 ? newText.Trim().Substring(0, 30) + "..." : newText.Trim();
+            m_mslc_overlay.services.LoggerService.Log($"[Render] ReplaceLastText | '{oldSnippet}' → '{newSnippet}'");
+
             UpdateBaseText();
             if (_mainWindow != null && _mainWindow.FadeAnimationController != null)
             {
-                m_mslc_overlay.services.LoggerService.Log($"[FloatingTextOverlay] Triggering FadeAnimationController for ReplaceLastText");
+                m_mslc_overlay.services.LoggerService.Log($"[Render] FadeAnimationController triggered");
                 _ = _mainWindow.FadeAnimationController.AnimateReplaceAsync(DisplayTextBlock, _baseText);
             }
             else
@@ -471,6 +482,9 @@ public partial class FloatingTextOverlay : Window
 
             _currentSentence = nextSentence;
             _typewriterIndex = 0;
+
+            string snippet = nextSentence.Length > 40 ? nextSentence.Substring(0, 40) + "..." : nextSentence;
+            m_mslc_overlay.services.LoggerService.Log($"[Render] Typewriter dequeue | queue:{_sentenceQueue.Count} remaining | '{snippet}'");
         }
     }
 }

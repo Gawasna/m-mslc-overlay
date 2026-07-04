@@ -18,6 +18,12 @@ namespace m_mslc_overlay.core
     /// </summary>
     public class SegmentDisplayModel
     {
+        // Pre-allocated brushes — created once on whichever thread first accesses this class.
+        // Avalonia Color/SolidColorBrush are structs/immutable values: safe to share across threads
+        // as long as we don't mutate them. Using static readonly ensures single allocation.
+        private static readonly SolidColorBrush BrushYellow = new SolidColorBrush(Color.FromRgb(0xFF, 0xAA, 0x00));
+        private static readonly SolidColorBrush BrushGray   = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));
+
         private readonly List<SegmentDisplayItem> _segments = new();
         private readonly object _lock = new();
 
@@ -212,7 +218,7 @@ namespace m_mslc_overlay.core
                     item.IsItalic = true;
                     item.IsUnderlined = item.IsDangling;
                     item.TextColor = item.IsDangling
-                        ? SolidColorBrush.Parse("#FFAA00") // Requirement 3.3: Yellow for dangling
+                        ? BrushYellow // Requirement 3.3: Yellow for dangling
                         : null;
                     break;
 
@@ -222,7 +228,7 @@ namespace m_mslc_overlay.core
                     item.IsItalic = false;
                     item.IsUnderlined = item.IsDangling;
                     item.TextColor = item.IsDangling
-                        ? SolidColorBrush.Parse("#FFAA00")
+                        ? BrushYellow
                         : null;
                     break;
 
@@ -239,7 +245,7 @@ namespace m_mslc_overlay.core
                     item.Opacity = 0.3;
                     item.IsItalic = false;
                     item.IsUnderlined = false;
-                    item.TextColor = SolidColorBrush.Parse("#808080"); // Gray
+                    item.TextColor = BrushGray; // Gray
                     break;
 
                 default:

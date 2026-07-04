@@ -118,26 +118,32 @@ namespace m_mslc_overlay
             };
 
             // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
+            // NOTE: OnFinalSentenceReceived fires on the pipe background thread.
+            // We marshal to the UI thread first because downstream consumers
+            // (SegmentTracker → VisualStateMapper → SegmentDisplayModel) may interact
+            // with Avalonia objects (e.g. SolidColorBrush) that must be on the UI thread.
             _pipeService.OnFinalSentenceReceived += (meta) => {
-                if (string.IsNullOrWhiteSpace(meta.Text)) return;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    if (string.IsNullOrWhiteSpace(meta.Text)) return;
 
-                // Định dạng timestamp cho câu thô
-                string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                
-                int avgSS = (int)_pipeService.AverageSpeechSpeed;
-                string flagAvgSS = $"[AvgSS:{avgSS}ms]";
-                string danglingFlag = meta.IsDangling ? " [⚠ DANGLING]" : "";
-                string mergedFlag = meta.WasMerged ? " [MERGED]" : "";
+                    // Định dạng timestamp cho câu thô
+                    string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                    
+                    int avgSS = (int)_pipeService.AverageSpeechSpeed;
+                    string flagAvgSS = $"[AvgSS:{avgSS}ms]";
+                    string danglingFlag = meta.IsDangling ? " [⚠ DANGLING]" : "";
+                    string mergedFlag = meta.WasMerged ? " [MERGED]" : "";
 
-                string logLine = $"[{timestamp}] {flagAvgSS}{danglingFlag}{mergedFlag} {LanguageManager.GetString("Log_EnglishPrefix")}: {meta.Text}\n";
-                AppendLog(logLine);
+                    string logLine = $"[{timestamp}] {flagAvgSS}{danglingFlag}{mergedFlag} {LanguageManager.GetString("Log_EnglishPrefix")}: {meta.Text}\n";
+                    AppendLog(logLine);
 
-                // ATOM79: track segment lifecycle
-                var segment = _segmentTracker.TrackCommit(meta);
+                    // ATOM79: track segment lifecycle
+                    var segment = _segmentTracker.TrackCommit(meta);
 
-                // ATOM50: route through ShortSentenceBuffer — translation fires
-                // only when OnFlush is triggered (either by merge or timeout).
-                _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
+                    // ATOM50: route through ShortSentenceBuffer — translation fires
+                    // only when OnFlush is triggered (either by merge or timeout).
+                    _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
+                });
             };
 
             // 3. Nhận các token dịch từ AI
