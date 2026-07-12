@@ -416,7 +416,7 @@ namespace m_mslc_overlay
             string ts = DateTime.Now.ToString("HH:mm:ss");
             AppendLog($"[{ts}] [SYSTEM] Starting DLL injection into PID {pid}...\n");
 
-            bool success = await _injectorService.InjectAsync(pid);
+            var (success, errorMessage) = await _injectorService.InjectAsync(pid);
 
             if (success)
             {
@@ -440,7 +440,7 @@ namespace m_mslc_overlay
                 HookStatusText.Text = "Failed";
                 
                 string nowTs = DateTime.Now.ToString("HH:mm:ss");
-                AppendLog($"[{nowTs}] [ERROR] Injection failed or Administrator permission was denied.\n");
+                AppendLog($"[{nowTs}] [ERROR] {errorMessage}\n");
             }
         }
 
