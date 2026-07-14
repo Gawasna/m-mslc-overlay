@@ -35,24 +35,9 @@
 
   <ItemGroup>
     <Compile Remove="docs\**" />
-    <!-- <Compile Remove="**\*.test.cs" /> -->
-    <None Include="docs\**" Exclude="docs\atoms\atom26_offline_translation\translation_server.py;docs\atoms\atom26_offline_translation\model_downloader.py;docs\atoms\atom26_offline_translation\requirements.txt;docs\atoms\atom26_offline_translation\gui\index.html" />
-    
-    <None Include="docs\atoms\atom26_offline_translation\translation_server.py">
-      <Link>plugins\atom26\translation_server.py</Link>
+    <None Include="docs\**" />
+    <Content Include="plugins\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="docs\atoms\atom26_offline_translation\model_downloader.py">
-      <Link>plugins\atom26\model_downloader.py</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="docs\atoms\atom26_offline_translation\requirements.txt">
-      <Link>plugins\atom26\requirements.txt</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="docs\atoms\atom26_offline_translation\gui\index.html">
-      <Link>plugins\atom26\gui\index.html</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
 </Project>
