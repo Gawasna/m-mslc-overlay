@@ -6,6 +6,8 @@
     <NoWarn>$(NoWarn);CA1416</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <StartupObject>m_mslc_overlay.Program</StartupObject>
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +21,12 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,23 +35,9 @@
 
   <ItemGroup>
     <Compile Remove="docs\**" />
-    <None Include="docs\**" Exclude="docs\atoms\atom26_offline_translation\translation_server.py;docs\atoms\atom26_offline_translation\model_downloader.py;docs\atoms\atom26_offline_translation\requirements.txt;docs\atoms\atom26_offline_translation\gui\index.html" />
-    
-    <None Include="docs\atoms\atom26_offline_translation\translation_server.py">
-      <Link>plugins\atom26\translation_server.py</Link>
+    <None Include="docs\**" />
+    <Content Include="plugins\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="docs\atoms\atom26_offline_translation\model_downloader.py">
-      <Link>plugins\atom26\model_downloader.py</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="docs\atoms\atom26_offline_translation\requirements.txt">
-      <Link>plugins\atom26\requirements.txt</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="docs\atoms\atom26_offline_translation\gui\index.html">
-      <Link>plugins\atom26\gui\index.html</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
 </Project>

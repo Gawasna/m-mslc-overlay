@@ -37,4 +37,28 @@
     <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF8400" />
     <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#E07300" />
     <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C26300" />
+
+    <!-- ─── Transcript Viewport Semantic Tokens ────────────────────────────────
+         Derived from the app's Primary orange so the transcript stays on-schema.
+         Use these instead of raw blue hex values in transcript AXAML files.      -->
+
+    <!-- Active segment left border (orange accent, muted) -->
+    <SolidColorBrush x:Key="TranscriptActiveBorderBrush" Color="#FF8400" />
+    <!-- Active segment row background (very light orange wash) -->
+    <SolidColorBrush x:Key="TranscriptActiveRowBrush" Color="#FFF4E6" />
+    <!-- Pending translation row background (amber warning, matches status bar) -->
+    <SolidColorBrush x:Key="TranscriptPendingBrush" Color="#FFFBEB" />
+    <!-- Translation text color (dark orange, stays readable on white) -->
+    <SolidColorBrush x:Key="TranscriptTranslationTextBrush" Color="#B45309" />
+    <!-- Translation block background (light orange tint) -->
+    <SolidColorBrush x:Key="TranscriptTranslationBgBrush" Color="#FFF7ED" />
+    <!-- Live cursor / recording accent (Primary orange) -->
+    <SolidColorBrush x:Key="TranscriptLiveCursorBrush" Color="#FF8400" />
+    <!-- Live cursor row background -->
+    <SolidColorBrush x:Key="TranscriptLiveCursorRowBrush" Color="#FFF4E6" />
+    <!-- Word Status Bar background — dark charcoal keeps neutrality, avoids blue -->
+    <SolidColorBrush x:Key="StatusBarBgBrush" Color="#1C1C1E" />
+    <!-- Word Status Bar text -->
+    <SolidColorBrush x:Key="StatusBarFgBrush" Color="#E5E5E5" />
+
 </ResourceDictionary>

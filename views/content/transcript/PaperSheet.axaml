@@ -1,0 +1,167 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             x:Class="m_mslc_overlay.views.content.transcript.PaperSheet"
+             x:DataType="vm:PaperSheetViewModel">
+
+    <!--
+        PaperSheet: Scrollable viewport containing the A4 paper.
+
+        Layout strategy (Fix 3 — responsive gap):
+        - The outer ScrollViewer fills its column (Grid.Column="1" in TranscriptViewport,
+          which is "*" = all remaining space after the nav pane).
+        - The paper is centered WITHIN the scrollable area, not offset by a fixed spacer.
+        - A thin ruler sits above the paper, same width, same centering logic.
+        - This means in Windowed mode (small available width) the paper still gets the
+          full remaining column with proper centering; no fixed 220px left ghost.
+    -->
+    <Border Background="{StaticResource BgWindowBrush}" ClipToBounds="True">
+        <ScrollViewer x:Name="MainScrollViewer"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Padding="0">
+
+            <!-- Centering stack — no fixed left spacer -->
+            <StackPanel HorizontalAlignment="Center"
+                        Spacing="0"
+                        Margin="24,0,24,24">
+
+                <!-- ─── Ruler track: same 680px as the paper ─────────────────── -->
+                <Border Width="680"
+                        Height="20"
+                        Background="{StaticResource BgWindowBrush}"
+                        BorderBrush="{StaticResource BorderLightBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Canvas />
+                    <!-- Ruler tick marks generated in code-behind if needed -->
+                </Border>
+
+                <!-- ─── A4 Paper sheet (680px wide, auto-height) ──────────────── -->
+                <Border Width="680"
+                        MinHeight="960"
+                        Background="{StaticResource BgCardBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        ClipToBounds="True">
+
+                    <!-- Paper margins: 60px top/bottom, 64px left/right -->
+                    <StackPanel Margin="64,60" Spacing="0">
+
+                        <!-- Document title section -->
+                        <Border BorderBrush="{StaticResource BorderLightBrush}"
+                                BorderThickness="0,0,0,1"
+                                Margin="0,0,0,24" Padding="0,0,0,16">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="LIVE TRANSCRIPT"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="AI-Powered Bilingual Transcript Report"
+                                           FontSize="16" FontWeight="Bold"
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                <TextBlock Text="Auto-generated · Real-time AI Translation"
+                                           FontSize="10"
+                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ─── Segment list ──────────────────────────────────── -->
+                        <ItemsControl x:Name="SegmentList"
+                                      ItemsSource="{Binding Segments}">
+                            <ItemsControl.DataTemplates>
+                                <DataTemplate x:DataType="vm:TranscriptSegmentItem">
+
+                                    <!-- Bilingual segment block -->
+                                    <Border Margin="0,0,0,20"
+                                            Padding="12,10"
+                                            CornerRadius="3"
+                                            BorderThickness="2,0,0,0"
+                                            BorderBrush="{Binding IsActive, Converter={StaticResource BoolToActiveBorderColorConverter}}"
+                                            Background="{Binding IsActive, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+
+                                        <Grid ColumnDefinitions="Auto, *">
+
+                                            <!-- Timestamp + speaker gutter -->
+                                            <StackPanel Grid.Column="0"
+                                                        Width="56"
+                                                        Spacing="2"
+                                                        VerticalAlignment="Top"
+                                                        Margin="0,2,10,0">
+                                                <TextBlock Text="{Binding TimestampFormatted}"
+                                                           FontSize="9" FontFamily="Consolas"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                                                <TextBlock Text="{Binding SpeakerLabel}"
+                                                           FontSize="8" FontWeight="Bold"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+
+                                            <!-- Text content -->
+                                            <StackPanel Grid.Column="1" Spacing="6">
+
+                                                <!-- Original -->
+                                                <TextBlock Text="{Binding OriginalText}"
+                                                           FontSize="11.5"
+                                                           FontFamily="Georgia"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           TextWrapping="Wrap"
+                                                           LineHeight="20" />
+
+                                                <!-- Translation (when available) -->
+                                                <Border IsVisible="{Binding HasTranslation}"
+                                                        Background="{StaticResource TranscriptTranslationBgBrush}"
+                                                        CornerRadius="2"
+                                                        Padding="8,4">
+                                                    <TextBlock Text="{Binding TranslatedText}"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource TranscriptTranslationTextBrush}"
+                                                               TextWrapping="Wrap"
+                                                               LineHeight="18"
+                                                               FontStyle="Italic" />
+                                                </Border>
+
+                                                <!-- Pending translation indicator -->
+                                                <Border IsVisible="{Binding !HasTranslation}"
+                                                        Background="{StaticResource TranscriptPendingBrush}"
+                                                        CornerRadius="2"
+                                                        Padding="8,3">
+                                                    <TextBlock Text="Translating..."
+                                                               FontSize="10"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               FontStyle="Italic" />
+                                                </Border>
+
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.DataTemplates>
+                        </ItemsControl>
+
+                        <!-- ─── Live cursor row (active recording) ───────────── -->
+                        <Border x:Name="LiveCursorRow"
+                                Margin="0,0,0,60"
+                                Padding="12,8"
+                                BorderBrush="{StaticResource TranscriptLiveCursorBrush}"
+                                BorderThickness="2,0,0,0"
+                                Background="{StaticResource TranscriptLiveCursorRowBrush}"
+                                CornerRadius="3">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Width="6" Height="6"
+                                         Fill="{StaticResource TranscriptLiveCursorBrush}"
+                                         VerticalAlignment="Center" />
+                                <TextBlock Text="Listening for speech..."
+                                           FontSize="11"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           FontStyle="Italic"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

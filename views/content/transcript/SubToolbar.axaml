@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             x:Class="m_mslc_overlay.views.content.transcript.SubToolbar"
+             x:DataType="vm:TranscriptViewportViewModel">
+
+    <!--
+        SubToolbar: AI model picker, export/import, view toggles.
+        Toggle pills implemented as ToggleButton (no native CheckBox) to avoid
+        Fluent CheckBox icon leaking out of the compact pill layout.
+    -->
+    <Border Background="{StaticResource BgWindowBrush}"
+            BorderBrush="{StaticResource BorderLightBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="10,4">
+
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+
+            <!-- AI model selector -->
+            <Border Width="140" Height="24" CornerRadius="3"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    Background="{StaticResource BgCardBrush}" Padding="8,0">
+                <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding SelectedAiModel, StringFormat='AI: {0}'}"
+                               FontSize="10" Foreground="{StaticResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="▾"
+                               FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Separator -->
+            <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
+
+            <!-- Export SRT button -->
+            <Button x:Name="ExportSrtBtn"
+                    Content="Export .SRT"
+                    FontSize="10" Padding="10,3" CornerRadius="3"
+                    Background="{StaticResource BgCardBrush}"
+                    Foreground="{StaticResource TextPrimaryBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    VerticalContentAlignment="Center"
+                    ToolTip.Tip="Export transcript as SRT subtitle file" />
+
+            <!-- Import Script button -->
+            <Button x:Name="ImportScriptBtn"
+                    Content="Import Script"
+                    FontSize="10" Padding="10,3" CornerRadius="3"
+                    Background="{StaticResource BgCardBrush}"
+                    Foreground="{StaticResource TextPrimaryBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    VerticalContentAlignment="Center"
+                    ToolTip.Tip="Import a reference script" />
+
+            <!-- Separator -->
+            <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
+
+            <!--
+                Auto-Scroll pill toggle — ToggleButton replaces the CheckBox+Border
+                approach entirely. Checked state drives the orange-tint pill styling.
+                Uses SubToolbarPill style defined in Controls.axaml.
+            -->
+            <ToggleButton x:Name="AutoScrollToggle"
+                          IsChecked="{Binding PaperSheet.AutoScroll}"
+                          Classes="SubToolbarPill"
+                          ToolTip.Tip="Toggle automatic scrolling to latest segment">
+                <TextBlock Text="Auto-Scroll" FontSize="10" FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+            </ToggleButton>
+
+            <!-- Focus Mode pill toggle -->
+            <ToggleButton x:Name="FocusModeToggle"
+                          IsChecked="{Binding PaperSheet.FocusMode}"
+                          Classes="SubToolbarPill"
+                          ToolTip.Tip="Toggle focus mode (hides navigation pane)">
+                <TextBlock Text="Focus Mode" FontSize="10"
+                           VerticalAlignment="Center" />
+            </ToggleButton>
+
+        </StackPanel>
+    </Border>
+</UserControl>

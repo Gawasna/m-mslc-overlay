@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             x:Class="m_mslc_overlay.views.content.transcript.RecordingHeaderBar"
+             x:DataType="vm:RecordingSessionViewModel"
+             Height="28">
+
+    <!-- Recording status bar — warm amber tint aligns with app's orange Primary -->
+    <Border Background="#FFF8F0"
+            BorderBrush="#FFD9AA"
+            BorderThickness="0,0,0,1"
+            Padding="10,0">
+
+        <Grid ColumnDefinitions="Auto, *, Auto, Auto">
+
+            <!-- Status badge -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Ellipse x:Name="RecordingDot" Width="6" Height="6" VerticalAlignment="Center"
+                         Fill="{StaticResource PrimaryBrush}" />
+                <TextBlock Text="{Binding StatusLabel}"
+                           FontSize="10"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource PrimaryBrush}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="|"
+                           FontSize="10"
+                           Foreground="#BDBDBD"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ElapsedFormatted}"
+                           FontSize="10"
+                           FontFamily="Consolas"
+                           Foreground="#616161"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Session name -->
+            <TextBlock Grid.Column="1"
+                       Text="{Binding SessionName, StringFormat='LIVE TRANSCRIPT REPORT — {0}'}"
+                       FontSize="10"
+                       Foreground="#888888"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontWeight="Normal" />
+
+            <!-- Mic level meter -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,10,0">
+                <TextBlock Text="MIC Level"
+                           FontSize="9"
+                           Foreground="#9E9E9E"
+                           VerticalAlignment="Center" />
+                <Border Width="80" Height="6" CornerRadius="3" Background="#E0E0E0">
+                    <Border CornerRadius="3" Background="#4CAF50"
+                            HorizontalAlignment="Left"
+                            Width="{Binding MicLevel, Converter={StaticResource DoubleToMeterWidthConverter}, ConverterParameter=80}" />
+                </Border>
+            </StackPanel>
+
+            <!-- Stop button -->
+            <Button Grid.Column="3"
+                    x:Name="StopButton"
+                    Content="■ STOP REC"
+                    FontSize="9"
+                    FontWeight="Bold"
+                    Padding="8,3"
+                    CornerRadius="2"
+                    Background="#E53935"
+                    Foreground="White"
+                    BorderThickness="0"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding IsRecording}" />
+
+        </Grid>
+    </Border>
+</UserControl>

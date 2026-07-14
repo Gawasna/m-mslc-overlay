@@ -1,0 +1,10 @@
+# Ignored for ATOM plugins
+venv/
+models/
+__pycache__/
+*.db
+*.sqlite
+*.wav
+*.log
+*.jpg
+tmp_*/

@@ -21,6 +21,11 @@ namespace m_mslc_overlay
         private InjectorService _injectorService;
         private AIService _aiService;
         private ShortSentenceBuffer _shortSentenceBuffer;
+        private readonly SegmentTracker _segmentTracker = new SegmentTracker();
+        private readonly SegmentDisplayModel _segmentDisplayModel = new SegmentDisplayModel();
+        private readonly VisualStateMapper _visualStateMapper;
+        private readonly RevisionWindowService _revisionWindow = new RevisionWindowService();
+        private readonly m_mslc_overlay.core.Animation.FadeAnimationController _fadeAnimationController;
         private SystemMonitor _sysMonitor;
         private DispatcherTimer _resourceTimer;
         private DispatcherTimer _uiUpdateTimer;
@@ -60,6 +65,8 @@ namespace m_mslc_overlay
             _injectorService = new InjectorService();
             _aiService = new AIService();
             _shortSentenceBuffer = new ShortSentenceBuffer();
+            _visualStateMapper = new VisualStateMapper(_segmentDisplayModel, _segmentTracker);
+            _fadeAnimationController = new m_mslc_overlay.core.Animation.FadeAnimationController(_revisionWindow);
 
             // ATOM50: Short sentence buffer merges fragments (≤3 words) with the next
             // long sentence before forwarding to translation, avoiding wasteful API calls
@@ -71,7 +78,8 @@ namespace m_mslc_overlay
                         lock (_translationLock) {
                             _translationBuffer = "";
                         }
-                        _ = _aiService.TranslateSentenceAsync(mergedText);
+                        // ATOM81: enqueue via priority queue instead of direct async call
+                        _aiService.EnqueueTranslation(mergedText, "SoftCommit");
                     }
                     else
                     {
@@ -97,6 +105,12 @@ namespace m_mslc_overlay
             
             _aiService.ContextTopic = _contextTopic;
 
+            // ATOM80: log when a revision (hot-replace) occurs
+            _revisionWindow.OnRevise += (prev, merged) => {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [ATOM80 REVISE] «{prev}» → «{merged}»\n");
+            };
+
             // 1. Nhận luồng text thô partial (đang nhận dạng) từ Extractor
             _pipeService.OnPartialCaptionReceived += (txt) => {
                 _lastPartialCaption = txt;
@@ -104,23 +118,32 @@ namespace m_mslc_overlay
             };
 
             // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
+            // NOTE: OnFinalSentenceReceived fires on the pipe background thread.
+            // We marshal to the UI thread first because downstream consumers
+            // (SegmentTracker → VisualStateMapper → SegmentDisplayModel) may interact
+            // with Avalonia objects (e.g. SolidColorBrush) that must be on the UI thread.
             _pipeService.OnFinalSentenceReceived += (meta) => {
-                if (string.IsNullOrWhiteSpace(meta.Text)) return;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    if (string.IsNullOrWhiteSpace(meta.Text)) return;
 
-                // Định dạng timestamp cho câu thô
-                string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                
-                int avgSS = (int)_pipeService.AverageSpeechSpeed;
-                string flagAvgSS = $"[AvgSS:{avgSS}ms]";
-                string danglingFlag = meta.IsDangling ? " [⚠ DANGLING]" : "";
-                string mergedFlag = meta.WasMerged ? " [MERGED]" : "";
+                    // Định dạng timestamp cho câu thô
+                    string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                    
+                    int avgSS = (int)_pipeService.AverageSpeechSpeed;
+                    string flagAvgSS = $"[AvgSS:{avgSS}ms]";
+                    string danglingFlag = meta.IsDangling ? " [⚠ DANGLING]" : "";
+                    string mergedFlag = meta.WasMerged ? " [MERGED]" : "";
 
-                string logLine = $"[{timestamp}] {flagAvgSS}{danglingFlag}{mergedFlag} {LanguageManager.GetString("Log_EnglishPrefix")}: {meta.Text}\n";
-                AppendLog(logLine);
+                    string logLine = $"[{timestamp}] {flagAvgSS}{danglingFlag}{mergedFlag} {LanguageManager.GetString("Log_EnglishPrefix")}: {meta.Text}\n";
+                    AppendLog(logLine);
 
-                // ATOM50: route through ShortSentenceBuffer — translation fires
-                // only when OnFlush is triggered (either by merge or timeout).
-                _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
+                    // ATOM79: track segment lifecycle
+                    var segment = _segmentTracker.TrackCommit(meta);
+
+                    // ATOM50: route through ShortSentenceBuffer — translation fires
+                    // only when OnFlush is triggered (either by merge or timeout).
+                    _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
+                });
             };
 
             // 3. Nhận các token dịch từ AI
@@ -141,18 +164,32 @@ namespace m_mslc_overlay
             };
 
             // 4. Khi hoàn thành dịch 1 câu hoàn chỉnh
-            _aiService.OnTranslationCompleted += (fullSentence) => {
+            // ATOM81: handler now receives TranslationResult (includes source CommitMetadata)
+            _aiService.OnTranslationCompleted += (result) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     if (IsTranslationEnabled)
                     {
+                        string fullSentence = result.Translation;
                         // In bản dịch tiếng Việt sang RawTextLog để dễ debug song song
                         string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                        string logLine = $"[{timestamp}] {LanguageManager.GetString("Log_VietnamesePrefix")}: {fullSentence}\n-----------------------------------\n";
+                        string errFlag = result.IsError ? " [ERR]" : "";
+                        string logLine = $"[{timestamp}]{errFlag} {LanguageManager.GetString("Log_VietnamesePrefix")}: {fullSentence}\n-----------------------------------\n";
                         AppendLog(logLine);
+
+                        // ATOM79: link translation back to originating segment
+                        var linkedSeg = _segmentTracker.LinkTranslation(result);
 
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
-                            if (ConfigManager.Current.TranslationEngine == "DeepL API")
+                            // ATOM80: Check if this translation should replace the previous short one
+                            bool wasRevised = _revisionWindow.TryRevise(result);
+
+                            if (wasRevised)
+                            {
+                                // Hot-replace: replace last displayed translation instead of appending
+                                _currentOverlay.ReplaceLastText(fullSentence);
+                            }
+                            else if (ConfigManager.Current.TranslationEngine == "DeepL API")
                             {
                                 if (_currentOverlay.UseTypewriter)
                                 {
@@ -169,6 +206,13 @@ namespace m_mslc_overlay
                                 // Streaming engines fallback
                                 _currentOverlay.AddFinalText(fullSentence);
                             }
+
+                            // ATOM79: mark as rendered after overlay receives text
+                            if (linkedSeg != null)
+                                _segmentTracker.MarkRendered(linkedSeg);
+
+                            // ATOM80: after rendering, notify RevisionWindow to open window if this is a short translation
+                            _revisionWindow.OnTranslationRendered(result);
                         }
                     }
                 });
@@ -180,7 +224,11 @@ namespace m_mslc_overlay
                 AppendLog($"[{timestamp}] [SYSTEM] {statusMsg}\n");
                 // ATOM50: reset buffer on new pipe session to avoid stale pending
                 if (statusMsg.Contains("Client connected"))
+                {
                     _shortSentenceBuffer.Reset();
+                    _segmentTracker.Reset();  // ATOM79: clear stale segments on reconnect
+                    _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
+                }
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
 
@@ -194,6 +242,8 @@ namespace m_mslc_overlay
             this.Closing += (s, e) => {
                 _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
                 _shortSentenceBuffer.Dispose();
+                _aiService.Dispose();           // ATOM81: dispose priority queue and http client
+                _revisionWindow.Dispose();      // ATOM80
                 _hiderService.Dispose();
                 _pipeService.Dispose();
                 _resourceTimer.Stop();
@@ -445,6 +495,8 @@ namespace m_mslc_overlay
         }
 
         public AIService AIService => _aiService;
+        public SegmentDisplayModel SegmentDisplayModel => _segmentDisplayModel;
+        public m_mslc_overlay.core.Animation.FadeAnimationController FadeAnimationController => _fadeAnimationController;
 
         public bool IsTranslationEnabled
         {
@@ -760,6 +812,8 @@ namespace m_mslc_overlay
                 if (_currentOverlay != null && _currentOverlay.IsVisible)
                 {
                     _currentOverlay.ClearQueueAndText();
+                    _segmentTracker.MarkOverlayReset();  // ATOM79: ATOM75 overlay reset hook
+                    _revisionWindow.Reset();  // ATOM80: clear pending on manual overlay clear
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Overlay text cleared.\n");
                 }
             });

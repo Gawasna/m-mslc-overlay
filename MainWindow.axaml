@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:transcript="using:m_mslc_overlay.views.content.transcript"
         x:Class="m_mslc_overlay.MainWindow"
         Title="{DynamicResource Title_ControlCenter}"
         Background="{StaticResource BgWindowBrush}"
@@ -163,13 +164,9 @@
                 </Grid>
             </Border>
 
-            <!-- Main_Viewport -->
-            <Border Grid.Column="1" Background="{StaticResource BgCardBrush}">
-                <TextBlock Text="label placeholder" 
-                           HorizontalAlignment="Center" 
-                           VerticalAlignment="Center" 
-                           Foreground="{StaticResource TextSecondaryBrush}" />
-            </Border>
+            <!-- Main_Viewport: Transcript Viewport (Word-style bilingual transcript) -->
+            <transcript:TranscriptViewport x:Name="TranscriptViewport"
+                                           Grid.Column="1" />
         </Grid>
 
         <!-- 4. Downbar (Status Bar) -->

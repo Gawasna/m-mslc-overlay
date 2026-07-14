@@ -41,6 +41,7 @@ public partial class FloatingTextOverlay : Window
     private int _delayTicks = 0;
     private readonly AppContainerHiderService _hiderService = new AppContainerHiderService();
     private readonly System.Collections.Generic.List<string> _displayedSentences = new System.Collections.Generic.List<string>();
+    private readonly m_mslc_overlay.core.Animation.SlideAnimationController _slideAnimationController = new m_mslc_overlay.core.Animation.SlideAnimationController();
 
     public bool UseTypewriter { get; set; } = true;
 
@@ -90,17 +91,34 @@ public partial class FloatingTextOverlay : Window
 
     private void UpdateBaseText()
     {
+        bool needsSlide = false;
         // Giới hạn hiển thị: tối đa 3 câu hoặc tổng độ dài các câu đã hiển thị không quá 300 ký tự
-        while (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
+        if (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
         {
             if (_displayedSentences.Count > 0)
             {
-                _displayedSentences.RemoveAt(0);
+                needsSlide = true;
             }
-            else
-            {
-                break;
-            }
+        }
+
+        if (needsSlide)
+        {
+            int totalLen = GetTotalLength(_displayedSentences);
+            m_mslc_overlay.services.LoggerService.Log($"[FloatingTextOverlay] Overflow: {_displayedSentences.Count} sentences / {totalLen} chars → SlideUp");
+            _ = _slideAnimationController.AnimateSlideUpAsync(DisplayTextBlock, OverlayFontSize * 1.5, () => {
+                while (_displayedSentences.Count > 3 || GetTotalLength(_displayedSentences) > 300)
+                {
+                    if (_displayedSentences.Count > 0) _displayedSentences.RemoveAt(0);
+                    else break;
+                }
+                
+                if (_displayedSentences.Count > 0)
+                    _baseText = string.Join("  ", _displayedSentences) + "  ";
+                else
+                    _baseText = "";
+                DisplayTextBlock.Text = _baseText;
+            });
+            return;
         }
 
         if (_displayedSentences.Count > 0)
@@ -158,8 +176,50 @@ public partial class FloatingTextOverlay : Window
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
             _displayedSentences.Add(finalText.Trim());
+            m_mslc_overlay.services.LoggerService.Log($"[Render] AddFinalText | sentences:{_displayedSentences.Count} | '{finalText.Trim().Substring(0, Math.Min(40, finalText.Trim().Length))}'");
             UpdateBaseText();
             DisplayTextBlock.Text = _baseText;
+            TextScrollViewer.ScrollToEnd();
+        });
+    }
+
+    /// <summary>
+    /// ATOM76/ATOM80: Hot-replace the last displayed sentence with new text.
+    /// Used by RevisionWindow to merge short fragments into the preceding translation.
+    /// No-op if _displayedSentences is empty.
+    /// </summary>
+    public void ReplaceLastText(string newText)
+    {
+        if (string.IsNullOrWhiteSpace(newText)) return;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            string oldText = _displayedSentences.Count > 0
+                ? _displayedSentences[_displayedSentences.Count - 1]
+                : "(empty)";
+
+            if (_displayedSentences.Count > 0)
+            {
+                _displayedSentences[_displayedSentences.Count - 1] = newText.Trim();
+            }
+            else
+            {
+                _displayedSentences.Add(newText.Trim());
+            }
+
+            string oldSnippet = oldText.Length > 30 ? oldText.Substring(0, 30) + "..." : oldText;
+            string newSnippet = newText.Trim().Length > 30 ? newText.Trim().Substring(0, 30) + "..." : newText.Trim();
+            m_mslc_overlay.services.LoggerService.Log($"[Render] ReplaceLastText | '{oldSnippet}' → '{newSnippet}'");
+
+            UpdateBaseText();
+            if (_mainWindow != null && _mainWindow.FadeAnimationController != null)
+            {
+                m_mslc_overlay.services.LoggerService.Log($"[Render] FadeAnimationController triggered");
+                _ = _mainWindow.FadeAnimationController.AnimateReplaceAsync(DisplayTextBlock, _baseText);
+            }
+            else
+            {
+                DisplayTextBlock.Text = _baseText;
+            }
             TextScrollViewer.ScrollToEnd();
         });
     }
@@ -422,6 +482,9 @@ public partial class FloatingTextOverlay : Window
 
             _currentSentence = nextSentence;
             _typewriterIndex = 0;
+
+            string snippet = nextSentence.Length > 40 ? nextSentence.Substring(0, 40) + "..." : nextSentence;
+            m_mslc_overlay.services.LoggerService.Log($"[Render] Typewriter dequeue | queue:{_sentenceQueue.Count} remaining | '{snippet}'");
         }
     }
 }

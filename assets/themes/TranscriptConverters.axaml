@@ -1,0 +1,11 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="using:m_mslc_overlay.views.content.transcript">
+
+    <!-- Transcript viewport value converters -->
+    <conv:BoolToRecordingColorConverter   x:Key="BoolToRecordingColorConverter" />
+    <conv:DoubleToMeterWidthConverter     x:Key="DoubleToMeterWidthConverter" />
+    <conv:BoolToActiveBorderColorConverter  x:Key="BoolToActiveBorderColorConverter" />
+    <conv:BoolToActiveBackgroundConverter   x:Key="BoolToActiveBackgroundConverter" />
+
+</ResourceDictionary>
