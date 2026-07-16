@@ -26,6 +26,7 @@
                 <ListBoxItem Content="{DynamicResource Tab_Translation}" />
                 <ListBoxItem Content="{DynamicResource Tab_Appearance}" />
                 <ListBoxItem Content="{DynamicResource Tab_Network}" />
+                <ListBoxItem Content="{DynamicResource Tab_Utilities}" />
                 <ListBoxItem Content="{DynamicResource Tab_Advanced}" />
                 <ListBoxItem Content="{DynamicResource Tab_Hotkeys}" />
             </ListBox>
@@ -113,41 +114,11 @@
                                     
                                     <!-- Setup / Installation Assistant (Đưa lên đầu) -->
                                     <StackPanel Spacing="8">
-                                        <!-- Tiêu đề và nút Add (+) -->
-                                        <Grid ColumnDefinitions="*, Auto" Width="400" HorizontalAlignment="Left">
-                                            <TextBlock Grid.Column="0" Text="Quản lý Mô hình Dịch thuật" FontSize="12" FontWeight="Bold" Foreground="#111111" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1" x:Name="ShowInstallBtn" Content="+" Width="24" Height="24" FontSize="14" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="ShowInstallBtn_Click" ToolTip.Tip="Cài đặt mô hình mới" Padding="0"/>
-                                        </Grid>
+                                        <TextBlock Text="{DynamicResource Pref_LocalAI_ActiveModel}" FontSize="12" FontWeight="Bold" Foreground="#111111" VerticalAlignment="Center"/>
                                         
-                                        <!-- Giao diện CHƯA CÀI ĐẶT (hoặc khi click +) -->
-                                        <StackPanel x:Name="UninstalledPanel" Spacing="6" Margin="0,4,0,0" IsVisible="True">
-                                            <TextBlock Text="Lựa chọn Mô hình dịch thuật để tải về:" FontSize="11" Foreground="#666666"/>
-                                            <Grid ColumnDefinitions="*, Auto" Width="400" HorizontalAlignment="Left">
-                                                <ComboBox Grid.Column="0" x:Name="InstallModelCombo" Width="280" SelectedIndex="0" Margin="0,0,8,0">
-                                                    <ComboBoxItem Content="NLLB-200 600M (600MB - Khuyến nghị)"/>
-                                                    <ComboBoxItem Content="OPUS-MT En-Vi (150MB - Siêu nhẹ)"/>
-                                                </ComboBox>
-                                                <Button Grid.Column="1" x:Name="StartInstallBtn" Content="Tải &amp; Cài đặt" Click="StartInstallBtn_Click" Classes="PrimaryBtn" Width="112" HorizontalContentAlignment="Center"/>
-                                            </Grid>
-                                        </StackPanel>
-                                        
-                                        <!-- Giao diện ĐÃ CÀI ĐẶT -->
-                                        <StackPanel x:Name="InstalledPanel" Spacing="6" Margin="0,4,0,0" IsVisible="False">
-                                            <!-- Dòng NLLB-200 -->
-                                            <Grid x:Name="NllbRow" ColumnDefinitions="Auto, *, Auto, Auto" Width="420" HorizontalAlignment="Left" Margin="0,2" VerticalAlignment="Center">
-                                                <RadioButton Grid.Column="0" x:Name="UseNllbRadio" GroupName="ModelGroup" IsChecked="True" Checked="UseNllbRadio_Checked" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="NLLB-200 600M (INT8)" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" Margin="8,0"/>
-                                                <Button Grid.Column="2" Content="Kiểm tra cập nhật" Click="UpdateNllbBtn_Click" FontSize="11" Margin="0,0,8,0" Padding="8,4"/>
-                                                <Button Grid.Column="3" Content="Xóa" Click="DeleteNllbBtn_Click" FontSize="11" Foreground="Red" Padding="8,4"/>
-                                            </Grid>
-                                            
-                                            <!-- Dòng OPUS-MT -->
-                                            <Grid x:Name="OpusRow" ColumnDefinitions="Auto, *, Auto, Auto" Width="420" HorizontalAlignment="Left" Margin="0,2" VerticalAlignment="Center">
-                                                <RadioButton Grid.Column="0" x:Name="UseOpusRadio" GroupName="ModelGroup" Checked="UseOpusRadio_Checked" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="OPUS-MT English-Vietnamese" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" Margin="8,0"/>
-                                                <Button Grid.Column="2" Content="Kiểm tra cập nhật" Click="UpdateOpusBtn_Click" FontSize="11" Margin="0,0,8,0" Padding="8,4"/>
-                                                <Button Grid.Column="3" Content="Xóa" Click="DeleteOpusBtn_Click" FontSize="11" Foreground="Red" Padding="8,4"/>
-                                            </Grid>
+                                        <StackPanel Spacing="6" Margin="0,4,0,0">
+                                            <RadioButton x:Name="UseNllbRadio" GroupName="ActiveModelGroup" Content="NLLB-200 600M (INT8)" Checked="ActiveModelRadio_Checked" VerticalAlignment="Center"/>
+                                            <RadioButton x:Name="UseOpusRadio" GroupName="ActiveModelGroup" Content="OPUS-MT English-Vietnamese" Checked="ActiveModelRadio_Checked" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </StackPanel>
 
@@ -199,6 +170,51 @@
                                 <TextBox x:Name="NetworkProxyBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:8080"/>
                             </StackPanel>
                         </StackPanel>
+                    </StackPanel>
+
+                    <!-- Utilities Tab -->
+                    <StackPanel x:Name="TabUtilities" IsVisible="False" Spacing="24">
+                        <TextBlock Text="{DynamicResource Tab_Utilities}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        
+                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <!-- Trái: Thông tin -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
+                                    <TextBlock Text="{DynamicResource Pref_Utilities_OfflineTranslation}" FontSize="15" FontWeight="SemiBold" Foreground="#111111"/>
+                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2)." FontSize="13" Foreground="#6B7280" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                
+                                <!-- Phải: Controls -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                    <ComboBox x:Name="UtilTransModelCombo" Width="220" SelectedIndex="0" VerticalAlignment="Center" CornerRadius="6">
+                                        <ComboBoxItem Content="NLLB-200 600M (600MB)"/>
+                                        <ComboBoxItem Content="OPUS-MT En-Vi (150MB)"/>
+                                    </ComboBox>
+                                    <Button x:Name="UtilTransDownloadBtn" Content="{DynamicResource Pref_Utilities_Download}" Click="UtilTransDownloadBtn_Click" Classes="PrimaryBtn" Padding="16,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
+                                    <Button x:Name="UtilTransDeleteBtn" Content="{DynamicResource Pref_Utilities_Delete}" Click="UtilTransDeleteBtn_Click" Foreground="#EF4444" Background="Transparent" Padding="12,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20,16">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <!-- Trái: Thông tin -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
+                                    <TextBlock Text="{DynamicResource Pref_Utilities_SpeakerLabeling}" FontSize="15" FontWeight="SemiBold" Foreground="#111111"/>
+                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization)." FontSize="13" Foreground="#6B7280" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                
+                                <!-- Phải: Controls -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                    <ComboBox x:Name="UtilSpeakerModelCombo" Width="220" SelectedIndex="0" VerticalAlignment="Center" CornerRadius="6">
+                                        <ComboBoxItem Content="Pyannote Segmentation 3.0"/>
+                                        <ComboBoxItem Content="VAD Silero (ONNX)"/>
+                                    </ComboBox>
+                                    <Button x:Name="UtilSpeakerDownloadBtn" Content="{DynamicResource Pref_Utilities_Download}" Click="UtilSpeakerDownloadBtn_Click" Classes="PrimaryBtn" Padding="16,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
+                                    <Button x:Name="UtilSpeakerDeleteBtn" Content="{DynamicResource Pref_Utilities_Delete}" Click="UtilSpeakerDeleteBtn_Click" Foreground="#EF4444" Background="Transparent" Padding="12,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </StackPanel>
                     
                     <!-- Advanced Tab -->

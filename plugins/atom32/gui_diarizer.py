@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import psutil
 from diarizer import SileroVAD, CamPlusExtractor, SpeakerClusteringEngine
 import uuid
-from diarizer.voice_profile_db import VoiceProfileDB
+from diarizer.voice_profile_db import VoiceProfileDB, MAX_POOL_SIZE
 import socket
 import json
 from collections import deque
@@ -82,6 +82,8 @@ class UdpSignalReceiver(threading.Thread):
                 if signal.get('type') == 'sync':
                     # Can be used to adjust offset if needed
                     pass
+                elif signal.get('type') == 'commit':
+                    print(f"[LiveCaption] Received commit signal: {signal.get('reason')} - {signal.get('acoustic_end_ms')} ms")
                 self._buf.push(signal)
             except socket.timeout:
                 continue
@@ -379,7 +381,9 @@ class RealTimeDiarizerGUI:
         if old_uid:
             self._session_embeddings[old_uid] = remaining
         if new_uid:
-            self._session_embeddings.setdefault(new_uid, []).extend(moved)
+            if new_uid not in self._session_embeddings:
+                self._session_embeddings[new_uid] = deque(maxlen=MAX_POOL_SIZE)
+            self._session_embeddings[new_uid].extend(moved)
             
         for item in moved:
             self.db.add_embedding(new_pid, item['embedding'], 
@@ -782,7 +786,7 @@ class RealTimeDiarizerGUI:
             self.update_clustering()
             
             # Tích lũy embeddings theo uid vào session buffer
-            if not hasattr(self, '_session_embeddings'):
+            if getattr(self, '_session_embeddings', None) is None:
                 self._session_embeddings = {}
             if not hasattr(self, '_session_emb_ids'):
                 self._session_emb_ids = set()
@@ -792,7 +796,7 @@ class RealTimeDiarizerGUI:
                 emb_id = id(seg['embedding'])
                 if uid and emb_id not in self._session_emb_ids:
                     if uid not in self._session_embeddings:
-                        self._session_embeddings[uid] = []
+                        self._session_embeddings[uid] = deque(maxlen=MAX_POOL_SIZE)
                     self._session_embeddings[uid].append({
                         'embedding': seg['embedding'],
                         'session_id': self.session_id,
@@ -800,6 +804,8 @@ class RealTimeDiarizerGUI:
                         'end': seg['end']
                     })
                     self._session_emb_ids.add(emb_id)
+                    if uid in self.uid_to_profile_id:
+                        self.db.add_embedding(self.uid_to_profile_id[uid], seg['embedding'], session_id=self.session_id, start_sec=seg['start'], end_sec=seg['end'])
             
             # Cross-session recognition pass
             MIN_SEGS_BEFORE_RECOGNIZE = 3
@@ -853,6 +859,8 @@ class RealTimeDiarizerGUI:
                         self.uid_to_profile_id[uid] = new_pid
                         display = self.db.get_metadata(new_pid, 'display_name') or new_pid[:8]
                         print(f"[DB] RECOGNIZED: {uid} -> profile {display} (dist={new_dist:.3f}, {log_suffix})")
+                        for item in self._session_embeddings[uid]:
+                            self.db.add_embedding(new_pid, item['embedding'], session_id=item['session_id'], start_sec=item['start'], end_sec=item['end'])
                     else:
                         print(f"[DB] NEW SPEAKER: {uid} (closest dist={new_dist:.3f}, {log_suffix}, no match)")
 
@@ -1166,54 +1174,64 @@ class RealTimeDiarizerGUI:
         self.btn_start.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
         self.device_combo.config(state="readonly")
-        self.lbl_status.config(text="Status: Stopped (Idle)")
+        self.lbl_status.config(text="Status: Saving... (background)")
         
-        # Flush session embeddings vào cache (in-memory) trước khi write DB
-        for uid, embs in getattr(self, '_session_embeddings', {}).items():
-            pid = self.uid_to_profile_id.get(uid)
-            if pid:
-                for item in embs:
-                    self.db.add_embedding(pid, item['embedding'], session_id=item.get('session_id', ''), start_sec=item.get('start', 0.0), end_sec=item.get('end', 0.0))
+        flush_snapshot = {
+            'session_embeddings': dict(getattr(self, '_session_embeddings', {})),
+            'speaker_profiles_data': dict(self.speaker_profiles_data),
+            'uid_to_profile_id': dict(self.uid_to_profile_id),
+            'session_id': self.session_id,
+            'lc_buffer': getattr(self, 'lc_buffer', None),
+            'lc_epoch_offset': getattr(self, '_lc_epoch_offset', 0.0),
+        }
+        
+        def _flush_worker(snapshot):
+            try:
+                # Tạo profiles cho speakers chưa được label/recognized
+                for uid, data in snapshot['speaker_profiles_data'].items():
+                    if uid not in snapshot['uid_to_profile_id']:
+                        embs = snapshot['session_embeddings'].get(uid, [])
+                        pid = self.db.create_profile(data['centroid'], initial_embeddings=list(embs))
+                        self.uid_to_profile_id[uid] = pid
 
-        # Tạo profiles cho speakers chưa được label/recognized
-        for uid, data in self.speaker_profiles_data.items():
-            if uid not in self.uid_to_profile_id:
-                embs = getattr(self, '_session_embeddings', {}).get(uid, [])
-                pid = self.db.create_profile(data['centroid'], initial_embeddings=embs)
-                self.uid_to_profile_id[uid] = pid
-
-        # Check dangling signals for TENTATIVE speakers
-        if hasattr(self, 'lc_buffer'):
-            for uid, data in self.speaker_profiles_data.items():
-                if data['count'] < 5:  # TENTATIVE or SUSPECT
-                    embs = getattr(self, '_session_embeddings', {}).get(uid, [])
-                    if not embs: continue
-                    
-                    is_all_dangling = True
-                    for item in embs:
-                        t_start = item['start'] - 0.2
-                        t_end = item['end'] + 0.2
-                        signals = self.lc_buffer.get_window(t_start, t_end, self._lc_epoch_offset)
-                        if not signals or not all(s.get('is_dangling') for s in signals):
-                            is_all_dangling = False
-                            break
+                # Check dangling signals for TENTATIVE speakers
+                if snapshot['lc_buffer']:
+                    for uid, data in snapshot['speaker_profiles_data'].items():
+                        if data['count'] < 5:  # TENTATIVE or SUSPECT
+                            embs = snapshot['session_embeddings'].get(uid, [])
+                            if not embs: continue
                             
-                    if is_all_dangling:
-                        pid = self.uid_to_profile_id.get(uid)
-                        if pid:
-                            self.db.set_metadata(pid, "dangling", "true")
-                            print(f"[LiveCaption] Flagged {pid} ({uid}) as SUSPECT (dangling noise).")
+                            is_all_dangling = True
+                            for item in embs:
+                                t_start = item['start'] - 0.2
+                                t_end = item['end'] + 0.2
+                                signals = snapshot['lc_buffer'].get_window(t_start, t_end, snapshot['lc_epoch_offset'])
+                                if not signals or not all(s.get('is_dangling') for s in signals):
+                                    is_all_dangling = False
+                                    break
+                                    
+                            if is_all_dangling:
+                                pid = self.uid_to_profile_id.get(uid)
+                                if pid:
+                                    self.db.set_metadata(pid, "dangling", "true")
+                                    print(f"[LiveCaption] Flagged {pid} ({uid}) as SUSPECT (dangling noise).")
 
-        # Flush toàn bộ dirty profiles xuống SQLite - đây là điểm ghi duy nhất
-        self.db.flush_to_db(self.session_id)
-        print(f"[DB] Session flushed. uid_to_profile_id: {self.uid_to_profile_id}")
-        
-        self.txt_timeline.insert(tk.END, "\n>>> Diarization session stopped.\n", "info")
-        
-        # Restart monitoring on current device
-        sel_idx = self.device_combo.current()
-        if sel_idx >= 0:
-            self.start_monitoring(self.device_list[sel_idx])
+                # Flush toàn bộ dirty profiles xuống SQLite
+                self.db.flush_to_db(snapshot['session_id'])
+                print(f"[DB] Session flushed. uid_to_profile_id: {self.uid_to_profile_id}")
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f"[DB] Flush error: {e}", file=sys.stderr)
+            finally:
+                self.root.after(0, lambda: self.lbl_status.config(text="Status: Stopped (Idle)"))
+                self.root.after(0, lambda: self.txt_timeline.insert(tk.END, "\n>>> Diarization session stopped.\n", "info"))
+                
+                sel_idx = self.device_combo.current()
+                if sel_idx >= 0:
+                    self.root.after(0, lambda: self.start_monitoring(self.device_list[sel_idx]))
+
+        threading.Thread(target=_flush_worker, args=(flush_snapshot,), daemon=True).start()
 
     def on_device_selected(self, event):
         sel_idx = self.device_combo.current()
@@ -1369,14 +1387,17 @@ class RealTimeDiarizerGUI:
         all_dangling    = all(s.get('is_dangling') for s in signals)
         was_merged      = any(s.get('was_merged') for s in signals)
         
+        action = 'allow'
         if all_dangling:
-            return 'suppress'
-        if has_hard_commit:
-            return 'reinforce'
-        if was_merged:
-            return 'reinforce'
+            action = 'suppress'
+        elif has_hard_commit:
+            action = 'reinforce'
+        elif was_merged:
+            action = 'reinforce'
 
-        return 'allow'
+        if action != 'allow':
+            print(f"[LiveCaption] Gate decision at {seg_start:.2f}s - {seg_end:.2f}s: {action.upper()} (Signals: {len(signals)})")
+        return action
 
     def on_closing(self):
         try:

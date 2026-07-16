@@ -122,5 +122,13 @@
   "Pref_LocalAI_ServiceUrl": "Địa chỉ dịch vụ Offline CTranslate2",
   "Pref_LocalAI_Testing": "Đang kết nối thử nghiệm đến Offline Server...",
   "Pref_LocalAI_ConnSuccess": "Kết nối thành công!",
-  "Pref_LocalAI_ConnFailed": "Kết nối thất bại!"
+  "Pref_LocalAI_ConnFailed": "Kết nối thất bại!",
+  "Tab_Utilities": "Tiện ích",
+  "Pref_Utilities_ModelManager": "Quản lý Mô hình",
+  "Pref_Utilities_OfflineTranslation": "Offline Translation",
+  "Pref_Utilities_SpeakerLabeling": "Speaker Labeling",
+  "Pref_Utilities_Download": "Tải xuống",
+  "Pref_Utilities_Delete": "Xóa",
+  "Pref_Utilities_CheckUpdate": "Kiểm tra cập nhật",
+  "Pref_LocalAI_ActiveModel": "Mô hình đang sử dụng:"
 }

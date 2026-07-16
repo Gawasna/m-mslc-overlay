@@ -20,7 +20,7 @@ namespace m_mslc_overlay.services
     public static class OfflineTranslationServerManager
     {
         private static Process? _serverProcess;
-        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromMilliseconds(500) };
+        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromMilliseconds(2000) };
         private static readonly string LogTag = "[OfflineTranslationServerManager]";
         
         public static OfflineServerState State { get; private set; } = OfflineServerState.Stopped;
@@ -191,7 +191,7 @@ namespace m_mslc_overlay.services
                 LoggerService.Log($"{LogTag} Process started successfully. PID: {_serverProcess.Id}");
 
                 // Chờ đợi server khởi chạy thành công (ping kiểm tra)
-                int maxRetries = 15;
+                int maxRetries = 45;
                 for (int i = 0; i < maxRetries; i++)
                 {
                     await Task.Delay(1000);
@@ -209,7 +209,7 @@ namespace m_mslc_overlay.services
                     }
                 }
 
-                UpdateState(OfflineServerState.Failed, "Server không phản hồi sau thời gian chờ tối đa.");
+                UpdateState(OfflineServerState.Failed, "Server không phản hồi sau thời gian chờ tối đa (45 giây).");
                 return false;
             }
             catch (Exception ex)

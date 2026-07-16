@@ -8,7 +8,7 @@ from typing import List, Tuple, Dict, Optional
 import threading
 from dataclasses import dataclass
 
-MAX_POOL_SIZE          = 50     # max embeddings per profile
+MAX_POOL_SIZE          = 75     # max embeddings per profile — tăng từ 50 để chịu tải session dài hơn
 COARSE_GATE            = 0.35   # centroid dist threshold — coarse filter
 FINE_GATE              = 0.30   # pool 1-NN dist threshold — confirmation
 MIN_VOTE_RATIO         = 0.25   # tỷ lệ tối thiểu pool phải vote đồng ý
@@ -154,7 +154,8 @@ class VoiceProfileDB:
                         'captured_at': erow[1],
                         'session_id': erow[2] if erow[2] is not None else '',
                         'start': erow[3] if erow[3] is not None else 0.0,
-                        'end': erow[4] if erow[4] is not None else 0.0
+                        'end': erow[4] if erow[4] is not None else 0.0,
+                        'flushed': True
                     })
                 
                 pool_matrix = np.stack(pool) if pool else None
@@ -193,13 +194,15 @@ class VoiceProfileDB:
                 worst_idx = int(np.argmax(dists))
                 cache.pool.pop(worst_idx)
                 cache.pool_meta.pop(worst_idx)
+                cache.needs_full_flush = True
 
             cache.pool.append(embedding)
             cache.pool_meta.append({
                 'captured_at': self._now(),
                 'session_id': session_id,
                 'start': start_sec,
-                'end': end_sec
+                'end': end_sec,
+                'flushed': False
             })
             cache.segment_count += 1
             
@@ -230,15 +233,28 @@ class VoiceProfileDB:
                     WHERE profile_id=?
                 ''', (cache.centroid.tobytes(), cache.segment_count, now, pid))
 
-                cursor.execute('DELETE FROM speaker_embeddings WHERE profile_id=?', (pid,))
-                if cache.pool:
+                needs_full = getattr(cache, 'needs_full_flush', False)
+                if needs_full:
+                    cursor.execute('DELETE FROM speaker_embeddings WHERE profile_id=?', (pid,))
+                    pending = [
+                        (pid, e.tobytes(), float(1.0 - np.dot(e, cache.centroid)), meta['captured_at'], meta['session_id'], meta['start'], meta['end'])
+                        for e, meta in zip(cache.pool, cache.pool_meta)
+                    ]
+                    cache.needs_full_flush = False
+                else:
+                    pending = [
+                        (pid, e.tobytes(), float(1.0 - np.dot(e, cache.centroid)), meta['captured_at'], meta['session_id'], meta['start'], meta['end'])
+                        for e, meta in zip(cache.pool, cache.pool_meta)
+                        if not meta.get('flushed', False)
+                    ]
+                
+                if pending:
                     cursor.executemany('''
                         INSERT INTO speaker_embeddings (profile_id, embedding, dist_to_centroid, captured_at, session_id, segment_start_sec, segment_end_sec)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', [
-                        (pid, e.tobytes(), float(1.0 - np.dot(e, cache.centroid)), meta['captured_at'], meta['session_id'], meta['start'], meta['end'])
-                        for e, meta in zip(cache.pool, cache.pool_meta)
-                    ])
+                    ''', pending)
+                    for meta in cache.pool_meta:
+                        meta['flushed'] = True
 
                 cache.dirty = False
 
@@ -263,7 +279,8 @@ class VoiceProfileDB:
                     'captured_at': now,
                     'session_id': item.get('session_id', ''),
                     'start': item.get('start', 0.0),
-                    'end': item.get('end', 0.0)
+                    'end': item.get('end', 0.0),
+                    'flushed': True
                 })
             if pool:
                 arr = np.stack(pool)
