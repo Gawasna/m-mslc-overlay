@@ -19,6 +19,74 @@ import psutil
 from diarizer import SileroVAD, CamPlusExtractor, SpeakerClusteringEngine
 import uuid
 from diarizer.voice_profile_db import VoiceProfileDB
+import socket
+import json
+from collections import deque
+import ctypes
+
+class CommitSignalBuffer:
+    def __init__(self, max_size: int = 300):
+        self._ring = deque(maxlen=max_size)
+        self._lock = threading.Lock()
+        self._last_known_lc_state = 'UNKNOWN'
+        self._last_heartbeat_ts = 0.0
+
+    def push(self, signal: dict) -> None:
+        if signal.get('type') == 'state':
+            self._last_known_lc_state = signal.get('lc_state', 'UNKNOWN')
+            self._last_heartbeat_ts = time.monotonic()
+            return
+        with self._lock:
+            self._ring.append(signal)
+
+    def get_window(self, start_sec: float, end_sec: float, epoch_offset_sec: float = 0.0, tolerance_sec: float = 0.2) -> list:
+        with self._lock:
+            snapshot = list(self._ring)
+        result = []
+        t_start = start_sec - tolerance_sec
+        t_end = end_sec + tolerance_sec
+        for item in snapshot:
+            if 'acoustic_end_ms' in item:
+                t = item['acoustic_end_ms'] / 1000.0 + epoch_offset_sec
+                if t_start <= t <= t_end:
+                    result.append(item)
+        return result
+
+    def get_state_at(self, tolerance_ms: float = 300.0) -> str:
+        age_ms = (time.monotonic() - self._last_heartbeat_ts) * 1000
+        if age_ms > tolerance_ms:
+            return 'UNKNOWN'
+        return self._last_known_lc_state
+
+class UdpSignalReceiver(threading.Thread):
+    def __init__(self, buffer: CommitSignalBuffer, port: int = 47832):
+        super().__init__(daemon=True)
+        self._buf = buffer
+        self._port = port
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            self._sock.bind(('127.0.0.1', port))
+            self._sock.settimeout(1.0)
+        except Exception as e:
+            print(f"[UDP] Failed to bind to port {port}: {e}")
+            self._sock = None
+
+    def run(self):
+        if not self._sock:
+            return
+        print(f"[UDP] Listening for LiveCaption signals on port {self._port}...")
+        while True:
+            try:
+                data, _ = self._sock.recvfrom(512)
+                signal = json.loads(data.decode('utf-8'))
+                if signal.get('type') == 'sync':
+                    # Can be used to adjust offset if needed
+                    pass
+                self._buf.push(signal)
+            except socket.timeout:
+                continue
+            except Exception:
+                pass  # Ignore malformed packets
 
 class RealTimeDiarizerGUI:
     def __init__(self, root):
@@ -77,6 +145,13 @@ class RealTimeDiarizerGUI:
         self.uid_to_profile_id: dict = {}
         self._known_profiles = []
         self.manual_merges = {}
+        
+        # LiveCaption UDP Sync
+        self.lc_buffer = CommitSignalBuffer()
+        self.lc_receiver = UdpSignalReceiver(self.lc_buffer, 47832)
+        self.lc_receiver.start()
+        self._lc_epoch_offset = 0.0
+        self._recording_start_ticks = 0
         
         # Audio level tracking for UI meter
         self.current_vol = 0.0
@@ -502,6 +577,10 @@ class RealTimeDiarizerGUI:
         self._known_profiles = self.db.load_all_active()
         print(f"[DB] Loaded {len(self._known_profiles)} known profiles from DB.")
         
+        # Sync epoch for LiveCaption
+        self._recording_start_ticks = ctypes.windll.kernel32.GetTickCount64()
+        self._lc_epoch_offset = - (self._recording_start_ticks / 1000.0)
+        
         # Open main stream safely using pyaudiowpatch
         try:
             self.stream, self.stream_samplerate, self.stream_channels = self.open_stream_safely(
@@ -726,6 +805,8 @@ class RealTimeDiarizerGUI:
             if not hasattr(self, '_segs_since_recognition'):
                 self._segs_since_recognition = {}
                 
+            active_uids = {seg['uuid'] for seg in self.segment_registry if 'uuid' in seg}
+            
             for uid, data in self.speaker_profiles_data.items():
                 if uid in self.uid_to_profile_id:
                     segs_since_assign = self._segs_since_recognition.get(uid, 0) + 1
@@ -768,7 +849,7 @@ class RealTimeDiarizerGUI:
         limit_str = self.speakers_limit_combo.get()
         expected_speakers = 0 if limit_str == "Auto-Estimate" else int(limit_str)
         
-        result = self.clustering_engine.process(self.segment_registry, expected_speakers)
+        result = self.clustering_engine.process(self.segment_registry, expected_speakers, lc_gate_func=self._apply_livecaption_gate)
         
         self.segment_registry = result['segment_registry']
         self.speaker_profiles_data = result['speaker_profiles_data']
@@ -868,7 +949,11 @@ class RealTimeDiarizerGUI:
                     tier = ""
                 else:
                     identity = pid[:8]
-                    if seg_count >= 5:
+                    is_dangling = self.db.get_metadata(pid, 'dangling') == 'true'
+                    
+                    if is_dangling:
+                        tier = " [? dangling]"
+                    elif seg_count >= 5:
                         tier = ""
                     elif seg_count >= 3:
                         tier = " [~tentative]"
@@ -1083,6 +1168,28 @@ class RealTimeDiarizerGUI:
                 embs = getattr(self, '_session_embeddings', {}).get(uid, [])
                 pid = self.db.create_profile(data['centroid'], initial_embeddings=embs)
                 self.uid_to_profile_id[uid] = pid
+
+        # Check dangling signals for TENTATIVE speakers
+        if hasattr(self, 'lc_buffer'):
+            for uid, data in self.speaker_profiles_data.items():
+                if data['count'] < 5:  # TENTATIVE or SUSPECT
+                    embs = getattr(self, '_session_embeddings', {}).get(uid, [])
+                    if not embs: continue
+                    
+                    is_all_dangling = True
+                    for item in embs:
+                        t_start = item['start'] - 0.2
+                        t_end = item['end'] + 0.2
+                        signals = self.lc_buffer.get_window(t_start, t_end, self._lc_epoch_offset)
+                        if not signals or not all(s.get('is_dangling') for s in signals):
+                            is_all_dangling = False
+                            break
+                            
+                    if is_all_dangling:
+                        pid = self.uid_to_profile_id.get(uid)
+                        if pid:
+                            self.db.set_metadata(pid, "dangling", "true")
+                            print(f"[LiveCaption] Flagged {pid} ({uid}) as SUSPECT (dangling noise).")
 
         # Flush toàn bộ dirty profiles xuống SQLite - đây là điểm ghi duy nhất
         self.db.flush_to_db(self.session_id)

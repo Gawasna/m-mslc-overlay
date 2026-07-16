@@ -22,6 +22,7 @@ namespace m_mslc_overlay.services
         private Task? _tickTask;
         
         private readonly AdaptiveCommitEngine _commitEngine;
+        private readonly LiveCaptionUdpSender _udpSender;
         private string _lastRawText = "";
         private ulong _lastOffset = 0;
 
@@ -50,6 +51,7 @@ namespace m_mslc_overlay.services
         public LiveCaptionPipeService()
         {
             _commitEngine = new AdaptiveCommitEngine();
+            _udpSender = new LiveCaptionUdpSender();
         }
 
         public void Start()
@@ -143,6 +145,14 @@ namespace m_mslc_overlay.services
                 ulong offset = root.TryGetProperty("offset", out var offsetProp) ? offsetProp.GetUInt64() : 0;
                 ulong duration = root.TryGetProperty("duration", out var durProp) ? durProp.GetUInt64() : 0;
 
+                _udpSender.SendSyncIfNeeded(offset);
+                
+                if (string.IsNullOrWhiteSpace(text)) {
+                    _udpSender.SetState("IDLE");
+                } else {
+                    _udpSender.SetState("PENDING");
+                }
+
                 OnPartialCaptionReceived?.Invoke(text);
 
                 double wallClockMs = Environment.TickCount64;
@@ -164,9 +174,11 @@ namespace m_mslc_overlay.services
                     var flushResult = _commitEngine.Evaluate(_lastRawText, acousticEndMs, wallClockMs, true);
                     if (flushResult.Type != CommitType.None && !string.IsNullOrWhiteSpace(flushResult.CommittedText))
                     {
-                        OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
+                        var commitMeta = CommitMetadata.From(
                             flushResult.CommittedText, "OffsetChange",
-                            acousticEndMs: acousticEndMs, utteranceOffset: _lastOffset));
+                            acousticEndMs: acousticEndMs, utteranceOffset: _lastOffset);
+                        _udpSender.SendCommit(commitMeta);
+                        OnFinalSentenceReceived?.Invoke(commitMeta);
                     }
                     _lastRawText = "";
                 }
@@ -196,11 +208,13 @@ namespace m_mslc_overlay.services
                 if (result.Type != CommitType.None && !string.IsNullOrWhiteSpace(result.CommittedText))
                 {
                     string reason = result.Type == CommitType.Hard ? "HardCommit" : "SoftCommit";
-                    OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
+                    var commitMeta = CommitMetadata.From(
                         result.CommittedText, reason,
                         acousticEndMs: acousticEndMs,
                         utteranceOffset: offset,
-                        isDangling: result.IsDangling));
+                        isDangling: result.IsDangling);
+                    _udpSender.SendCommit(commitMeta);
+                    OnFinalSentenceReceived?.Invoke(commitMeta);
                 }
 
                 // Sau FINAL, engine đã ResetState() — _lastRawText phải sạch để
@@ -226,10 +240,16 @@ namespace m_mslc_overlay.services
                     var result = _commitEngine.CheckDebounceTimeout(arrivalTimeMs);
                     if (result.Type != CommitType.None && !string.IsNullOrWhiteSpace(result.CommittedText))
                     {
-                        OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
+                        var commitMeta = CommitMetadata.From(
                             result.CommittedText, "DebounceCommit",
-                            isDangling: result.IsDangling));
+                            isDangling: result.IsDangling);
+                        _udpSender.SendCommit(commitMeta);
+                        OnFinalSentenceReceived?.Invoke(commitMeta);
                     }
+                    
+                    // Gửi heartbeat 50ms một lần (có thể là tick cho UI)
+                    // C# tick 50ms, Python gate logic ko gặp vde
+                    _udpSender.SendStateHeartbeat();
                 }
                 catch (OperationCanceledException)
                 {
@@ -245,6 +265,7 @@ namespace m_mslc_overlay.services
         public void Dispose()
         {
             Stop();
+            _udpSender?.Dispose();
         }
     }
 }

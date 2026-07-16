@@ -30,10 +30,11 @@ class SpeakerClusteringEngine:
         # (background music vocal, brief echo) rather than a real speaker.
         self._singleton_age: dict = {}
 
-    def process(self, segment_registry, expected_speakers):
+    def process(self, segment_registry, expected_speakers, lc_gate_func=None):
         """
         Process segment registry to cluster embeddings and assign persistent UUIDs.
         Returns a dictionary containing the updated state.
+        lc_gate_func: callable(seg_end, next_seg_start) -> 'allow' | 'suppress' | 'reinforce'
         """
         n_segments = len(segment_registry)
         embeddings = np.array([seg['embedding'] for seg in segment_registry])
@@ -44,6 +45,19 @@ class SpeakerClusteringEngine:
             similarity = np.dot(embeddings, embeddings.T)
             similarity = np.clip(similarity, -1.0, 1.0)
             cosine_distance = 1.0 - similarity
+            
+            # Apply LiveCaption Control Signals
+            if lc_gate_func:
+                for i in range(n_segments - 1):
+                    seg_end = segment_registry[i]['end']
+                    next_start = segment_registry[i+1]['start']
+                    action = lc_gate_func(seg_end, next_start)
+                    if action == 'suppress':
+                        cosine_distance[i, i+1] = 0.0
+                        cosine_distance[i+1, i] = 0.0
+                    elif action == 'reinforce':
+                        cosine_distance[i, i+1] = 1.0
+                        cosine_distance[i+1, i] = 1.0
             
             try:
                 # Force expected cluster count if specified (>1)
