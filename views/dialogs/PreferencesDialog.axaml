@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.views.dialogs.PreferencesDialog"
         Title="{DynamicResource Title_Preferences}"
         Width="720" Height="480"
@@ -176,44 +177,50 @@
                     <StackPanel x:Name="TabUtilities" IsVisible="False" Spacing="24">
                         <TextBlock Text="{DynamicResource Tab_Utilities}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
                         
-                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,8">
-                            <Grid ColumnDefinitions="*, Auto">
-                                <!-- Trái: Thông tin -->
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
+                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,8">
+                            <StackPanel Spacing="16">
+                                <!-- Thông tin -->
+                                <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_OfflineTranslation}" FontSize="15" FontWeight="SemiBold" Foreground="#111111"/>
-                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2)." FontSize="13" Foreground="#6B7280" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2)." FontSize="13" Foreground="#6B7280" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
-                                <!-- Phải: Controls -->
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                    <ComboBox x:Name="UtilTransModelCombo" Width="220" SelectedIndex="0" VerticalAlignment="Center" CornerRadius="6">
-                                        <ComboBoxItem Content="NLLB-200 600M (600MB)"/>
-                                        <ComboBoxItem Content="OPUS-MT En-Vi (150MB)"/>
+                                <!-- Controls -->
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <ComboBox x:Name="UtilTransModelCombo" Width="260" SelectedIndex="0" CornerRadius="6" IsEnabled="False">
+                                        <ComboBoxItem Content="NLLB-200 600M (Mặc định)"/>
                                     </ComboBox>
-                                    <Button x:Name="UtilTransDownloadBtn" Content="{DynamicResource Pref_Utilities_Download}" Click="UtilTransDownloadBtn_Click" Classes="PrimaryBtn" Padding="16,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
-                                    <Button x:Name="UtilTransDeleteBtn" Content="{DynamicResource Pref_Utilities_Delete}" Click="UtilTransDeleteBtn_Click" Foreground="#EF4444" Background="Transparent" Padding="12,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
+                                    <Button x:Name="UtilTransDownloadBtn" Click="UtilTransDownloadBtn_Click" Classes="PrimaryBtn" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Download}">
+                                        <materialIcons:MaterialIcon Kind="Download" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Button>
+                                    <Button x:Name="UtilTransDeleteBtn" Click="UtilTransDeleteBtn_Click" Background="Transparent" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Delete}">
+                                        <materialIcons:MaterialIcon Kind="Delete" Width="18" Height="18" Foreground="#EF4444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Button>
                                 </StackPanel>
-                            </Grid>
+                            </StackPanel>
                         </Border>
 
-                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20,16">
-                            <Grid ColumnDefinitions="*, Auto">
-                                <!-- Trái: Thông tin -->
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
+                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20">
+                            <StackPanel Spacing="16">
+                                <!-- Thông tin -->
+                                <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_SpeakerLabeling}" FontSize="15" FontWeight="SemiBold" Foreground="#111111"/>
-                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization)." FontSize="13" Foreground="#6B7280" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization)." FontSize="13" Foreground="#6B7280" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
-                                <!-- Phải: Controls -->
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                    <ComboBox x:Name="UtilSpeakerModelCombo" Width="220" SelectedIndex="0" VerticalAlignment="Center" CornerRadius="6">
-                                        <ComboBoxItem Content="Pyannote Segmentation 3.0"/>
-                                        <ComboBoxItem Content="VAD Silero (ONNX)"/>
+                                <!-- Controls -->
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <ComboBox x:Name="UtilSpeakerModelCombo" Width="260" SelectedIndex="0" CornerRadius="6" IsEnabled="False">
+                                        <ComboBoxItem Content="Pyannote Segmentation 3.0 (Mặc định)"/>
                                     </ComboBox>
-                                    <Button x:Name="UtilSpeakerDownloadBtn" Content="{DynamicResource Pref_Utilities_Download}" Click="UtilSpeakerDownloadBtn_Click" Classes="PrimaryBtn" Padding="16,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
-                                    <Button x:Name="UtilSpeakerDeleteBtn" Content="{DynamicResource Pref_Utilities_Delete}" Click="UtilSpeakerDeleteBtn_Click" Foreground="#EF4444" Background="Transparent" Padding="12,8" CornerRadius="6" VerticalAlignment="Center" Cursor="Hand" FontWeight="Medium"/>
+                                    <Button x:Name="UtilSpeakerDownloadBtn" Click="UtilSpeakerDownloadBtn_Click" Classes="PrimaryBtn" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Download}">
+                                        <materialIcons:MaterialIcon Kind="Download" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Button>
+                                    <Button x:Name="UtilSpeakerDeleteBtn" Click="UtilSpeakerDeleteBtn_Click" Background="Transparent" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Delete}">
+                                        <materialIcons:MaterialIcon Kind="Delete" Width="18" Height="18" Foreground="#EF4444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Button>
                                 </StackPanel>
-                            </Grid>
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                     

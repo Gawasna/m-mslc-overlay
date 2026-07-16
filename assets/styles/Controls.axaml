@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
     <!-- Menu Bar Styles -->
     <Style Selector="Menu">
         <Setter Property="Background" Value="Transparent"/>
@@ -80,13 +81,13 @@
     <Style Selector="Button.CloseBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="#E81123"/>
     </Style>
-    <Style Selector="Button.CloseBtn:pointerover PathIcon">
+    <Style Selector="Button.CloseBtn:pointerover materialIcons|MaterialIcon">
         <Setter Property="Foreground" Value="White"/>
     </Style>
     <Style Selector="Button.CloseBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="#F1707A"/>
     </Style>
-    <Style Selector="Button.CloseBtn:pressed PathIcon">
+    <Style Selector="Button.CloseBtn:pressed materialIcons|MaterialIcon">
         <Setter Property="Foreground" Value="White"/>
     </Style>
 
@@ -109,7 +110,7 @@
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource BgCardBrush}"/>
     </Style>
-    <Style Selector="ToggleButton:checked PathIcon">
+    <Style Selector="ToggleButton:checked materialIcons|MaterialIcon">
         <Setter Property="Foreground" Value="White"/>
     </Style>
     <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">

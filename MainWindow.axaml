@@ -1,17 +1,13 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:transcript="using:m_mslc_overlay.views.content.transcript"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.MainWindow"
         Title="{DynamicResource Title_ControlCenter}"
         Background="{StaticResource BgWindowBrush}"
         MinWidth="400" MinHeight="300"
         Width="1024" Height="768"
         WindowStartupLocation="CenterScreen">
-    
-    <Window.Resources>
-        <!-- Zap/Lightning icon for DLL Injection -->
-        <StreamGeometry x:Key="IconZap">M13 2L3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
-    </Window.Resources>
 
 
 
@@ -82,7 +78,7 @@
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="PrimaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_InjectDll}">
-                        <PathIcon Data="{StaticResource IconZap}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
+                        <materialIcons:MaterialIcon Kind="Flash" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
                     </Button>
                     <!-- Open Overlay Button -->
                     <Button Click="OpenOverlayBtn_Click"
@@ -90,7 +86,7 @@
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_OpenOverlay}">
-                        <PathIcon Data="{StaticResource IconPlay}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <materialIcons:MaterialIcon Kind="Play" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                     <!-- Open Debug / Settings Button -->
                     <Button Click="OpenDebugWidgetBtn_Click"
@@ -98,7 +94,7 @@
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_OpenDebugSettings}">
-                        <PathIcon Data="{StaticResource IconSetting}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <materialIcons:MaterialIcon Kind="Cog" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                 </StackPanel>
             </DockPanel>
