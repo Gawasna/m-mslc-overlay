@@ -404,3 +404,4 @@ GEMINI.md
 *.md
 *.ttf
 /.kiro
+/plugins/atom32/.venv

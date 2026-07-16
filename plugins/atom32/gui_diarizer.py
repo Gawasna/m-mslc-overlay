@@ -263,6 +263,9 @@ class RealTimeDiarizerGUI:
         self.lbl_status = ttk.Label(left_frame, text="Status: Idle", font=("Helvetica", 9, "italic"))
         self.lbl_status.pack(anchor=tk.W, pady=(5, 0))
         
+        self.lbl_lc_status = ttk.Label(left_frame, text="LiveCaption: DISCONNECTED", font=("Helvetica", 9, "bold"), foreground="#95a5a6")
+        self.lbl_lc_status.pack(anchor=tk.W, pady=(5, 0))
+        
         # --- CENTER PANEL: TIMELINE ---
         self.txt_timeline = scrolledtext.ScrolledText(
             timeline_frame, 
@@ -816,7 +819,17 @@ class RealTimeDiarizerGUI:
                     # Đủ evidence -> re-evaluate
                     self._segs_since_recognition[uid] = 0
                 
-                if data['count'] < MIN_SEGS_BEFORE_RECOGNIZE:
+                min_segs = MIN_SEGS_BEFORE_RECOGNIZE
+                if hasattr(self, 'lc_buffer') and uid in self._session_embeddings and self._session_embeddings[uid]:
+                    first_seg = self._session_embeddings[uid][0]
+                    t_start = first_seg['start'] - 0.5
+                    t_end = first_seg['start'] + 0.5
+                    signals = self.lc_buffer.get_window(t_start, t_end, self._lc_epoch_offset)
+                    has_hard_or_merge = any(s.get('reason') == 'HardCommit' or s.get('was_merged') for s in signals)
+                    if has_hard_or_merge:
+                        min_segs = 1
+                
+                if data['count'] < min_segs:
                     continue
                     
                 MIN_EMB_FOR_CONSISTENCY = 3
@@ -1330,7 +1343,40 @@ class RealTimeDiarizerGUI:
         else:
             self.meter_canvas.coords(self.meter_bar, 0, 0, 0, 20)
             
+        if hasattr(self, 'lc_buffer'):
+            lc_state = self.lc_buffer.get_state_at(tolerance_ms=1500.0)
+            if lc_state == 'UNKNOWN':
+                self.lbl_lc_status.config(text="LiveCaption: DISCONNECTED", foreground="#95a5a6")
+            else:
+                color = "#2ecc71" if lc_state == "IDLE" else ("#e67e22" if lc_state == "PENDING" else "#9b59b6")
+                self.lbl_lc_status.config(text=f"LiveCaption: {lc_state}", foreground=color)
+            
         self.root.after(50, self.update_meter_loop)
+
+    def _apply_livecaption_gate(self, seg_start: float, seg_end: float) -> str:
+        if not hasattr(self, 'lc_buffer'):
+            return 'allow'
+            
+        signals = self.lc_buffer.get_window(seg_start, seg_end, self._lc_epoch_offset)
+        
+        if not signals:
+            state = self.lc_buffer.get_state_at()
+            if state == 'PENDING':
+                return 'suppress'
+            return 'allow'
+
+        has_hard_commit = any(s.get('reason') == 'HardCommit' for s in signals)
+        all_dangling    = all(s.get('is_dangling') for s in signals)
+        was_merged      = any(s.get('was_merged') for s in signals)
+        
+        if all_dangling:
+            return 'suppress'
+        if has_hard_commit:
+            return 'reinforce'
+        if was_merged:
+            return 'reinforce'
+
+        return 'allow'
 
     def on_closing(self):
         try:
