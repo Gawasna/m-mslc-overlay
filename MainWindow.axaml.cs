@@ -10,6 +10,7 @@ using m_mslc_overlay.views.components;
 using m_mslc_overlay.views.overlay;
 using m_mslc_overlay.services;
 using m_mslc_overlay.core;
+using MMslcOverlay.Services;
 
 namespace m_mslc_overlay
 {
@@ -34,6 +35,8 @@ namespace m_mslc_overlay
 
         private bool _isTranslationEnabled = true;
         private string _contextTopic = "Game/Phim";
+        
+        private DiarizerProcessManager? _diarizerManager;
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -251,6 +254,11 @@ namespace m_mslc_overlay
                 _hotkeyManager?.Dispose();
                 _focusKeyController?.Dispose();
                 OfflineTranslationServerManager.StopServer();
+                
+                if (_diarizerManager != null)
+                {
+                    _diarizerManager.Dispose();
+                }
             };
 
             this.Opened += (s, e) => {
@@ -281,6 +289,7 @@ namespace m_mslc_overlay
                 _isLogDirty = true;
             }
             LoggerService.Log(logLine);
+            Console.Write(logLine);
         }
 
         private void OnUiUpdateTimerTick(object? sender, EventArgs e)
@@ -494,6 +503,53 @@ namespace m_mslc_overlay
             }
         }
 
+        private async System.Threading.Tasks.Task InitializeDiarizerAsync()
+        {
+            if (_diarizerManager != null) return;
+            
+            _diarizerManager = new DiarizerProcessManager();
+            
+            _diarizerManager.OnLog += (logMessage) => 
+            {
+                AppendLog($"[DIARIZER] {logMessage}\n");
+            };
+
+            _diarizerManager.OnEvent += (evt) =>
+            {
+                // MOCK: Dump event to log
+                // AppendLog($"[DIARIZER_EVT] {evt.GetType().Name}\n");
+            };
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string pythonExe = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\plugins\atom32\.venv\Scripts\python.exe"));
+            string scriptPath = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\plugins\atom32\cli_diarizer.py"));
+
+            if (!File.Exists(pythonExe) || !File.Exists(scriptPath))
+            {
+                AppendLog($"[DIARIZER ERROR] Cannot find python ({pythonExe}) or script ({scriptPath}). Try building or running from correct directory.\n");
+                return;
+            }
+
+            var config = new DiarizerConfig(
+                DeviceIndex: 0,
+                Debug: true
+            );
+
+            AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Starting Speaker Diarizer Process...\n");
+            await _diarizerManager.StartAsync(config, pythonExe, scriptPath);
+        }
+
+        private async System.Threading.Tasks.Task ShutdownDiarizerAsync()
+        {
+            if (_diarizerManager != null)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Stopping Speaker Diarizer Process...\n");
+                await _diarizerManager.StopAsync();
+                _diarizerManager.Dispose();
+                _diarizerManager = null;
+            }
+        }
+
         public AIService AIService => _aiService;
         public SegmentDisplayModel SegmentDisplayModel => _segmentDisplayModel;
         public m_mslc_overlay.core.Animation.FadeAnimationController FadeAnimationController => _fadeAnimationController;
@@ -519,12 +575,16 @@ namespace m_mslc_overlay
             }
         }
 
-        private void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
+        private async void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_currentOverlay == null || !_currentOverlay.IsVisible)
             {
                 _currentOverlay = new FloatingTextOverlay(this);
+                _currentOverlay.Closed += async (s, ev) => {
+                    await ShutdownDiarizerAsync();
+                };
                 _currentOverlay.Show();
+                await InitializeDiarizerAsync();
             }
             else
             {
@@ -751,11 +811,15 @@ namespace m_mslc_overlay
 
         public void ToggleOverlay()
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () => {
                 if (_currentOverlay == null || !_currentOverlay.IsVisible)
                 {
                     _currentOverlay = new FloatingTextOverlay(this);
+                    _currentOverlay.Closed += async (s, ev) => {
+                        await ShutdownDiarizerAsync();
+                    };
                     _currentOverlay.Show();
+                    await InitializeDiarizerAsync();
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Floating Overlay opened.\n");
                 }
                 else
