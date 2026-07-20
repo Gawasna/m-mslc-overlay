@@ -22,12 +22,14 @@
                       Padding="0">
 
             <!-- Centering stack — no fixed left spacer -->
-            <StackPanel HorizontalAlignment="Center"
+            <StackPanel x:Name="PaperCenteringStack"
+                        HorizontalAlignment="Stretch"
                         Spacing="0"
-                        Margin="24,0,24,24">
+                        Margin="56,0,56,24">
 
                 <!-- ─── Ruler track: same 680px as the paper ─────────────────── -->
-                <Border Width="680"
+                <Border MaxWidth="680"
+                        HorizontalAlignment="Stretch"
                         Height="20"
                         Background="{StaticResource BgWindowBrush}"
                         BorderBrush="{StaticResource BorderLightBrush}"
@@ -37,7 +39,8 @@
                 </Border>
 
                 <!-- ─── A4 Paper sheet (680px wide, auto-height) ──────────────── -->
-                <Border Width="680"
+                <Border MaxWidth="680"
+                        HorizontalAlignment="Stretch"
                         MinHeight="960"
                         Background="{StaticResource BgCardBrush}"
                         BorderBrush="{StaticResource BorderBrush}"
@@ -45,7 +48,7 @@
                         ClipToBounds="True">
 
                     <!-- Paper margins: 60px top/bottom, 64px left/right -->
-                    <StackPanel Margin="64,60" Spacing="0">
+                    <StackPanel x:Name="PaperContentStack" Margin="64,60" Spacing="0">
 
                         <!-- Document title section -->
                         <Border BorderBrush="{StaticResource BorderLightBrush}"

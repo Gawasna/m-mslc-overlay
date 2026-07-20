@@ -58,6 +58,7 @@ namespace m_mslc_overlay
             Failed
         }
         private HookState _currentHookState = HookState.Waiting;
+        private bool _userNavPanePreference = true;
 
         public MainWindow()
         {
@@ -278,6 +279,22 @@ namespace m_mslc_overlay
                     OfflineTranslationServerManager.ServerPort = uri.Port;
                 }
                 _ = OfflineTranslationServerManager.StartServerAsync();
+            }
+
+            // Register responsive layout events
+            this.SizeChanged += MainWindow_SizeChanged;
+            if (TranscriptViewport?.ViewModel?.NavPane != null)
+            {
+                TranscriptViewport.ViewModel.NavPane.PropertyChanged += (s, ev) =>
+                {
+                    if (ev.PropertyName == nameof(TranscriptViewport.ViewModel.NavPane.IsVisible))
+                    {
+                        if (this.Bounds.Width >= 960)
+                        {
+                            _userNavPanePreference = TranscriptViewport.ViewModel.NavPane.IsVisible;
+                        }
+                    }
+                };
             }
         }
 
@@ -610,6 +627,58 @@ namespace m_mslc_overlay
             }
         }
 
+        private void OpenPaperSheetDemoBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var demoWindow = new m_mslc_overlay.views.dialogs.PaperSheetDemoWindow();
+            demoWindow.Show();
+        }
+
+        private void OpenTipTapDemoBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var win = new views.webview_demos.WebViewDemoWindow("TipTap Demo", "assets/web/tiptap.html");
+            win.Show();
+        }
+
+        private void OpenQuillDemoBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var win = new views.webview_demos.WebViewDemoWindow("Quill Demo", "assets/web/quill.html");
+            win.Show();
+        }
+
+        private void OpenMonacoDemoBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var win = new views.webview_demos.WebViewDemoWindow("Monaco Demo", "assets/web/monaco.html");
+            win.Show();
+        }
+
+        private void ThemeToggleBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            var tm = services.ThemeManager.Instance;
+            // Cycle: System -> Light -> Dark -> System
+            var next = tm.Mode switch
+            {
+                services.ThemeMode.System => services.ThemeMode.Light,
+                services.ThemeMode.Light  => services.ThemeMode.Dark,
+                services.ThemeMode.Dark   => services.ThemeMode.System,
+                _                         => services.ThemeMode.System
+            };
+            tm.Apply(next);
+            UpdateThemeIcon(next);
+        }
+
+        private void UpdateThemeIcon(services.ThemeMode mode)
+        {
+            var icon = this.FindControl<Material.Icons.Avalonia.MaterialIcon>("ThemeIcon");
+            if (icon == null) return;
+            icon.Kind = mode switch
+            {
+                services.ThemeMode.Light  => Material.Icons.MaterialIconKind.WeatherSunny,
+                services.ThemeMode.Dark   => Material.Icons.MaterialIconKind.WeatherNight,
+                services.ThemeMode.System => Material.Icons.MaterialIconKind.ThemeLightDark,
+                _                         => Material.Icons.MaterialIconKind.ThemeLightDark
+            };
+        }
+
         private void PreferencesMenuItem_Click(object? sender, RoutedEventArgs e)
         {
             var preferencesDialog = new m_mslc_overlay.views.dialogs.PreferencesDialog();
@@ -893,6 +962,59 @@ namespace m_mslc_overlay
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Font size changed to {newSize:F1}\n");
                 }
             });
+        }
+
+        private void MainWindow_SizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            UpdateResponsiveLayout(e.NewSize.Width);
+        }
+
+        private void UpdateResponsiveLayout(double width)
+        {
+            // 1. Sidebar Panel Responsive Control
+            var sidebar = this.FindControl<Border>("SidebarBorder");
+            if (sidebar != null)
+            {
+                if (width >= 1200)
+                {
+                    sidebar.Width = 240;
+                    sidebar.IsVisible = true;
+                    if (sidebar.Classes.Contains("Mini"))
+                    {
+                        sidebar.Classes.Remove("Mini");
+                    }
+                }
+                else if (width >= 768)
+                {
+                    sidebar.Width = 60;
+                    sidebar.IsVisible = true;
+                    if (!sidebar.Classes.Contains("Mini"))
+                    {
+                        sidebar.Classes.Add("Mini");
+                    }
+                }
+                else
+                {
+                    sidebar.Width = 0;
+                    sidebar.IsVisible = false;
+                }
+            }
+
+            // 2. Document Navigation Pane (NavPane) Responsive Control
+            if (TranscriptViewport?.ViewModel != null)
+            {
+                var navPaneVm = TranscriptViewport.ViewModel.NavPane;
+                if (width >= 960)
+                {
+                    // Restore previous visibility state based on user choice
+                    navPaneVm.IsVisible = _userNavPanePreference;
+                }
+                else
+                {
+                    // Force-collapse navigation pane on smaller widths
+                    navPaneVm.IsVisible = false;
+                }
+            }
         }
     }
 }

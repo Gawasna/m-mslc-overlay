@@ -5,11 +5,42 @@
         x:Class="m_mslc_overlay.MainWindow"
         Title="{DynamicResource Title_ControlCenter}"
         Background="{StaticResource BgWindowBrush}"
-        MinWidth="400" MinHeight="300"
-        Width="1024" Height="768"
+        MinWidth="960" MinHeight="300"
+        Width="1200" Height="768"
         WindowStartupLocation="CenterScreen">
 
+    <Window.Styles>
+        <Style Selector="Border.SidebarItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Border.SidebarItem:pointerover">
+            <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+        </Style>
+        <Style Selector="Border.SidebarItem.Active">
+            <Setter Property="Background" Value="{StaticResource BgCardBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
 
+        <!-- Responsive Sidebar Mini Mode styles -->
+        <Style Selector="Border.Mini TextBlock">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.Mini Border.SidebarItem">
+            <Setter Property="Padding" Value="0,6"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Width" Value="32"/>
+        </Style>
+        <Style Selector="Border.Mini materialIcons|MaterialIcon">
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+    </Window.Styles>
 
     <Grid RowDefinitions="Auto, Auto, *, Auto">
         
@@ -96,28 +127,185 @@
                             ToolTip.Tip="{DynamicResource Tooltip_OpenDebugSettings}">
                         <materialIcons:MaterialIcon Kind="Cog" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
+                    <!-- PaperSheet Demo Button -->
+                    <Button Click="OpenPaperSheetDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Open PaperSheet Demo">
+                        <materialIcons:MaterialIcon Kind="FileDocumentEdit" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- TipTap Demo Button -->
+                    <Button Click="OpenTipTapDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="TipTap Editor Demo">
+                        <materialIcons:MaterialIcon Kind="LanguageHtml5" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Quill Demo Button -->
+                    <Button Click="OpenQuillDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Quill Editor Demo">
+                        <materialIcons:MaterialIcon Kind="Feather" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Monaco Demo Button -->
+                    <Button Click="OpenMonacoDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Monaco Editor Demo">
+                        <materialIcons:MaterialIcon Kind="CodeBraces" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Theme Toggle Button (cycles: System → Light → Dark) -->
+                    <Button x:Name="ThemeToggleBtn" Click="ThemeToggleBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}"
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0"
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Toggle Theme (System / Light / Dark)">
+                        <materialIcons:MaterialIcon x:Name="ThemeIcon" Kind="WeatherSunny" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- 3. Blank Section (Content Area) -->
-        <Grid Grid.Row="2" ColumnDefinitions="240, *">
+        <Grid Grid.Row="2" x:Name="MainContentGrid" ColumnDefinitions="Auto, *">
             <!-- Sidebar_Panel -->
             <Border Grid.Column="0" 
+                    x:Name="SidebarBorder"
+                    Width="240"
                     Background="{StaticResource BgWindowBrush}" 
                     BorderBrush="{StaticResource BorderLightBrush}" 
                     BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="7*, 3*">
                     <!-- Sidebar_Primary_Slot -->
                     <Grid Grid.Row="0" RowDefinitions="Auto, *">
-                        <!-- Recent Block -->
-                        <Border Grid.Row="0" Height="24" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="12,0">
-                            <TextBlock Text="Recent" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <!-- Recent Block (Current Session) -->
+                        <Border Grid.Row="0" 
+                                Background="Transparent" 
+                                BorderBrush="{StaticResource BorderLightBrush}" 
+                                BorderThickness="0,0,0,1" 
+                                Padding="16,12">
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="Session:" 
+                                               FontWeight="SemiBold" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Interview with Tech Lead" 
+                                               FontWeight="Bold" 
+                                               FontSize="13" 
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                </StackPanel>
+                                
+                                <TextBlock Text="Last Modified: 2026-07-19 14:30" 
+                                           FontSize="11" 
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                           
+                                <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
+                                    <!-- Workspace path container -->
+                                    <Border Grid.Column="0" 
+                                            Background="{StaticResource BgCardBrush}" 
+                                            BorderBrush="{StaticResource BorderBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="4" 
+                                            Padding="8,4" 
+                                            Margin="0,0,8,0">
+                                        <TextBlock Text="C:\Workspaces\TechLead_2026..." 
+                                                   FontSize="11" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}" 
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+                                    
+                                    <!-- Copy button -->
+                                    <Button Grid.Column="1" 
+                                            Classes="SecondaryBtn"
+                                            Padding="6,4"
+                                            Height="24"
+                                            CornerRadius="4"
+                                            ToolTip.Tip="Copy Workspace Path">
+                                        <materialIcons:MaterialIcon Kind="ContentCopy" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
                         </Border>
-                        <!-- Primary_Blank_Placeholder -->
-                        <Border Grid.Row="1" Background="Transparent" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1">
-                            <TextBlock Text="Placeholder" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
-                        </Border>
+                        
+                        <!-- Session Files list -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <Border Background="{StaticResource BgCardBrush}"
+                                    BorderBrush="{StaticResource BorderLightBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Margin="8,8,8,0"
+                                    Padding="4">
+                                <StackPanel Spacing="2">
+                                    <!-- File 1: transcript.srt (Active) -->
+                                    <Border Classes="SidebarItem Active">
+                                        <Grid ColumnDefinitions="Auto, *">
+                                            <!-- File icon -->
+                                            <materialIcons:MaterialIcon Grid.Column="0" 
+                                                                        Kind="FileDocumentOutline" 
+                                                                        Width="14" 
+                                                                        Height="14" 
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"
+                                                                        Margin="0,0,8,0"
+                                                                        VerticalAlignment="Center"/>
+                                            <!-- File name -->
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="transcript.srt" 
+                                                       FontWeight="SemiBold" 
+                                                       FontSize="12" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- File 2: audio_source.wav (Inactive) -->
+                                    <Border Classes="SidebarItem">
+                                        <Grid ColumnDefinitions="Auto, *">
+                                            <!-- File icon -->
+                                            <materialIcons:MaterialIcon Grid.Column="0" 
+                                                                        Kind="MusicNote" 
+                                                                        Width="14" 
+                                                                        Height="14" 
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"
+                                                                        Margin="0,0,8,0"
+                                                                        VerticalAlignment="Center"/>
+                                            <!-- File name -->
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="audio_source.wav" 
+                                                       FontSize="12" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- File 3: notes.txt (Inactive) -->
+                                    <Border Classes="SidebarItem">
+                                        <Grid ColumnDefinitions="Auto, *">
+                                            <!-- File icon -->
+                                            <materialIcons:MaterialIcon Grid.Column="0" 
+                                                                        Kind="NotebookOutline" 
+                                                                        Width="14" 
+                                                                        Height="14" 
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"
+                                                                        Margin="0,0,8,0"
+                                                                        VerticalAlignment="Center"/>
+                                            <!-- File name -->
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="notes.txt" 
+                                                       FontSize="12" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </ScrollViewer>
                     </Grid>
 
                     <!-- Sidebar_Utility_Slot -->

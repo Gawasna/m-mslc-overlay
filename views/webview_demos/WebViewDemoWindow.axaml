@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.webview_demos.WebViewDemoWindow"
+        Title="WebView Demo"
+        Width="1024" Height="768"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgWindowBrush}">
+    
+    <Grid RowDefinitions="Auto, *">
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="{DynamicResource BgCardBrush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Simulate AI (Magic Cursor)" Click="SimulateSttBtn_Click" Classes="SecondaryBtn" />
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Text="Ready to type..." />
+            </StackPanel>
+        </Border>
+
+        <!-- Viewport -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel HorizontalAlignment="Center" Margin="24">
+                <!-- A4 Paper -->
+                <Border Width="680" MinHeight="960" Background="{DynamicResource BgCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="64,60">
+                    <Grid RowDefinitions="Auto, *">
+                        <!-- Header -->
+                        <Border Grid.Row="0" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,24" Padding="0,0,0,16">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="LIVE TRANSCRIPT (WebView)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" LetterSpacing="2" />
+                                <TextBlock Text="AI-Powered Bilingual Transcript Report" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="Try typing anywhere below. AI will auto-insert via Magic Cursor." FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- WebView Container Surface -->
+                        <Grid Grid.Row="1" x:Name="RootGrid" MinHeight="700" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

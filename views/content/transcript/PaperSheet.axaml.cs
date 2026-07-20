@@ -12,6 +12,28 @@ namespace m_mslc_overlay.views.content.transcript
         public PaperSheet()
         {
             InitializeComponent();
+            this.SizeChanged += PaperSheet_SizeChanged;
+        }
+
+        private void PaperSheet_SizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            double width = e.NewSize.Width;
+            var centeringStack = this.FindControl<StackPanel>("PaperCenteringStack");
+            var contentStack = this.FindControl<StackPanel>("PaperContentStack");
+
+            if (centeringStack != null && contentStack != null)
+            {
+                if (width < 728)
+                {
+                    centeringStack.Margin = new Avalonia.Thickness(56, 0, 56, 16);
+                    contentStack.Margin = new Avalonia.Thickness(16, 24);
+                }
+                else
+                {
+                    centeringStack.Margin = new Avalonia.Thickness(56, 0, 56, 24);
+                    contentStack.Margin = new Avalonia.Thickness(64, 60);
+                }
+            }
         }
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)

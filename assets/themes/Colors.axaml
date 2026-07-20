@@ -1,64 +1,71 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Base Color Brushes (Light Theme) -->
-    <SolidColorBrush x:Key="BgWindowBrush" Color="#F3F3F3" />
-    <SolidColorBrush x:Key="BgCardBrush" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="BorderBrush" Color="#CBCCC9" />
-    <SolidColorBrush x:Key="BorderLightBrush" Color="#E5E5E5" />
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#111111" />
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#666666" />
-    
-    <!-- Primary Accent (Orange) -->
-    <SolidColorBrush x:Key="PrimaryBrush" Color="#FF8400" />
-    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#E07300" />
-    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#C26300" />
-    
-    <!-- Secondary Accent (Gray) -->
-    <SolidColorBrush x:Key="SecondaryBrush" Color="#E7E8E5" />
-    <SolidColorBrush x:Key="SecondaryHoverBrush" Color="#D7D8D5" />
-    <SolidColorBrush x:Key="SecondaryPressedBrush" Color="#C7C8C5" />
-    
-    <!-- Menu/Toolbar Hover Background -->
-    <SolidColorBrush x:Key="AccentHoverBrush" Color="#F2F3F0" />
-    
-    <!-- Status Brushes -->
-    <SolidColorBrush x:Key="StatusInactiveBrush" Color="#CBCCC9" />
-    <SolidColorBrush x:Key="StatusActiveBrush" Color="#00FF00" /> <!-- Green placeholder for active hook -->
 
-    <!-- Theme Resource Overrides to enforce orange styling for Fluent controls -->
-    <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#FF8400" />
-    <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#E07300" />
-    
-    <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#FF8400" />
-    <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#FF8400" />
-    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#E07300" />
-    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#C26300" />
-    
-    <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF8400" />
-    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#E07300" />
-    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C26300" />
+    <!-- ================================================================
+         Colors.axaml  —  Theme-aware semantic color tokens
+         Uses Avalonia ThemeVariant: Light / Dark.
+         All downstream AXAML files reference these keys by name.
+         The actual color value switches automatically when RequestedThemeVariant
+         is changed at runtime by ThemeManager.
+    ================================================================ -->
 
-    <!-- ─── Transcript Viewport Semantic Tokens ────────────────────────────────
-         Derived from the app's Primary orange so the transcript stays on-schema.
-         Use these instead of raw blue hex values in transcript AXAML files.      -->
+    <!-- BgWindowBrush -->
+    <SolidColorBrush x:Key="BgWindowBrush" Color="#F3F3F3">
+        <SolidColorBrush.Transitions>
+            <Transitions>
+                <ColorTransition Property="Color" Duration="0:0:0.15"/>
+            </Transitions>
+        </SolidColorBrush.Transitions>
+    </SolidColorBrush>
 
-    <!-- Active segment left border (orange accent, muted) -->
-    <SolidColorBrush x:Key="TranscriptActiveBorderBrush" Color="#FF8400" />
-    <!-- Active segment row background (very light orange wash) -->
-    <SolidColorBrush x:Key="TranscriptActiveRowBrush" Color="#FFF4E6" />
-    <!-- Pending translation row background (amber warning, matches status bar) -->
-    <SolidColorBrush x:Key="TranscriptPendingBrush" Color="#FFFBEB" />
-    <!-- Translation text color (dark orange, stays readable on white) -->
-    <SolidColorBrush x:Key="TranscriptTranslationTextBrush" Color="#B45309" />
-    <!-- Translation block background (light orange tint) -->
-    <SolidColorBrush x:Key="TranscriptTranslationBgBrush" Color="#FFF7ED" />
-    <!-- Live cursor / recording accent (Primary orange) -->
-    <SolidColorBrush x:Key="TranscriptLiveCursorBrush" Color="#FF8400" />
-    <!-- Live cursor row background -->
-    <SolidColorBrush x:Key="TranscriptLiveCursorRowBrush" Color="#FFF4E6" />
-    <!-- Word Status Bar background — dark charcoal keeps neutrality, avoids blue -->
-    <SolidColorBrush x:Key="StatusBarBgBrush" Color="#1C1C1E" />
-    <!-- Word Status Bar text -->
-    <SolidColorBrush x:Key="StatusBarFgBrush" Color="#E5E5E5" />
+    <!-- BgCardBrush -->
+    <SolidColorBrush x:Key="BgCardBrush" Color="#FFFFFF"/>
+
+    <!-- BorderBrush -->
+    <SolidColorBrush x:Key="BorderBrush" Color="#CBCCC9"/>
+    <SolidColorBrush x:Key="BorderLightBrush" Color="#E5E5E5"/>
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#111111"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#666666"/>
+
+    <!-- Primary Accent (Orange) — theme-invariant -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#FF8400"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#E07300"/>
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#C26300"/>
+
+    <!-- Secondary Accent -->
+    <SolidColorBrush x:Key="SecondaryBrush" Color="#E7E8E5"/>
+    <SolidColorBrush x:Key="SecondaryHoverBrush" Color="#D7D8D5"/>
+    <SolidColorBrush x:Key="SecondaryPressedBrush" Color="#C7C8C5"/>
+
+    <!-- Menu/Toolbar Hover -->
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#F2F3F0"/>
+
+    <!-- Status -->
+    <SolidColorBrush x:Key="StatusInactiveBrush" Color="#CBCCC9"/>
+    <SolidColorBrush x:Key="StatusActiveBrush" Color="#00C853"/>
+
+    <!-- Fluent overrides -->
+    <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#FF8400"/>
+    <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#E07300"/>
+    <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#FF8400"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#FF8400"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#E07300"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#C26300"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF8400"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#E07300"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C26300"/>
+
+    <!-- Transcript semantic tokens -->
+    <SolidColorBrush x:Key="TranscriptActiveBorderBrush" Color="#FF8400"/>
+    <SolidColorBrush x:Key="TranscriptActiveRowBrush" Color="#FFF4E6"/>
+    <SolidColorBrush x:Key="TranscriptPendingBrush" Color="#FFFBEB"/>
+    <SolidColorBrush x:Key="TranscriptTranslationTextBrush" Color="#B45309"/>
+    <SolidColorBrush x:Key="TranscriptTranslationBgBrush" Color="#FFF7ED"/>
+    <SolidColorBrush x:Key="TranscriptLiveCursorBrush" Color="#FF8400"/>
+    <SolidColorBrush x:Key="TranscriptLiveCursorRowBrush" Color="#FFF4E6"/>
+    <SolidColorBrush x:Key="StatusBarBgBrush" Color="#1C1C1E"/>
+    <SolidColorBrush x:Key="StatusBarFgBrush" Color="#E5E5E5"/>
 
 </ResourceDictionary>

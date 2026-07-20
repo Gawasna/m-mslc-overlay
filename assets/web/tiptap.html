@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TipTap Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; height: 100vh; cursor: text; }
+        .ProseMirror { border: none; padding: 10px; min-height: calc(100vh - 20px); outline: none; }
+        .ProseMirror:focus { outline: none; }
+    </style>
+</head>
+<body>
+    <h3>TipTap Editor</h3>
+    <div id="editor"></div>
+    <script type="module">
+        import { Editor } from 'https://esm.sh/@tiptap/core'
+        import StarterKit from 'https://esm.sh/@tiptap/starter-kit'
+
+        const editor = new Editor({
+          element: document.querySelector('#editor'),
+          extensions: [
+            StarterKit,
+          ],
+          content: '<p>Hello World! This is <strong>TipTap</strong> inside Avalonia.</p>',
+        })
+        
+        window.simulateMagicCursor = function(ts, spk, text) {
+            let html = `<p><span style="color:#888; font-size:10px;">[${ts}] [${spk}]</span> ${text}</p><p style="color:#006699; font-style:italic; margin-left: 20px;">↳ [Bản dịch tạm thời đang chờ xử lý...]</p>`;
+            editor.commands.insertContentAt(editor.state.doc.content.size, html);
+        };
+        
+        window.focusEditor = function() {
+            editor.commands.focus();
+        };
+        
+        document.body.addEventListener('click', window.focusEditor);
+    </script>
+</body>
+</html>

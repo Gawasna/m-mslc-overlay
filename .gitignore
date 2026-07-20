@@ -405,3 +405,4 @@ GEMINI.md
 *.ttf
 /.kiro
 /plugins/atom32/.venv
+/plugins/atom32/tests

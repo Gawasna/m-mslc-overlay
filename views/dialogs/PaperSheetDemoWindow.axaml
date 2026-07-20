@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:avedit="https://github.com/avaloniaui/avaloniaedit"
+        x:Class="m_mslc_overlay.views.dialogs.PaperSheetDemoWindow"
+        Title="PaperSheet Concept Demo (AvaloniaEdit)"
+        Width="1024" Height="768"
+        WindowStartupLocation="CenterOwner"
+        Background="#F3F3F3">
+
+    <Grid RowDefinitions="Auto, *">
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="White" BorderBrush="#E5E5E5" BorderThickness="0,0,0,1" Padding="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Simulate AI (Magic Cursor)" Click="SimulateSttBtn_Click" />
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="Gray" Text="Ready to type..." />
+            </StackPanel>
+        </Border>
+
+        <!-- Viewport -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel HorizontalAlignment="Center" Margin="24">
+                <!-- A4 Paper -->
+                <Border Width="680" MinHeight="960" Background="White" BorderBrush="#D1D1D1" BorderThickness="1" Padding="64,60" PointerPressed="Paper_PointerPressed">
+                    <Grid RowDefinitions="Auto, *">
+                        <!-- Header -->
+                        <Border Grid.Row="0" BorderBrush="#E5E5E5" BorderThickness="0,0,0,1" Margin="0,0,0,24" Padding="0,0,0,16">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="LIVE TRANSCRIPT (AvaloniaEdit)" FontSize="9" FontWeight="Bold" Foreground="#888888" LetterSpacing="2" />
+                                <TextBlock Text="AI-Powered Bilingual Transcript Report" FontSize="16" FontWeight="Bold" Foreground="#333333" />
+                                <TextBlock Text="Try typing anywhere below. AI will auto-insert via Magic Cursor." FontSize="10" Foreground="#888888" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- AvaloniaEdit Surface -->
+                        <avedit:TextEditor Grid.Row="1" 
+                                           x:Name="Editor" 
+                                           WordWrap="True"
+                                           ShowLineNumbers="False"
+                                           Background="White"
+                                           Foreground="#333333"
+                                           FontFamily="Georgia"
+                                           FontSize="13"
+                                           HorizontalScrollBarVisibility="Hidden"
+                                           VerticalScrollBarVisibility="Hidden" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

@@ -3,7 +3,7 @@
              xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
              x:Class="m_mslc_overlay.views.content.transcript.DocumentNavigationPane"
              x:DataType="vm:NavPaneViewModel"
-             Width="220">
+             Width="220" MinWidth="180" MaxWidth="400">
 
     <Grid RowDefinitions="Auto, *" IsVisible="{Binding IsVisible}">
 
