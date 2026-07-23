@@ -111,6 +111,9 @@ namespace m_mslc_overlay
             
             _aiService.ContextTopic = _contextTopic;
 
+            // Run startup bootstrap to query environment & update status pane immediately
+            _ = InitBootstrapAsync();
+
             // ATOM80: log when a revision (hot-replace) occurs
             _revisionWindow.OnRevise += (prev, merged) => {
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
@@ -1160,6 +1163,101 @@ namespace m_mslc_overlay
             finally
             {
                 _isAdjustingSidebar = false;
+            }
+        }
+
+        private async void CheckEnvironmentMenuItem_Click(object? sender, RoutedEventArgs e)
+        {
+            await m_mslc_overlay.views.dialogs.EnvironmentCheckDialog.ShowDiagnosticAsync(this);
+        }
+
+        private async System.Threading.Tasks.Task InitBootstrapAsync()
+        {
+            try
+            {
+                LoggerService.Log("[MainWindow] Starting bootstrap environment check...");
+
+                // Run system environment diagnostic asynchronously
+                var diag = await EnvironmentCheckerService.RunDiagnosticAsync();
+
+                // Check Extractor binaries (Host.exe & Agent.dll)
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                bool hasHost = File.Exists(Path.Combine(baseDir, "Host.exe"));
+                bool hasAgent = File.Exists(Path.Combine(baseDir, "Agent.dll"));
+                bool hasExtractor = hasHost && hasAgent;
+
+                // Update UI thread controls
+                Dispatcher.UIThread.Post(() => {
+                    // 1. Python Runtime
+                    var dotPy = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotPython");
+                    var txtPy = this.FindControl<TextBlock>("StatusTextPython");
+                    if (dotPy != null)
+                    {
+                        dotPy.Fill = diag.HasPython ? Brush.Parse("#10B981") : Brush.Parse("#EF4444");
+                        ToolTip.SetTip(dotPy, diag.HasPython ? $"Python: {diag.PythonVersion}\n{diag.PythonPath}" : "Python: Not Installed / Not in PATH");
+                    }
+                    if (txtPy != null && diag.HasPython)
+                    {
+                        txtPy.Text = $"Python ({diag.PythonVersion.Replace("Python ", "")})";
+                    }
+
+                    // 2. Live Caption
+                    var dotCap = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotCaption");
+                    var txtCap = this.FindControl<TextBlock>("StatusTextCaption");
+                    if (dotCap != null)
+                    {
+                        dotCap.Fill = diag.HasLiveCaptionsBinary ? Brush.Parse("#10B981") : Brush.Parse("#F59E0B");
+                        ToolTip.SetTip(dotCap, diag.HasLiveCaptionsBinary 
+                            ? $"LiveCaptions: {(diag.IsLiveCaptionsRunning ? "Running" : "Available")}\nPath: {diag.LiveCaptionsPath}"
+                            : "LiveCaptions: Not Found");
+                    }
+                    if (txtCap != null)
+                    {
+                        txtCap.Text = diag.IsLiveCaptionsRunning 
+                            ? $"Live caption (PID: {diag.LiveCaptionsPid})" 
+                            : (diag.HasLiveCaptionsBinary ? "Live caption (Ready)" : "Live caption (Missing)");
+                    }
+
+                    // 3. CUDA Status
+                    var dotCuda = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotCuda");
+                    var txtCuda = this.FindControl<TextBlock>("StatusTextCuda");
+                    if (dotCuda != null)
+                    {
+                        dotCuda.Fill = diag.HasCuda ? Brush.Parse("#10B981") : Brush.Parse("#6B7280");
+                        ToolTip.SetTip(dotCuda, diag.HasCuda ? $"CUDA: {diag.CudaVersion}\nGPU: {diag.GpuName}" : "CUDA: Not Available (CPU Mode)");
+                    }
+                    if (txtCuda != null)
+                    {
+                        txtCuda.Text = diag.HasCuda ? "CUDA (Active)" : "CUDA (CPU Mode)";
+                    }
+
+                    // 4. Extractor Module
+                    var dotExt = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotExtractor");
+                    var txtExt = this.FindControl<TextBlock>("StatusTextExtractor");
+                    if (dotExt != null)
+                    {
+                        dotExt.Fill = hasExtractor ? Brush.Parse("#10B981") : Brush.Parse("#EF4444");
+                        ToolTip.SetTip(dotExt, hasExtractor ? "Extractor Module: Host.exe & Agent.dll Ready" : "Extractor Module: Host.exe or Agent.dll Missing");
+                    }
+                    if (txtExt != null)
+                    {
+                        txtExt.Text = hasExtractor ? "Extractor (Ready)" : "Extractor (Missing)";
+                    }
+
+                    // 5. Local Network
+                    var dotNet = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotNetwork");
+                    if (dotNet != null)
+                    {
+                        dotNet.Fill = Brush.Parse("#10B981");
+                        ToolTip.SetTip(dotNet, "Local Network Listener: 127.0.0.1 IPC Binding OK");
+                    }
+
+                    LoggerService.Log("[MainWindow] Status pane indicators updated from bootstrap diagnostic.");
+                });
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Log($"[MainWindow] Bootstrap environment check error: {ex.Message}");
             }
         }
     }

@@ -278,7 +278,7 @@
                                         <TextBlock Text="[00:03] Thank you for joining our keynote." FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         
                                         <!-- Active Line Highlight -->
-                                        <Border Background="#1AFF8400" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="1" CornerRadius="2" Padding="4,2">
+                                        <Border Background="{StaticResource TranscriptActiveRowBrush}" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="1" CornerRadius="2" Padding="4,2">
                                             <TextBlock Text="[00:08] Today we will announce our new translation engine." FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" TextWrapping="Wrap"/>
                                         </Border>
                                         

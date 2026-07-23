@@ -6,11 +6,11 @@
         Width="720" Height="480"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Background="#F9F9F9">
+        Background="{StaticResource BgWindowBrush}">
     <Grid ColumnDefinitions="200, *">
         
         <!-- Sidebar Navigation -->
-        <Border Grid.Column="0" Background="#F3F3F3" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,1,0">
             <ListBox x:Name="TabSelector" Background="Transparent" BorderThickness="0" Margin="0,8" SelectionChanged="TabSelector_SelectionChanged">
                 <ListBox.Styles>
                     <Style Selector="ListBoxItem">
@@ -19,8 +19,8 @@
                         <Setter Property="CornerRadius" Value="4"/>
                     </Style>
                     <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-                        <Setter Property="Background" Value="#E5E5E5"/>
-                        <Setter Property="Foreground" Value="#111111"/>
+                        <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
                     </Style>
                 </ListBox.Styles>
                 <ListBoxItem Content="{DynamicResource Tab_General}" IsSelected="True" />
@@ -34,7 +34,7 @@
         </Border>
         
         <!-- Content Area -->
-        <Border Grid.Column="1" Background="#FFFFFF" Padding="24">
+        <Border Grid.Column="1" Background="{StaticResource BgCardBrush}" Padding="24">
             <Grid RowDefinitions="*, Auto">
                 
                 <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
@@ -42,13 +42,13 @@
                     
                     <!-- General Tab -->
                     <StackPanel x:Name="TabGeneral" IsVisible="True" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_General}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TextBlock Text="{DynamicResource Tab_General}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <StackPanel Spacing="16">
                             <CheckBox x:Name="StartupCheck" Content="{DynamicResource Pref_General_Startup}" IsChecked="False"/>
                             <CheckBox x:Name="TrayIconCheck" Content="{DynamicResource Pref_General_TrayIcon}" IsChecked="True"/>
                             <CheckBox x:Name="CheckUpdatesCheck" Content="{DynamicResource Pref_General_CheckUpdates}" IsChecked="True"/>
                             <StackPanel Spacing="8" Margin="0,8,0,0">
-                                <TextBlock Text="{DynamicResource Pref_General_Language}" FontSize="12" Foreground="#666666"/>
+                                <TextBlock Text="{DynamicResource Pref_General_Language}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 <ComboBox x:Name="LanguageCombo" Width="240" SelectedIndex="0">
                                     <ComboBoxItem Content="Tiếng Việt (vi-VN)"/>
                                     <ComboBoxItem Content="English (en-US)"/>
@@ -59,7 +59,7 @@
                     
                     <!-- Translation Tab -->
                     <StackPanel x:Name="TabTranslation" IsVisible="False" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_Translation}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TextBlock Text="{DynamicResource Tab_Translation}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <TabControl Margin="0,-8,0,0">
                             <TabControl.Styles>
                                 <Style Selector="TabItem">
@@ -72,7 +72,7 @@
                             <TabItem Header="{DynamicResource Pref_Trans_Engine}">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="Translation Engine" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock Text="Translation Engine" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <ComboBox x:Name="TranslationEngineCombo" Width="240" SelectedIndex="0">
                                             <ComboBoxItem Content="DeepL API"/>
                                             <ComboBoxItem Content="Cloud AI (Ollama/Gemini)"/>
@@ -80,7 +80,7 @@
                                         </ComboBox>
                                     </StackPanel>
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="DeepL API Key" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock Text="DeepL API Key" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="DeepLApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="..."/>
                                     </StackPanel>
                                 </StackPanel>
@@ -90,7 +90,7 @@
                             <TabItem Header="{DynamicResource Pref_Trans_CloudAI}">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="{DynamicResource Pref_AI_Model}" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock Text="{DynamicResource Pref_AI_Model}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <ComboBox x:Name="AiModelCombo" Width="240" SelectedIndex="0">
                                             <ComboBoxItem Content="Gemini 1.5 Pro"/>
                                             <ComboBoxItem Content="Gemini 1.5 Flash"/>
@@ -98,12 +98,12 @@
                                         </ComboBox>
                                     </StackPanel>
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="{DynamicResource Pref_AI_ApiKey}" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock Text="{DynamicResource Pref_AI_ApiKey}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="ApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="sk-proj-..."/>
                                         <Button Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="{DynamicResource Pref_AI_SystemPrompt}" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock Text="{DynamicResource Pref_AI_SystemPrompt}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="SystemPromptBox" Height="100" AcceptsReturn="True" TextWrapping="Wrap" Watermark="You are a helpful translator..."/>
                                     </StackPanel>
                                 </StackPanel>
@@ -115,7 +115,7 @@
                                     
                                     <!-- Setup / Installation Assistant (Đưa lên đầu) -->
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="{DynamicResource Pref_LocalAI_ActiveModel}" FontSize="12" FontWeight="Bold" Foreground="#111111" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pref_LocalAI_ActiveModel}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                         
                                         <StackPanel Spacing="6" Margin="0,4,0,0">
                                             <RadioButton x:Name="UseNllbRadio" GroupName="ActiveModelGroup" Content="NLLB-200 600M (INT8)" Checked="ActiveModelRadio_Checked" VerticalAlignment="Center"/>
@@ -124,21 +124,21 @@
                                     </StackPanel>
 
                                     <!-- Divider -->
-                                    <Border BorderBrush="#E5E5E5" BorderThickness="0,1,0,0" Width="400" HorizontalAlignment="Left" Margin="0,4"/>
+                                    <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Width="400" HorizontalAlignment="Left" Margin="0,4"/>
 
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="{DynamicResource Pref_LocalAI_ServiceUrl}" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock Text="{DynamicResource Pref_LocalAI_ServiceUrl}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="OfflineTranslateUrlBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:11435"/>
                                     </StackPanel>
 
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="Plugin Server Directory (Thư mục Server dịch offline)" FontSize="12" Foreground="#666666"/>
+                                        <TextBlock Text="Plugin Server Directory (Thư mục Server dịch offline)" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="OfflineServerDirBox" Width="400" HorizontalAlignment="Left" Watermark="plugins/atom26"/>
                                     </StackPanel>
                                     
                                     <StackPanel Spacing="8">
-                                        <TextBlock Text="Trạng thái Plugin Server:" FontSize="12" Foreground="#666666"/>
-                                        <TextBlock x:Name="OfflineServerStateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="#666666"/>
+                                        <TextBlock Text="Trạng thái Plugin Server:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <TextBlock x:Name="OfflineServerStateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         
                                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
                                             <Button x:Name="StartOfflineServerBtn" Content="Khởi động Server" Width="130" HorizontalContentAlignment="Center" Click="StartOfflineServerBtn_Click"/>
@@ -148,7 +148,7 @@
 
                                     <StackPanel Spacing="8" Margin="0,8,0,0">
                                         <Button x:Name="TestOfflineConnectionBtn" Content="{DynamicResource Pref_AI_TestConnection}" Width="150" HorizontalContentAlignment="Center" Click="TestOfflineConnectionBtn_Click"/>
-                                        <TextBlock x:Name="OfflineStatusText" Text="" FontSize="12" Foreground="#666666" TextWrapping="Wrap" Width="400" HorizontalAlignment="Left"/>
+                                        <TextBlock x:Name="OfflineStatusText" Text="" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Width="400" HorizontalAlignment="Left"/>
                                     </StackPanel>
                                 </StackPanel>
                             </TabItem>
@@ -157,17 +157,17 @@
                     
                     <!-- Appearance Tab -->
                     <StackPanel x:Name="TabAppearance" IsVisible="False" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_Appearance}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TextBlock Text="{DynamicResource Tab_Appearance}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <!-- Mock content for Appearance -->
-                        <TextBlock Text="Cấu hình giao diện sẽ được bổ sung sau." Foreground="#666666"/>
+                        <TextBlock Text="Cấu hình giao diện sẽ được bổ sung sau." Foreground="{StaticResource TextSecondaryBrush}"/>
                     </StackPanel>
 
                     <!-- Network Tab -->
                     <StackPanel x:Name="TabNetwork" IsVisible="False" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_Network}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TextBlock Text="{DynamicResource Tab_Network}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <StackPanel Spacing="16">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="{DynamicResource Pref_Advanced_Network}" FontSize="12" Foreground="#666666"/>
+                                <TextBlock Text="{DynamicResource Pref_Advanced_Network}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 <TextBox x:Name="NetworkProxyBox" Width="400" HorizontalAlignment="Left" Watermark="http://127.0.0.1:8080"/>
                             </StackPanel>
                         </StackPanel>
@@ -175,14 +175,14 @@
 
                     <!-- Utilities Tab -->
                     <StackPanel x:Name="TabUtilities" IsVisible="False" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_Utilities}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TextBlock Text="{DynamicResource Tab_Utilities}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                         
-                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,8">
+                        <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,8">
                             <StackPanel Spacing="16">
                                 <!-- Thông tin -->
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="{DynamicResource Pref_Utilities_OfflineTranslation}" FontSize="15" FontWeight="SemiBold" Foreground="#111111"/>
-                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2)." FontSize="13" Foreground="#6B7280" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{DynamicResource Pref_Utilities_OfflineTranslation}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
                                 <!-- Controls -->
@@ -200,12 +200,12 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="20">
+                        <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="20">
                             <StackPanel Spacing="16">
                                 <!-- Thông tin -->
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="{DynamicResource Pref_Utilities_SpeakerLabeling}" FontSize="15" FontWeight="SemiBold" Foreground="#111111"/>
-                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization)." FontSize="13" Foreground="#6B7280" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{DynamicResource Pref_Utilities_SpeakerLabeling}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
                                 <!-- Controls -->
@@ -222,18 +222,29 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
+
+                        <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,8,0,0">
+                            <StackPanel Spacing="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Chẩn đoán &amp; Kiểm tra Môi trường Hệ thống" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Quét toàn bộ UAC, Python, Pip, thông số CPU/xung/tải, GPU/CUDA và binary LiveCaptions.exe" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                
+                                <Button x:Name="RunEnvCheckBtn" Click="RunEnvCheckBtn_Click" Classes="PrimaryBtn" Content="Chạy kiểm tra môi trường (UAC)" Padding="16,8" CornerRadius="6" Cursor="Hand"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                     
                     <!-- Advanced Tab -->
                     <StackPanel x:Name="TabAdvanced" IsVisible="False" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_Advanced}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TextBlock Text="{DynamicResource Tab_Advanced}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <StackPanel Spacing="16">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="{DynamicResource Pref_Advanced_PipeName}" FontSize="12" Foreground="#666666"/>
+                                <TextBlock Text="{DynamicResource Pref_Advanced_PipeName}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 <TextBox x:Name="PipeNameBox" Width="240" HorizontalAlignment="Left" Text="MSLCCaptionPipe"/>
                             </StackPanel>
                             <StackPanel Spacing="8">
-                                <TextBlock Text="{DynamicResource Pref_Advanced_LogDir}" FontSize="12" Foreground="#666666"/>
+                                <TextBlock Text="{DynamicResource Pref_Advanced_LogDir}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 <Grid ColumnDefinitions="*, Auto" Width="400" HorizontalAlignment="Left">
                                     <TextBox Grid.Column="0" Text="./logs/" IsReadOnly="True" Margin="0,0,8,0"/>
                                     <Button Grid.Column="1" Content="{DynamicResource Pref_Advanced_OpenDir}"/>
@@ -245,30 +256,30 @@
 
                     <!-- Hotkeys Tab -->
                     <StackPanel x:Name="TabHotkeys" IsVisible="False" Spacing="24">
-                        <TextBlock Text="{DynamicResource Tab_Hotkeys}" FontSize="24" FontWeight="SemiBold" Foreground="#111111"/>
+                        <TextBlock Text="{DynamicResource Tab_Hotkeys}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <StackPanel Spacing="16">
                             <CheckBox x:Name="EnableHotkeysCheck" Content="{DynamicResource Pref_Hotkeys_Enable}" IsChecked="True"/>
                             
-                            <TextBlock Text="{DynamicResource Pref_Hotkeys_ListTitle}" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,0" Foreground="#333333"/>
+                            <TextBlock Text="{DynamicResource Pref_Hotkeys_ListTitle}" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,0" Foreground="{StaticResource TextPrimaryBrush}"/>
                             
                             <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="220,*" Margin="0,4,0,0">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ToggleOverlay}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Alt + Shift + O" Foreground="#FF8400" Padding="0,6"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Alt + Shift + O" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
                                 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ToggleTranslate}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Alt + Shift + T" Foreground="#FF8400" Padding="0,6"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Alt + Shift + T" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
                                 
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_CycleLanguage}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Alt + Shift + L" Foreground="#FF8400" Padding="0,6"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Alt + Shift + L" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
                                 
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ClearText}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="Alt + Shift + C" Foreground="#FF8400" Padding="0,6"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="Alt + Shift + C" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
                                 
                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_FontSizeUp}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="4" Grid.Column="1" Text="Alt + Shift + Up" Foreground="#FF8400" Padding="0,6"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="Alt + Shift + Up" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
                                 
                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_FontSizeDown}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" Text="Alt + Shift + Down" Foreground="#FF8400" Padding="0,6"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="Alt + Shift + Down" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
                             </Grid>
                         </StackPanel>
                     </StackPanel>
@@ -278,8 +289,8 @@
                 
                 <!-- Action Buttons -->
                 <Grid Grid.Row="1" ColumnDefinitions="Auto, *, Auto" Margin="0,24,0,0">
-                    <Button Grid.Column="0" Content="{DynamicResource Pref_Action_Reset}" Click="ResetBtn_Click" Classes="SecondaryBtn" Background="#F3F3F3" Padding="16,8"/>
-                    <Button Grid.Column="2" Content="{DynamicResource Pref_Action_Close}" Click="CloseBtn_Click" Background="#111111" Foreground="#FFFFFF" Padding="24,8"/>
+                    <Button Grid.Column="0" Content="{DynamicResource Pref_Action_Reset}" Click="ResetBtn_Click" Classes="SecondaryBtn" Padding="16,8"/>
+                    <Button Grid.Column="2" Content="{DynamicResource Pref_Action_Close}" Click="CloseBtn_Click" Classes="PrimaryBtn" Padding="24,8"/>
                 </Grid>
                 
             </Grid>

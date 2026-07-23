@@ -15,7 +15,7 @@
             <TextBlock x:Name="ModelNameText" Text="Mô hình: facebook/nllb-200-distilled-600m" FontSize="12" Foreground="#666666"/>
             
             <!-- Current step info -->
-            <TextBlock x:Name="CurrentStepText" Text="Đang khởi động..." FontSize="11" Foreground="#FF8400" FontWeight="Bold" Margin="0,4,0,0"/>
+            <TextBlock x:Name="CurrentStepText" Text="Đang khởi động..." FontSize="11" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" Margin="0,4,0,0"/>
         </StackPanel>
         
         <!-- Center Content (Progress & Logs) -->

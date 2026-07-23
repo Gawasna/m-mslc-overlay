@@ -29,10 +29,10 @@
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="#111111"/>
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#666666"/>
 
-    <!-- Primary Accent (Orange) — theme-invariant -->
-    <SolidColorBrush x:Key="PrimaryBrush" Color="#FF8400"/>
-    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#E07300"/>
-    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#C26300"/>
+    <!-- Primary Accent (Windows Fluent Blue) — theme-invariant -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#106EBE"/>
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#005A9E"/>
 
     <!-- Secondary Accent -->
     <SolidColorBrush x:Key="SecondaryBrush" Color="#E7E8E5"/>
@@ -47,24 +47,41 @@
     <SolidColorBrush x:Key="StatusActiveBrush" Color="#00C853"/>
 
     <!-- Fluent overrides -->
-    <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#FF8400"/>
-    <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#E07300"/>
-    <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#FF8400"/>
-    <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#FF8400"/>
-    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#E07300"/>
-    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#C26300"/>
-    <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF8400"/>
-    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#E07300"/>
-    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C26300"/>
+    <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#0078D4"/>
+    <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#106EBE"/>
+    <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#0078D4"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#0078D4"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#106EBE"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#005A9E"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#0078D4"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#106EBE"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#005A9E"/>
+
+    <!-- RadioButton Fluent overrides -->
+    <SolidColorBrush x:Key="RadioButtonBackground" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBackgroundPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBackgroundPressed" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBackgroundDisabled" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBackgroundChecked" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBackgroundCheckedPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBackgroundCheckedPressed" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBorderBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBorderBrushPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBorderBrushPressed" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonBorderBrushChecked" Color="Transparent"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseStrokeChecked" Color="#0078D4"/>
+    <SolidColorBrush x:Key="RadioButtonCheckGlyphFillChecked" Color="#0078D4"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseStrokeCheckedPointerOver" Color="#106EBE"/>
+    <SolidColorBrush x:Key="RadioButtonCheckGlyphFillCheckedPointerOver" Color="#106EBE"/>
 
     <!-- Transcript semantic tokens -->
-    <SolidColorBrush x:Key="TranscriptActiveBorderBrush" Color="#FF8400"/>
-    <SolidColorBrush x:Key="TranscriptActiveRowBrush" Color="#FFF4E6"/>
-    <SolidColorBrush x:Key="TranscriptPendingBrush" Color="#FFFBEB"/>
-    <SolidColorBrush x:Key="TranscriptTranslationTextBrush" Color="#B45309"/>
-    <SolidColorBrush x:Key="TranscriptTranslationBgBrush" Color="#FFF7ED"/>
-    <SolidColorBrush x:Key="TranscriptLiveCursorBrush" Color="#FF8400"/>
-    <SolidColorBrush x:Key="TranscriptLiveCursorRowBrush" Color="#FFF4E6"/>
+    <SolidColorBrush x:Key="TranscriptActiveBorderBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="TranscriptActiveRowBrush" Color="#EFF6FF"/>
+    <SolidColorBrush x:Key="TranscriptPendingBrush" Color="#F0F7FF"/>
+    <SolidColorBrush x:Key="TranscriptTranslationTextBrush" Color="#1D4ED8"/>
+    <SolidColorBrush x:Key="TranscriptTranslationBgBrush" Color="#EFF6FF"/>
+    <SolidColorBrush x:Key="TranscriptLiveCursorBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="TranscriptLiveCursorRowBrush" Color="#EFF6FF"/>
     <SolidColorBrush x:Key="StatusBarBgBrush" Color="#1C1C1E"/>
     <SolidColorBrush x:Key="StatusBarFgBrush" Color="#E5E5E5"/>
 

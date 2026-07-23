@@ -12,7 +12,7 @@
     <Window.Styles>
         <Style Selector="Border.SidebarItem">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Margin" Value="0,2"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -27,8 +27,8 @@
             <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
         </Style>
         <Style Selector="Border.SidebarItem.Active">
-            <Setter Property="Background" Value="#E8F0FE"/>
-            <Setter Property="BorderBrush" Value="#B6D0FC"/>
+            <Setter Property="Background" Value="{StaticResource TranscriptActiveRowBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
         <Style Selector="Border.SidebarItem.Active TextBlock">
@@ -120,6 +120,7 @@
                 </MenuItem>
                 <MenuItem Header="{DynamicResource Menu_Help}">
                     <MenuItem Header="{DynamicResource Menu_ViewDocumentation}" InputGesture="F1" />
+                    <MenuItem Header="Kiểm tra môi trường hệ thống (UAC)..." Click="CheckEnvironmentMenuItem_Click" />
                     <MenuItem Header="{DynamicResource Menu_CheckForUpdates}" />
                     <MenuItem Header="{DynamicResource Menu_AboutControlCenter}" />
                 </MenuItem>
@@ -247,7 +248,7 @@
                                             Background="{StaticResource BgCardBrush}" 
                                             BorderBrush="{StaticResource BorderBrush}" 
                                             BorderThickness="1" 
-                                            CornerRadius="4" 
+                                            CornerRadius="0" 
                                             Padding="8,4" 
                                             Margin="0,0,8,0">
                                         <TextBlock Text="C:\Workspaces\TechLead_2026..." 
@@ -265,7 +266,7 @@
                                                 Classes="SecondaryBtn ToggleSidebarBtn"
                                                 Padding="6,4"
                                                 Height="24"
-                                                CornerRadius="4"
+                                                CornerRadius="0"
                                                 ToolTip.Tip="Expand/Collapse Sidebar">
                                             <materialIcons:MaterialIcon Kind="DockLeft" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
                                         </Button>
@@ -274,7 +275,7 @@
                                         <Button Classes="SecondaryBtn CopyPathBtn"
                                                 Padding="6,4"
                                                 Height="24"
-                                                CornerRadius="4"
+                                                CornerRadius="0"
                                                 ToolTip.Tip="Copy Workspace Path">
                                             <materialIcons:MaterialIcon Kind="ContentCopy" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
                                         </Button>
@@ -285,11 +286,11 @@
                         
                         <!-- Session Files list -->
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <Border Background="{StaticResource BgCardBrush}"
+                            <Border Background="Transparent"
                                     BorderBrush="{StaticResource BorderLightBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Margin="8,8,8,0"
+                                    BorderThickness="0,0,0,1"
+                                    CornerRadius="0"
+                                    Margin="0"
                                     Padding="4">
                                 <StackPanel Spacing="2">
                                     <!-- File 1: transcript.srt (Active) -->
@@ -353,7 +354,7 @@
                     <!-- Sidebar_Utility_Slot -->
                     <Grid Grid.Row="1" RowDefinitions="Auto, *">
                         <!-- Status Block -->
-                        <Border Grid.Row="0" Height="24" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,1" Padding="12,0">
+                        <Border Grid.Row="0" Height="24" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,1" Padding="12,0">
                             <TextBlock Text="Status" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
                         </Border>
                         <!-- Status List -->
@@ -361,28 +362,28 @@
                             <StackPanel Spacing="10">
                                 <!-- Python runtime -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotPython" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Python runtime" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotPython" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextPython" Text="Python runtime" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- Live caption -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotCaption" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Live caption" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotCaption" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextCaption" Text="Live caption" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- CUDA status -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotCuda" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="CUDA status" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotCuda" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextCuda" Text="CUDA status" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- Extractor module -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotExtractor" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Extractor module" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotExtractor" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextExtractor" Text="Extractor module" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- Local Network -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotNetwork" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Local Network" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotNetwork" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextNetwork" Text="Local Network" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -404,8 +405,8 @@
         <!-- 4. Downbar (Status Bar) -->
         <Border Grid.Row="3" 
                 Height="24" 
-                Background="#F3F3F3" 
-                BorderBrush="#E5E5E5" 
+                Background="{StaticResource BgWindowBrush}" 
+                BorderBrush="{StaticResource BorderLightBrush}" 
                 BorderThickness="0,1,0,0"
                 Padding="12,0">
             <Grid ColumnDefinitions="*, Auto, *">
@@ -413,7 +414,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
                     <TextBlock x:Name="StatusBarMainText" 
                                Text="{DynamicResource Status_Ready}" 
-                               Foreground="#666666" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
                                FontSize="11"/>
                 </StackPanel>
 
@@ -421,7 +422,7 @@
                 <TextBlock Grid.Column="1" 
                            x:Name="StatusBarInfoText"
                            Text="AI Model: Gemini 1.5 Pro | Topic: Game/Phim" 
-                           Foreground="#888888" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
                            FontSize="11" 
                            VerticalAlignment="Center"/>
 
@@ -434,25 +435,25 @@
                     <!-- Resource Usage -->
                     <TextBlock x:Name="ResourceUsageText" 
                                Text="SYS: 0% CPU 0MB | APP: 0% CPU 0MB" 
-                               Foreground="#888888" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
                                FontSize="11" 
                                VerticalAlignment="Center"/>
                                
                     <!-- Target PID -->
                     <TextBlock x:Name="TargetPidText" 
                                Text="{DynamicResource Status_PidNotRunning}" 
-                               Foreground="#666666" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
                                FontSize="11"/>
                     
                     <!-- Hook Status -->
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <Ellipse x:Name="HookStatusDot" 
                                  Width="8" Height="8" 
-                                 Fill="#CBCCC9" 
+                                 Fill="{StaticResource StatusInactiveBrush}" 
                                  VerticalAlignment="Center"/>
                         <TextBlock x:Name="HookStatusText" 
                                    Text="{DynamicResource Status_Disconnected}" 
-                                   Foreground="#666666" 
+                                   Foreground="{StaticResource TextSecondaryBrush}" 
                                    FontSize="11" 
                                    VerticalAlignment="Center"/>
                     </StackPanel>

@@ -1,0 +1,123 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="m_mslc_overlay.views.dialogs.EnvironmentCheckDialog"
+        Title="Chẩn Đoán Môi Trường Hệ Thống"
+        Width="640" Height="560"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F9F9F9">
+    
+    <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <materialIcons:MaterialIcon Kind="ShieldCheck" Width="22" Height="22" Foreground="#10B981" VerticalAlignment="Center"/>
+                        <TextBlock Text="Kiểm Tra Môi Trường &amp; Phụ Thuộc" FontSize="18" FontWeight="Bold" Foreground="#111111" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="Kết quả quét chi tiết phần cứng, môi trường Python và binary LiveCaptions.exe" FontSize="12" Foreground="#666666"/>
+                </StackPanel>
+                
+                <Border Grid.Column="1" x:Name="UacBadge" Background="#EFF6FF" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
+                    <TextBlock x:Name="UacText" Text="UAC: Administrator" FontSize="11" FontWeight="SemiBold" Foreground="#1D4ED8"/>
+                </Border>
+            </Grid>
+        </Border>
+        
+        <!-- Main Content (Diagnostic Results) -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+                
+                <!-- 1. Python Check Card -->
+                <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                    <Grid ColumnDefinitions="36, *, Auto">
+                        <materialIcons:MaterialIcon Grid.Column="0" Kind="LanguagePython" Width="24" Height="24" Foreground="#306998" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                            <TextBlock Text="Môi Trường Python" FontSize="14" FontWeight="SemiBold" Foreground="#111111"/>
+                            <TextBlock x:Name="PythonVerText" Text="Phiên bản: Đang kiểm tra..." FontSize="12" Foreground="#333333"/>
+                            <TextBlock x:Name="PythonPathText" Text="Đường dẫn: ---" FontSize="11" Foreground="#666666" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" x:Name="PythonStatusBadge" Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="4" Padding="8,2" Height="24" VerticalAlignment="Top">
+                            <TextBlock x:Name="PythonStatusText" Text="FAIL" FontSize="11" FontWeight="Bold" Foreground="#DC2626"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- 2. Pip Check Card -->
+                <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                    <Grid ColumnDefinitions="36, *, Auto">
+                        <materialIcons:MaterialIcon Grid.Column="0" Kind="PackageVariantClosed" Width="24" Height="24" Foreground="#3776AB" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                            <TextBlock Text="Trình Quản Lý Gói Pip" FontSize="14" FontWeight="SemiBold" Foreground="#111111"/>
+                            <TextBlock x:Name="PipVerText" Text="Phiên bản: Đang kiểm tra..." FontSize="12" Foreground="#333333" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" x:Name="PipStatusBadge" Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="4" Padding="8,2" Height="24" VerticalAlignment="Top">
+                            <TextBlock x:Name="PipStatusText" Text="FAIL" FontSize="11" FontWeight="Bold" Foreground="#DC2626"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- 3. CPU Info Card -->
+                <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                    <Grid ColumnDefinitions="36, *">
+                        <materialIcons:MaterialIcon Grid.Column="0" Kind="Cpu64Bit" Width="24" Height="24" Foreground="#4F46E5" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                            <TextBlock Text="Thông Tin Bộ Vi Xử Lý (CPU)" FontSize="14" FontWeight="SemiBold" Foreground="#111111"/>
+                            <TextBlock x:Name="CpuModelText" Text="Model: Đang kiểm tra..." FontSize="12" Foreground="#333333"/>
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <TextBlock x:Name="CpuClockText" Text="Xung nhịp: ---" FontSize="12" Foreground="#666666"/>
+                                <TextBlock x:Name="CpuLoadText" Text="Tải trung bình: ---" FontSize="12" Foreground="#666666"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- 4. GPU & CUDA Card -->
+                <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                    <Grid ColumnDefinitions="36, *, Auto">
+                        <materialIcons:MaterialIcon Grid.Column="0" Kind="ExpansionCard" Width="24" Height="24" Foreground="#10B981" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                            <TextBlock Text="Card Đồ Họa &amp; Tăng Tốc CUDA (GPU)" FontSize="14" FontWeight="SemiBold" Foreground="#111111"/>
+                            <TextBlock x:Name="GpuNameText" Text="GPU: Đang kiểm tra..." FontSize="12" Foreground="#333333"/>
+                            <TextBlock x:Name="CudaStatusText" Text="CUDA: ---" FontSize="11" Foreground="#666666"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" x:Name="CudaStatusBadge" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Padding="8,2" Height="24" VerticalAlignment="Top">
+                            <TextBlock x:Name="CudaBadgeText" Text="CPU Mode" FontSize="11" FontWeight="Bold" Foreground="#4B5563"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- 5. LiveCaptions.exe Binary Card -->
+                <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                    <Grid ColumnDefinitions="36, *, Auto">
+                        <materialIcons:MaterialIcon Grid.Column="0" Kind="ApplicationCog" Width="24" Height="24" Foreground="#F59E0B" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                        <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+                            <TextBlock Text="Binary LiveCaptions.exe (Windows)" FontSize="14" FontWeight="SemiBold" Foreground="#111111"/>
+                            <TextBlock x:Name="LiveCaptionsStateText" Text="Trạng thái: Đang kiểm tra..." FontSize="12" Foreground="#333333"/>
+                            <TextBlock x:Name="LiveCaptionsPathText" Text="Đường dẫn: ---" FontSize="11" Foreground="#666666" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" x:Name="LiveCaptionsBadge" Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="4" Padding="8,2" Height="24" VerticalAlignment="Top">
+                            <TextBlock x:Name="LiveCaptionsBadgeText" Text="NOT FOUND" FontSize="11" FontWeight="Bold" Foreground="#DC2626"/>
+                        </Border>
+                    </Grid>
+                </Border>
+                
+                <!-- Raw Log Console Output Expander -->
+                <Expander Header="Nhật ký chẩn đoán chi tiết (Raw Output)" HorizontalAlignment="Stretch" Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8">
+                    <TextBox x:Name="RawLogBox" Height="140" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontSize="11" FontFamily="Consolas,Monospace" Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="1" Padding="8"/>
+                </Expander>
+
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- Footer: ONLY ONE CLOSE BUTTON -->
+        <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,16,0,0">
+            <TextBlock Text="Kết quả kiểm tra đã được ghi nhận vào nhật ký hệ thống." FontSize="11" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" x:Name="CloseBtn" Content="Đóng" Width="120" Height="36" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="CloseBtn_Click" Background="#111111" Foreground="#FFFFFF" CornerRadius="6" FontWeight="SemiBold" Cursor="Hand"/>
+        </Grid>
+        
+    </Grid>
+</Window>

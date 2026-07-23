@@ -369,5 +369,10 @@ namespace m_mslc_overlay.views.dialogs
                 _ = MessageDialog.ShowAsync(this, "Lỗi", $"Lỗi khi xóa mô hình: {ex.Message}");
             }
         }
+
+        private async void RunEnvCheckBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            await EnvironmentCheckDialog.ShowDiagnosticAsync(this);
+        }
     }
 }

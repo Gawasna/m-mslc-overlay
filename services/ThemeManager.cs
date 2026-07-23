@@ -115,8 +115,8 @@ namespace m_mslc_overlay.services
             {
                 Set(res, "BgWindowBrush",          "#1C1C1E");
                 Set(res, "BgCardBrush",            "#2C2C2E");
-                Set(res, "BorderBrush",            "#3A3A3C");
-                Set(res, "BorderLightBrush",       "#2C2C2E");
+                Set(res, "BorderBrush",            "#444446");
+                Set(res, "BorderLightBrush",       "#38383A");
                 Set(res, "TextPrimaryBrush",       "#F2F2F7");
                 Set(res, "TextSecondaryBrush",     "#AEAEB2");
                 Set(res, "SecondaryBrush",         "#3A3A3C");
@@ -125,12 +125,12 @@ namespace m_mslc_overlay.services
                 Set(res, "AccentHoverBrush",       "#2C2C2E");
                 Set(res, "StatusInactiveBrush",    "#48484A");
 
-                // Transcript tokens — dark variants
-                Set(res, "TranscriptActiveRowBrush",       "#2E2000");
-                Set(res, "TranscriptPendingBrush",         "#1F1A00");
-                Set(res, "TranscriptTranslationTextBrush", "#FBB042");
-                Set(res, "TranscriptTranslationBgBrush",   "#2E2000");
-                Set(res, "TranscriptLiveCursorRowBrush",   "#2E2000");
+                // Transcript tokens — dark variants (blue accent)
+                Set(res, "TranscriptActiveRowBrush",       "#0F2942");
+                Set(res, "TranscriptPendingBrush",         "#0B1E33");
+                Set(res, "TranscriptTranslationTextBrush", "#60A5FA");
+                Set(res, "TranscriptTranslationBgBrush",   "#0F2942");
+                Set(res, "TranscriptLiveCursorRowBrush",   "#0F2942");
                 Set(res, "StatusBarBgBrush",               "#0C0C0E");
                 Set(res, "StatusBarFgBrush",               "#AEAEB2");
 
@@ -151,12 +151,12 @@ namespace m_mslc_overlay.services
                 Set(res, "AccentHoverBrush",       "#F2F3F0");
                 Set(res, "StatusInactiveBrush",    "#CBCCC9");
 
-                // Transcript tokens — light variants
-                Set(res, "TranscriptActiveRowBrush",       "#FFF4E6");
-                Set(res, "TranscriptPendingBrush",         "#FFFBEB");
-                Set(res, "TranscriptTranslationTextBrush", "#B45309");
-                Set(res, "TranscriptTranslationBgBrush",   "#FFF7ED");
-                Set(res, "TranscriptLiveCursorRowBrush",   "#FFF4E6");
+                // Transcript tokens — light variants (blue accent)
+                Set(res, "TranscriptActiveRowBrush",       "#EFF6FF");
+                Set(res, "TranscriptPendingBrush",         "#F0F7FF");
+                Set(res, "TranscriptTranslationTextBrush", "#1D4ED8");
+                Set(res, "TranscriptTranslationBgBrush",   "#EFF6FF");
+                Set(res, "TranscriptLiveCursorRowBrush",   "#EFF6FF");
                 Set(res, "StatusBarBgBrush",               "#1C1C1E");
                 Set(res, "StatusBarFgBrush",               "#E5E5E5");
 
