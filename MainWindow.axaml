@@ -19,13 +19,20 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
+        <Style Selector="Border.SidebarItem materialIcons|MaterialIcon">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
         <Style Selector="Border.SidebarItem:pointerover">
             <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
         </Style>
         <Style Selector="Border.SidebarItem.Active">
-            <Setter Property="Background" Value="{StaticResource BgCardBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}"/>
+            <Setter Property="Background" Value="#E8F0FE"/>
+            <Setter Property="BorderBrush" Value="#B6D0FC"/>
             <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Border.SidebarItem.Active TextBlock">
+            <Setter Property="TextDecorations" Value="Underline"/>
         </Style>
 
         <!-- Responsive Sidebar Mini Mode styles -->
@@ -33,12 +40,39 @@
             <Setter Property="IsVisible" Value="False"/>
         </Style>
         <Style Selector="Border.Mini Border.SidebarItem">
-            <Setter Property="Padding" Value="0,6"/>
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
         </Style>
-        <Style Selector="Border.Mini materialIcons|MaterialIcon">
+        <Style Selector="Border.Mini Border.SidebarItem materialIcons|MaterialIcon">
             <Setter Property="Margin" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="2"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Mini mode Recent Block responsive adjustments -->
+        <Style Selector="Border.Mini Border.RecentBlock">
+            <Setter Property="Padding" Value="0,12"/>
+        </Style>
+        <Style Selector="Border.Mini Border.PathBorder">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.Mini StackPanel.PathActions">
+            <Setter Property="Orientation" Value="Vertical"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Spacing" Value="6"/>
+        </Style>
+        <Style Selector="Border.Mini Button.ToggleSidebarBtn">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="Border.Mini Button.CopyPathBtn">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
         </Style>
     </Window.Styles>
 
@@ -172,11 +206,11 @@
         </Border>
 
         <!-- 3. Blank Section (Content Area) -->
-        <Grid Grid.Row="2" x:Name="MainContentGrid" ColumnDefinitions="Auto, *">
+        <Grid Grid.Row="2" x:Name="MainContentGrid" ColumnDefinitions="240, Auto, *">
             <!-- Sidebar_Panel -->
             <Border Grid.Column="0" 
                     x:Name="SidebarBorder"
-                    Width="240"
+                    HorizontalAlignment="Stretch"
                     Background="{StaticResource BgWindowBrush}" 
                     BorderBrush="{StaticResource BorderLightBrush}" 
                     BorderThickness="0,0,1,0">
@@ -185,6 +219,7 @@
                     <Grid Grid.Row="0" RowDefinitions="Auto, *">
                         <!-- Recent Block (Current Session) -->
                         <Border Grid.Row="0" 
+                                Classes="RecentBlock"
                                 Background="Transparent" 
                                 BorderBrush="{StaticResource BorderLightBrush}" 
                                 BorderThickness="0,0,0,1" 
@@ -208,6 +243,7 @@
                                 <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
                                     <!-- Workspace path container -->
                                     <Border Grid.Column="0" 
+                                            Classes="PathBorder"
                                             Background="{StaticResource BgCardBrush}" 
                                             BorderBrush="{StaticResource BorderBrush}" 
                                             BorderThickness="1" 
@@ -221,15 +257,28 @@
                                                    TextTrimming="CharacterEllipsis"/>
                                     </Border>
                                     
-                                    <!-- Copy button -->
-                                    <Button Grid.Column="1" 
-                                            Classes="SecondaryBtn"
-                                            Padding="6,4"
-                                            Height="24"
-                                            CornerRadius="4"
-                                            ToolTip.Tip="Copy Workspace Path">
-                                        <materialIcons:MaterialIcon Kind="ContentCopy" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
-                                    </Button>
+                                    <!-- Actions Panel -->
+                                    <StackPanel Grid.Column="1" Classes="PathActions" Orientation="Horizontal" Spacing="4">
+                                        <!-- Toggle Sidebar Button -->
+                                        <Button x:Name="ToggleSidebarBtn"
+                                                Click="ToggleSidebarBtn_Click"
+                                                Classes="SecondaryBtn ToggleSidebarBtn"
+                                                Padding="6,4"
+                                                Height="24"
+                                                CornerRadius="4"
+                                                ToolTip.Tip="Expand/Collapse Sidebar">
+                                            <materialIcons:MaterialIcon Kind="DockLeft" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        </Button>
+                                        
+                                        <!-- Copy button -->
+                                        <Button Classes="SecondaryBtn CopyPathBtn"
+                                                Padding="6,4"
+                                                Height="24"
+                                                CornerRadius="4"
+                                                ToolTip.Tip="Copy Workspace Path">
+                                            <materialIcons:MaterialIcon Kind="ContentCopy" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        </Button>
+                                    </StackPanel>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -251,13 +300,10 @@
                                                                         Kind="FileDocumentOutline" 
                                                                         Width="14" 
                                                                         Height="14" 
-                                                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                                                        Margin="0,0,8,0"
-                                                                        VerticalAlignment="Center"/>
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
                                             <!-- File name -->
                                             <TextBlock Grid.Column="1" 
                                                        Text="transcript.srt" 
-                                                       FontWeight="SemiBold" 
                                                        FontSize="12" 
                                                        Foreground="{StaticResource TextPrimaryBrush}"
                                                        VerticalAlignment="Center"/>
@@ -272,9 +318,7 @@
                                                                         Kind="MusicNote" 
                                                                         Width="14" 
                                                                         Height="14" 
-                                                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                                                        Margin="0,0,8,0"
-                                                                        VerticalAlignment="Center"/>
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
                                             <!-- File name -->
                                             <TextBlock Grid.Column="1" 
                                                        Text="audio_source.wav" 
@@ -292,9 +336,7 @@
                                                                         Kind="NotebookOutline" 
                                                                         Width="14" 
                                                                         Height="14" 
-                                                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                                                        Margin="0,0,8,0"
-                                                                        VerticalAlignment="Center"/>
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
                                             <!-- File name -->
                                             <TextBlock Grid.Column="1" 
                                                        Text="notes.txt" 
@@ -348,9 +390,15 @@
                 </Grid>
             </Border>
 
+            <!-- Sidebar Drag Splitter -->
+            <GridSplitter Grid.Column="1" 
+                          Width="5" 
+                          Background="Transparent"
+                          ResizeBehavior="PreviousAndNext"/>
+
             <!-- Main_Viewport: Transcript Viewport (Word-style bilingual transcript) -->
             <transcript:TranscriptViewport x:Name="TranscriptViewport"
-                                           Grid.Column="1" />
+                                           Grid.Column="2" />
         </Grid>
 
         <!-- 4. Downbar (Status Bar) -->

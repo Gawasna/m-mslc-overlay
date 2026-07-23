@@ -59,6 +59,8 @@ namespace m_mslc_overlay
         }
         private HookState _currentHookState = HookState.Waiting;
         private bool _userNavPanePreference = true;
+        private bool _isAdjustingSidebar = false;
+        private double _userSidebarWidth = 240.0;
 
         public MainWindow()
         {
@@ -283,6 +285,11 @@ namespace m_mslc_overlay
 
             // Register responsive layout events
             this.SizeChanged += MainWindow_SizeChanged;
+            var sidebar = this.FindControl<Border>("SidebarBorder");
+            if (sidebar != null)
+            {
+                sidebar.SizeChanged += SidebarBorder_SizeChanged;
+            }
             if (TranscriptViewport?.ViewModel?.NavPane != null)
             {
                 TranscriptViewport.ViewModel.NavPane.PropertyChanged += (s, ev) =>
@@ -971,32 +978,68 @@ namespace m_mslc_overlay
 
         private void UpdateResponsiveLayout(double width)
         {
-            // 1. Sidebar Panel Responsive Control
+            var grid = this.FindControl<Grid>("MainContentGrid");
             var sidebar = this.FindControl<Border>("SidebarBorder");
-            if (sidebar != null)
+            if (sidebar != null && grid != null && grid.ColumnDefinitions.Count > 0)
             {
                 if (width >= 1200)
                 {
-                    sidebar.Width = 240;
                     sidebar.IsVisible = true;
                     if (sidebar.Classes.Contains("Mini"))
                     {
                         sidebar.Classes.Remove("Mini");
+                        _isAdjustingSidebar = true;
+                        try
+                        {
+                            grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(_userSidebarWidth) };
+                        }
+                        finally
+                        {
+                            _isAdjustingSidebar = false;
+                        }
+                    }
+                    else if (grid.ColumnDefinitions[0].Width.Value < 160)
+                    {
+                        _isAdjustingSidebar = true;
+                        try
+                        {
+                            grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(_userSidebarWidth) };
+                        }
+                        finally
+                        {
+                            _isAdjustingSidebar = false;
+                        }
                     }
                 }
                 else if (width >= 768)
                 {
-                    sidebar.Width = 60;
                     sidebar.IsVisible = true;
                     if (!sidebar.Classes.Contains("Mini"))
                     {
                         sidebar.Classes.Add("Mini");
                     }
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(60) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
                 }
                 else
                 {
-                    sidebar.Width = 0;
                     sidebar.IsVisible = false;
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(0) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
                 }
             }
 
@@ -1014,6 +1057,109 @@ namespace m_mslc_overlay
                     // Force-collapse navigation pane on smaller widths
                     navPaneVm.IsVisible = false;
                 }
+            }
+        }
+
+        private void SidebarBorder_SizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            if (_isAdjustingSidebar) return;
+
+            var sidebar = sender as Border;
+            if (sidebar == null) return;
+
+            var grid = this.FindControl<Grid>("MainContentGrid");
+            if (grid == null || grid.ColumnDefinitions.Count == 0) return;
+
+            double width = e.NewSize.Width;
+
+            // Nếu đang ở Mini mode (collapsed)
+            if (sidebar.Classes.Contains("Mini"))
+            {
+                // Nếu người dùng kéo mở rộng ra vượt quá ngưỡng 80px
+                if (width > 80)
+                {
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        sidebar.Classes.Remove("Mini");
+                        double targetWidth = Math.Max(180.0, Math.Min(width, 360.0));
+                        _userSidebarWidth = targetWidth; // Ghi nhận kích thước mới được khôi phục
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(targetWidth) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+            }
+            else // Đang ở Normal mode
+            {
+                // Ghi nhận lựa chọn kích thước của người dùng nếu nó hợp lệ
+                if (width >= 160 && width <= 360)
+                {
+                    _userSidebarWidth = width;
+                }
+
+                // Nếu kéo nhỏ hơn MIN_VISIBLE (160px), tự động thu gọn về collapsed state (60px)
+                if (width < 160)
+                {
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        if (!sidebar.Classes.Contains("Mini"))
+                        {
+                            sidebar.Classes.Add("Mini");
+                        }
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(60) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+                else if (width > 360) // Giới hạn MAX_EXPAND là 360px
+                {
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(360) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+            }
+        }
+
+        private void ToggleSidebarBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            var sidebar = this.FindControl<Border>("SidebarBorder");
+            var grid = this.FindControl<Grid>("MainContentGrid");
+            if (sidebar == null || grid == null || grid.ColumnDefinitions.Count == 0) return;
+
+            _isAdjustingSidebar = true;
+            try
+            {
+                if (sidebar.Classes.Contains("Mini"))
+                {
+                    // Bung ra Normal mode
+                    sidebar.Classes.Remove("Mini");
+                    grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(_userSidebarWidth) };
+                }
+                else
+                {
+                    // Thu gọn về Mini mode
+                    if (!sidebar.Classes.Contains("Mini"))
+                    {
+                        sidebar.Classes.Add("Mini");
+                    }
+                    grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(60.0) };
+                }
+            }
+            finally
+            {
+                _isAdjustingSidebar = false;
             }
         }
     }

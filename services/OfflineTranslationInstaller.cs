@@ -265,10 +265,17 @@ namespace m_mslc_overlay.services
 
             for (int i = 0; i < 5 && currentDir != null; i++)
             {
-                string path = Path.Combine(currentDir, "docs", "atoms", "atom26_offline_translation");
-                if (Directory.Exists(path) && File.Exists(Path.Combine(path, "translation_server.py")))
+                string pluginPath = Path.Combine(currentDir, "plugins", "atom26");
+                string docPath = Path.Combine(currentDir, "docs", "atoms", "atom26_offline_translation");
+                
+                if (Directory.Exists(pluginPath) && File.Exists(Path.Combine(pluginPath, "translation_server.py")))
                 {
-                    devSourceDir = path;
+                    devSourceDir = pluginPath;
+                    break;
+                }
+                else if (Directory.Exists(docPath) && File.Exists(Path.Combine(docPath, "translation_server.py")))
+                {
+                    devSourceDir = docPath;
                     break;
                 }
                 currentDir = Directory.GetParent(currentDir)?.FullName;

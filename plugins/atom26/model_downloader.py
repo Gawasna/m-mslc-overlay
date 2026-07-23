@@ -30,7 +30,7 @@ def convert_model(model_name: str, output_dir: str, quantization: str = "int8"):
         print("Converting model weights using CTranslate2 converter...")
         
         # Cấu hình danh sách file cần sao chép thêm để phục vụ Tokenizer
-        copy_files = ["tokenizer.json", "tokenizer_config.json", "special_tokens_map.json"]
+        copy_files = ["config.json", "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json"]
         if "nllb" in model_name.lower():
             copy_files.append("sentencepiece.bpe.model")
         elif "opus" in model_name.lower():

@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <Compile Remove="docs\**" />
+    <Compile Remove="plugins\**" />
     <None Include="docs\**" />
     <Content Include="plugins\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

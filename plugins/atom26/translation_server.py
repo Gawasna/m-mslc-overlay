@@ -1,11 +1,11 @@
 import os
 import sys
 import time
-import torch # Nạp trước để tự động liên kết các CUDA DLLs trên Windows
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
+import torch                  # top-level: trigger CUDA DLL linking before uvicorn starts
 import ctranslate2
 from transformers import AutoTokenizer
 
@@ -38,41 +38,64 @@ device = "cpu"
 
 def init_engine():
     global translator, tokenizer, model_type, model_path, device
+
     if not model_path or not os.path.exists(model_path):
         print(f"WARNING: Model path '{model_path}' not found. Please run model_downloader.py first.", file=sys.stderr)
         return False
-        
+
     print(f"Initializing Translation Engine using model: {model_path}")
-    
+
     # Xác định loại mô hình (NLLB hay OPUS) để cấu hình tokenizer & special tokens
     if "nllb" in model_path.lower():
         model_type = "nllb"
     else:
         model_type = "opus"
-        
-    # Phát hiện phần cứng (mặc định ưu tiên GPU/CUDA để giải phóng CPU cho ASR theo ATOM20)
+
+    # Phát hiện phần cứng.
+    # Dùng torch.cuda.is_available() thay vì ctranslate2.get_cuda_device_count() vì
+    # ctranslate2 dùng NVML (driver-level) — trả về True ngay cả khi CUDA runtime DLLs thiếu.
+    # torch.cuda.is_available() thực sự probe CUDA runtime, chỉ True khi inference khả dụng.
     force_cpu = os.environ.get("FORCE_CPU", "0") == "1"
-    device = "cuda" if (not force_cpu and ctranslate2.get_cuda_device_count() > 0) else "cpu"
-    
+    cuda_ok = (not force_cpu) and torch.cuda.is_available()
+    device = "cuda" if cuda_ok else "cpu"
+
     # Lựa chọn kiểu lượng tử phù hợp với thiết bị
     compute_type = "int8"
     if device == "cuda":
-        # Trên CUDA, FP16 hoặc INT8_FLOAT16 chạy cực nhanh trên Tensor Cores và tiết kiệm VRAM
+        # Trên CUDA, FP16 chạy cực nhanh trên Tensor Cores và tiết kiệm VRAM
         compute_type = "float16"
 
-        
     print(f"Hardware Device: {device.upper()} | Compute Type: {compute_type}")
-    
+
     try:
         # Load mô hình vào CTranslate2
         translator = ctranslate2.Translator(
             model_path,
             device=device,
             compute_type=compute_type,
-            inter_threads=2, # Số luồng chạy đồng thời cho suy luận
-            intra_threads=4  # Số luồng CPU tối đa cho mỗi luồng suy luận
+            inter_threads=2,  # Số luồng chạy đồng thời cho suy luận
+            intra_threads=4   # Số luồng CPU tối đa cho mỗi luồng suy luận
         )
-        
+
+        # CUDA inference probe: verify CUDA runtime DLLs thực sự hoạt động.
+        # Translator() init có thể thành công nhưng translate_batch() fail (False Ready).
+        if device == "cuda":
+            try:
+                translator.translate_batch([["a"]], max_decoding_length=1)
+                print("CUDA inference probe: OK")
+            except Exception as probe_err:
+                print(f"CUDA inference probe FAILED ({probe_err}), falling back to CPU.", file=sys.stderr)
+                # Reload translator trên CPU
+                translator = ctranslate2.Translator(
+                    model_path,
+                    device="cpu",
+                    compute_type="int8",
+                    inter_threads=2,
+                    intra_threads=4
+                )
+                device = "cpu"
+                print("Reloaded on CPU successfully.")
+
         # Load tokenizer thông qua thư viện Transformers
         if model_type == "opus":
             from transformers import MarianTokenizer
@@ -87,7 +110,19 @@ def init_engine():
         return False
 
 # Cố gắng khởi tạo động khi start server
-engine_loaded = init_engine()
+import threading
+engine_loaded = False
+engine_initializing = True
+
+def _bg_init():
+    global engine_loaded, engine_initializing
+    try:
+        if init_engine():
+            engine_loaded = True
+    finally:
+        engine_initializing = False
+
+threading.Thread(target=_bg_init, daemon=True).start()
 
 @app.get("/", response_class=FileResponse)
 async def read_gui():
@@ -174,8 +209,14 @@ async def translate(request: TranslationRequest):
 
 @app.get("/status")
 async def status():
+    current_status = "model_missing"
+    if engine_initializing:
+        current_status = "initializing"
+    elif engine_loaded:
+        current_status = "ready"
+        
     return {
-        "status": "ready" if engine_loaded else "model_missing",
+        "status": current_status,
         "model_path": model_path,
         "model_type": model_type,
         "device": device,
