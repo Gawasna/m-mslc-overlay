@@ -9,6 +9,7 @@ using AvaloniaEdit.Editing;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using MMslcOverlay.Views.Controls;
 
 namespace m_mslc_overlay.views.dialogs
 {
@@ -98,84 +99,5 @@ namespace m_mslc_overlay.views.dialogs
 
     // --- CUSTOM UI EXTENSIONS FOR AVALONIAEDIT ---
 
-    // 1. Gutter Margin for Timestamps (Replicating the left column of PaperSheet.axaml)
-    public class TranscriptGutterMargin : AbstractMargin
-    {
-        private Regex _metaRegex = new Regex(@"^\[(.*?)\]\s\[(.*?)\]");
-        private TextDocument _document;
-
-        public TranscriptGutterMargin(TextDocument document)
-        {
-            _document = document;
-        }
-
-        public override void Render(DrawingContext context)
-        {
-            base.Render(context);
-            if (TextView == null || !TextView.VisualLinesValid) return;
-
-            var typeFace = new Typeface("Consolas");
-            var brush = new SolidColorBrush(Color.Parse("#888888"));
-
-            foreach (var line in TextView.VisualLines)
-            {
-                int offset = line.FirstDocumentLine.Offset;
-                string text = _document.GetText(line.FirstDocumentLine);
-                
-                var match = _metaRegex.Match(text);
-                if (match.Success)
-                {
-                    string ts = match.Groups[1].Value;
-                    string spk = match.Groups[2].Value;
-                    
-                    var tsText = new FormattedText(ts, System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeFace, 10, brush);
-                    var spkText = new FormattedText(spk, System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("Consolas", FontStyle.Normal, FontWeight.Bold), 9, brush);
-
-                    double y = line.GetTextLineVisualYPosition(line.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.TextTop) - TextView.VerticalOffset;
-                    
-                    context.DrawText(tsText, new Point(0, y));
-                    context.DrawText(spkText, new Point(0, y + 12));
-                }
-            }
-        }
-
-        protected override Size MeasureOverride(Size availableSize)
-        {
-            return new Size(60, 0); // Reserve 60px for the gutter
-        }
-    }
-
-    // 2. Custom Colorizer to hide metadata and format Translation blocks
-    public class TranscriptColorizer : DocumentColorizingTransformer
-    {
-        private Regex _metaRegex = new Regex(@"^\[.*?\]\s\[.*?\]\s");
-        private Regex _transRegex = new Regex(@"^\s*↳\s\[(.*?)\]");
-
-        protected override void ColorizeLine(DocumentLine line)
-        {
-            string text = CurrentContext.Document.GetText(line);
-            
-            // Hide the metadata tags (e.g. "[00:00:15] [SPK_1] ") since we render them in the gutter
-            var match = _metaRegex.Match(text);
-            if (match.Success)
-            {
-                ChangeLinePart(line.Offset, line.Offset + match.Length, element =>
-                {
-                    element.TextRunProperties.SetForegroundBrush(Brushes.Transparent);
-                    element.TextRunProperties.SetFontRenderingEmSize(0.1); // Hide
-                });
-            }
-
-            // Format translation blocks
-            var transMatch = _transRegex.Match(text);
-            if (transMatch.Success)
-            {
-                ChangeLinePart(line.Offset, line.EndOffset, element =>
-                {
-                    element.TextRunProperties.SetForegroundBrush(new SolidColorBrush(Color.Parse("#006699")));
-                    element.TextRunProperties.SetTypeface(new Typeface(element.TextRunProperties.Typeface.FontFamily, FontStyle.Italic, FontWeight.Normal));
-                });
-            }
-        }
-    }
+    // Removed TranscriptGutterMargin and TranscriptColorizer to views/controls
 }

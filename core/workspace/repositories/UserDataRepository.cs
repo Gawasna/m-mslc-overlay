@@ -167,4 +167,138 @@ public class UserDataRepository
 
         return null;
     }
+
+    public long InsertAnnotation(Annotation annotation)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            INSERT INTO annotations (
+                scope, segment_ref, type, content, color, created_at
+            )
+            VALUES (
+                @scope, @segment_ref, @type, @content, @color, @created_at
+            );
+            SELECT last_insert_rowid();
+        ";
+
+        command.Parameters.AddWithValue("@scope", annotation.Scope);
+        command.Parameters.AddWithValue("@segment_ref", annotation.SegmentRef ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@type", annotation.Type);
+        command.Parameters.AddWithValue("@content", annotation.Content ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@color", annotation.Color ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@created_at", annotation.CreatedAt);
+
+        var id = (long)command.ExecuteScalar()!;
+        annotation.Id = id;
+        return id;
+    }
+
+    public List<Annotation> GetAllAnnotations()
+    {
+        var list = new List<Annotation>();
+
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT id, scope, segment_ref, type, content, color, created_at
+            FROM annotations
+            ORDER BY created_at ASC;
+        ";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new Annotation
+            {
+                Id = reader.GetInt64(0),
+                Scope = reader.GetString(1),
+                SegmentRef = reader.IsDBNull(2) ? null : reader.GetString(2),
+                Type = reader.GetString(3),
+                Content = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Color = reader.IsDBNull(5) ? null : reader.GetString(5),
+                CreatedAt = reader.GetInt64(6)
+            });
+        }
+        return list;
+    }
+
+    public long InsertFreeformBlock(FreeformBlock block)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            INSERT INTO freeform_blocks (
+                anchor_after, content, created_at, updated_at
+            )
+            VALUES (
+                @anchor_after, @content, @created_at, @updated_at
+            );
+            SELECT last_insert_rowid();
+        ";
+
+        command.Parameters.AddWithValue("@anchor_after", block.AnchorAfter ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@content", block.Content);
+        command.Parameters.AddWithValue("@created_at", block.CreatedAt);
+        command.Parameters.AddWithValue("@updated_at", block.UpdatedAt);
+
+        var id = (long)command.ExecuteScalar()!;
+        block.Id = id;
+        return id;
+    }
+
+    public void UpdateFreeformBlock(FreeformBlock block)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE freeform_blocks
+            SET content = @content,
+                updated_at = @updated_at
+            WHERE id = @id;
+        ";
+
+        command.Parameters.AddWithValue("@id", block.Id);
+        command.Parameters.AddWithValue("@content", block.Content);
+        command.Parameters.AddWithValue("@updated_at", block.UpdatedAt);
+
+        command.ExecuteNonQuery();
+    }
+
+    public List<FreeformBlock> GetAllFreeformBlocks()
+    {
+        var list = new List<FreeformBlock>();
+
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT id, anchor_after, content, created_at, updated_at
+            FROM freeform_blocks
+            ORDER BY created_at ASC;
+        ";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new FreeformBlock
+            {
+                Id = reader.GetInt64(0),
+                AnchorAfter = reader.IsDBNull(1) ? null : reader.GetString(1),
+                Content = reader.GetString(2),
+                CreatedAt = reader.GetInt64(3),
+                UpdatedAt = reader.GetInt64(4)
+            });
+        }
+        return list;
+    }
 }

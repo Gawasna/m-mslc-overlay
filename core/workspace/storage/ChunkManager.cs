@@ -5,6 +5,14 @@ using MMslcOverlay.Core.Workspace.Models;
 
 namespace MMslcOverlay.Core.Workspace.Storage;
 
+public enum SealTrigger
+{
+    SessionEnd,     // App tắt, user nhấn Stop
+    PauseContinue,  // User dừng rồi tiếp tục sau khoảng lặng dài
+    NaturalSilence, // Khoảng lặng dài tự nhiên
+    CapacityReached // active.db quá lớn
+}
+
 public class ChunkManager
 {
     private readonly WorkspaceStorage _storage;
@@ -14,6 +22,27 @@ public class ChunkManager
     {
         _storage = storage;
         _sessionMeta = storage.LoadOrCreateSessionMeta();
+    }
+
+    /// <summary>
+    /// Kiểm tra ngưỡng kép (Dual Threshold) dựa trên spec 7.1
+    /// </summary>
+    public bool ShouldSealActiveChunk(SealTrigger trigger, TimeSpan silenceDuration)
+    {
+        var activeDbPath = _storage.GetSegmentDbPath("active");
+        if (!File.Exists(activeDbPath)) return false;
+
+        var fileInfo = new FileInfo(activeDbPath);
+        long fileSizeMb = fileInfo.Length / (1024 * 1024);
+
+        return trigger switch
+        {
+            SealTrigger.SessionEnd => true, // Luôn seal bất kể kích thước
+            SealTrigger.PauseContinue => silenceDuration.TotalMinutes > 30 && fileSizeMb > 50,
+            SealTrigger.NaturalSilence => silenceDuration.TotalMinutes > 15 && fileSizeMb > 30,
+            SealTrigger.CapacityReached => fileSizeMb >= 200, // Vượt 200MB bất kể trigger khác
+            _ => false
+        };
     }
 
     public void SealActiveChunk()

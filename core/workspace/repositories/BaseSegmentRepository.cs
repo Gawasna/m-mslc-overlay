@@ -92,12 +92,14 @@ public class BaseSegmentRepository
         connection.Open();
 
         using var command = connection.CreateCommand();
-        // Lấy tất cả, filter `WHERE supersedes_id IS NULL` theo rules
+        // Lấy tất cả, filter ra những record không bị thay thế bởi bất kỳ record nào khác
         command.CommandText = @"
             SELECT id, ts_start_ms, ts_end_ms, speaker_id, text_src, text_trs, 
                    commit_type, supersedes_id, chunk_id, created_at
-            FROM segments
-            WHERE supersedes_id IS NULL
+            FROM segments s1
+            WHERE NOT EXISTS (
+                SELECT 1 FROM segments s2 WHERE s2.supersedes_id = s1.id
+            )
             ORDER BY ts_start_ms ASC;
         ";
 
