@@ -151,6 +151,12 @@ namespace m_mslc_overlay.services
                 // Dọn dẹp tiến trình cũ nếu còn sót
                 StopServer();
 
+                // Dò tìm port tự do để tránh xung đột cổng (Dynamic Port Allocation)
+                int freePort = GetFreeTcpPort(preferredPort: 11435);
+                ServerPort = freePort;
+                ConfigManager.Current.OfflineTranslateUrl = $"http://127.0.0.1:{freePort}";
+                LoggerService.Log($"{LogTag} Dynamic Port Allocated: {freePort} (URL: {ConfigManager.Current.OfflineTranslateUrl})");
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = execPath,
@@ -308,6 +314,51 @@ namespace m_mslc_overlay.services
             catch (Exception ex)
             {
                 UpdateState(OfflineServerState.Failed, $"Lỗi phân tích trạng thái server: {ex.Message}");
+            }
+        }
+
+        private static int GetFreeTcpPort(int preferredPort = 11435)
+        {
+            if (IsPortAvailable(preferredPort))
+            {
+                return preferredPort;
+            }
+
+            LoggerService.Log($"{LogTag} Preferred port {preferredPort} is in use. Scanning for an available free port...");
+            for (int port = 11436; port <= 11500; port++)
+            {
+                if (IsPortAvailable(port))
+                {
+                    return port;
+                }
+            }
+
+            try
+            {
+                using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+                listener.Start();
+                int dynamicPort = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+                return dynamicPort;
+            }
+            catch
+            {
+                return preferredPort;
+            }
+        }
+
+        private static bool IsPortAvailable(int port)
+        {
+            try
+            {
+                using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+                listener.Start();
+                listener.Stop();
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
     }
