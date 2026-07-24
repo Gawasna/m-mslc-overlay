@@ -1,15 +1,23 @@
 using System.Collections.Generic;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
+using System.Text.RegularExpressions;
 
 namespace MMslcOverlay.Views.Controls;
 
 /// <summary>
 /// Ngăn chặn người dùng chỉnh sửa vào các vùng metada/cấu trúc của Machine Segment.
+/// Spec: protect toàn bộ segment content, implement SegmentEditSession cho human edit.
 /// </summary>
-public class MachineSegmentProtector : IReadOnlySectionProvider
+public partial class MachineSegmentProtector : IReadOnlySectionProvider
 {
     private readonly TextDocument _document;
+
+    [GeneratedRegex(@"^\[.*?\]\s\[.*?\]\s")]
+    private static partial Regex MetaRegex();
+
+    [GeneratedRegex(@"^\s*↳\s\[")]
+    private static partial Regex TransRegex();
 
     public MachineSegmentProtector(TextDocument document)
     {
@@ -22,27 +30,11 @@ public class MachineSegmentProtector : IReadOnlySectionProvider
 
         var line = _document.GetLineByOffset(offset);
         string text = _document.GetText(line);
-        int offsetInLine = offset - line.Offset;
 
-        // Protect primary metadata: "[00:00:00] [SPK]"
-        var metaRegex = new System.Text.RegularExpressions.Regex(@"^\[.*?\]\s\[.*?\]\s");
-        var metaMatch = metaRegex.Match(text);
-        if (metaMatch.Success && offsetInLine < metaMatch.Length)
+        // Protect the entire line if it contains machine segment metadata or translation
+        if (MetaRegex().IsMatch(text) || TransRegex().IsMatch(text))
         {
             return false;
-        }
-
-        // Protect translation metadata: "  ↳ ["
-        var transRegex = new System.Text.RegularExpressions.Regex(@"^\s*↳\s\[");
-        var transMatch = transRegex.Match(text);
-        if (transMatch.Success && offsetInLine < transMatch.Length)
-        {
-            return false;
-        }
-        // Protect the closing bracket of translation metadata if offset is at the end of the line
-        if (transMatch.Success && text.EndsWith("]") && offsetInLine == text.Length - 1)
-        {
-             return false;
         }
 
         return true; 
@@ -50,6 +42,40 @@ public class MachineSegmentProtector : IReadOnlySectionProvider
 
     public IEnumerable<ISegment> GetDeletableSegments(ISegment segment)
     {
-        yield return segment;
+        if (_document == null)
+        {
+            yield return segment;
+            yield break;
+        }
+
+        int startOffset = segment.Offset;
+        int endOffset = segment.EndOffset;
+        int currentOffset = startOffset;
+
+        while (currentOffset < endOffset)
+        {
+            var line = _document.GetLineByOffset(currentOffset);
+            string text = _document.GetText(line);
+            
+            bool isProtected = MetaRegex().IsMatch(text) || TransRegex().IsMatch(text);
+
+            int endOfCurrentChunk = System.Math.Min(line.EndOffset, endOffset);
+            
+            if (!isProtected)
+            {
+                if (endOfCurrentChunk > currentOffset)
+                {
+                    yield return new SimpleSegment(currentOffset, endOfCurrentChunk - currentOffset);
+                }
+            }
+            
+            // If the chunk includes the newline, and we are not protected, we can yield the newline as well.
+            if (!isProtected && endOffset >= line.NextLine?.Offset)
+            {
+                yield return new SimpleSegment(line.EndOffset, line.DelimiterLength);
+            }
+
+            currentOffset = line.NextLine?.Offset ?? endOffset;
+        }
     }
 }

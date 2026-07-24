@@ -8,10 +8,20 @@
     <Grid>
         <avalonEdit:TextEditor x:Name="Editor"
                                ShowLineNumbers="False"
-                               FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+                               FontFamily="Consolas"
                                FontSize="14"
-                               WordWrap="True"
-                               HorizontalScrollBarVisibility="Disabled"
-                               VerticalScrollBarVisibility="Auto" />
+                               Background="#FAFAFA"
+                               Foreground="#333333"
+                               HorizontalScrollBarVisibility="Auto"
+                               VerticalScrollBarVisibility="Visible">
+            <avalonEdit:TextEditor.ContextMenu>
+                <ContextMenu>
+                    <MenuItem x:Name="MenuEditSegment" Header="Edit Segment (Double-Click)" Click="OnEditSegmentClick" />
+                    <MenuItem x:Name="MenuPlaceMagicCursor" Header="Place Magic Cursor Here" Click="OnPlaceMagicCursorClick" />
+                    <Separator />
+                    <MenuItem x:Name="MenuDeleteFreeform" Header="Delete Freeform Block" Click="OnDeleteFreeformClick" />
+                </ContextMenu>
+            </avalonEdit:TextEditor.ContextMenu>
+        </avalonEdit:TextEditor>
     </Grid>
 </UserControl>

@@ -66,6 +66,23 @@ public class AudioRecorderService : IDisposable
     public void StopRecording()
     {
         _isRecording = false;
+
+        if (_audioWriter != null && _audioFileStream != null && _audioFileStream.CanSeek)
+        {
+            long dataSize = _audioFileStream.Length - 44;
+            if (dataSize > 0)
+            {
+                _audioFileStream.Seek(4, SeekOrigin.Begin);
+                _audioWriter.Write((uint)(dataSize + 36));
+
+                _audioFileStream.Seek(40, SeekOrigin.Begin);
+                _audioWriter.Write((uint)dataSize);
+
+                // Seek back to end to append more later if needed
+                _audioFileStream.Seek(0, SeekOrigin.End);
+            }
+        }
+        
         _audioWriter?.Flush();
     }
 

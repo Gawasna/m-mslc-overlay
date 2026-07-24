@@ -15,7 +15,7 @@ public class PdfExporter : IExporter
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public string Export(IEnumerable<MergedSegment> segments)
+    public string Export(IEnumerable<MergedSegment> segments, IEnumerable<FreeformBlock>? blocks = null)
     {
         var tempFile = Path.GetTempFileName() + ".pdf";
         

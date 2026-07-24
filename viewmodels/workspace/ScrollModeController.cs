@@ -10,10 +10,15 @@ public enum ScrollMode
 public class ScrollModeController
 {
     public ScrollMode CurrentMode { get; private set; } = ScrollMode.FreeInput;
+    
+    public event System.Action<ScrollMode>? ModeChanged;
 
     public void SetMode(ScrollMode mode)
     {
-        CurrentMode = mode;
-        // Optionally invoke events for UI
+        if (CurrentMode != mode)
+        {
+            CurrentMode = mode;
+            ModeChanged?.Invoke(mode);
+        }
     }
 }

@@ -6,7 +6,7 @@ namespace MMslcOverlay.Core.Workspace.Export;
 
 public class TxtExporter : IExporter
 {
-    public string Export(IEnumerable<MergedSegment> segments)
+    public string Export(IEnumerable<MergedSegment> segments, IEnumerable<FreeformBlock>? blocks = null)
     {
         var sb = new StringBuilder();
         foreach (var seg in segments)
