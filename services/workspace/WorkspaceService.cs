@@ -28,38 +28,50 @@ public class WorkspaceService : IDisposable
 
     public void OpenOrCreate()
     {
-        Storage.Initialize();
-        
-        var sessionMeta = Storage.LoadOrCreateSessionMeta();
-        ChunkManager = new ChunkManager(Storage);
-        UserDataRepo = new UserDataRepository(Storage.UserDataDbPath);
-        
-        // Load all sealed chunks
-        foreach (var chunkId in sessionMeta.SealedChunks)
+        try
         {
-            var dbPath = Storage.GetSegmentDbPath(chunkId);
-            if (File.Exists(dbPath))
+            Storage.Initialize();
+            
+            var sessionMeta = Storage.LoadOrCreateSessionMeta();
+            ChunkManager = new ChunkManager(Storage);
+            UserDataRepo = new UserDataRepository(Storage.UserDataDbPath);
+            
+            // Load all sealed chunks
+            foreach (var chunkId in sessionMeta.SealedChunks)
             {
-                _baseRepos.Add(new BaseSegmentRepository(dbPath));
+                var dbPath = Storage.GetSegmentDbPath(chunkId);
+                if (File.Exists(dbPath))
+                {
+                    _baseRepos.Add(new BaseSegmentRepository(dbPath));
+                }
+                else
+                {
+                    Console.WriteLine($"[Warning] Sealed chunk {chunkId} not found at {dbPath}. Skipping.");
+                }
             }
+            
+            // Load active chunk
+            var activeDbPath = Storage.GetSegmentDbPath(sessionMeta.ActiveChunkId);
+            ActiveSegmentRepo = new BaseSegmentRepository(activeDbPath);
+            _baseRepos.Add(ActiveSegmentRepo);
+            
+            SegmentRepo = new SegmentRepository(_baseRepos, UserDataRepo);
+            
+            // Initialize active Audio Offset Index
+            var activeOffsetsPath = Storage.GetSegmentOffsetsPath(sessionMeta.ActiveChunkId);
+            var activeAudioOffsetIndex = new AudioOffsetIndex(activeOffsetsPath);
+            
+            // Start sub-services
+            IngestionService = new SegmentIngestionService(ActiveSegmentRepo, sessionMeta.ActiveChunkId);
+            
+            var audioFilePath = Path.Combine(Storage.MslcDir, "segments", $"{sessionMeta.ActiveChunkId}.audio.wav");
+            AudioService = new AudioRecorderService(audioFilePath, activeAudioOffsetIndex);
         }
-        
-        // Load active chunk
-        var activeDbPath = Storage.GetSegmentDbPath(sessionMeta.ActiveChunkId);
-        ActiveSegmentRepo = new BaseSegmentRepository(activeDbPath);
-        _baseRepos.Add(ActiveSegmentRepo);
-        
-        SegmentRepo = new SegmentRepository(_baseRepos, UserDataRepo);
-        
-        // Initialize active Audio Offset Index
-        var activeOffsetsPath = Storage.GetSegmentOffsetsPath(sessionMeta.ActiveChunkId);
-        var activeAudioOffsetIndex = new AudioOffsetIndex(activeOffsetsPath);
-        
-        // Start sub-services
-        IngestionService = new SegmentIngestionService(ActiveSegmentRepo, sessionMeta.ActiveChunkId);
-        
-        var audioFilePath = Path.Combine(Storage.MslcDir, "segments", $"{sessionMeta.ActiveChunkId}.audio.wav");
-        AudioService = new AudioRecorderService(audioFilePath, activeAudioOffsetIndex);
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Error] Failed to open workspace: {ex.Message}");
+            throw new InvalidOperationException($"Không thể mở workspace: {ex.Message}", ex);
+        }
     }
     
     public void Dispose()

@@ -10,10 +10,11 @@ namespace MMslcOverlay.Views.Controls;
 /// </summary>
 public class MagicCursorMargin : AbstractMargin
 {
-    public int MagicCursorOffset { get; set; } = 0;
+    private readonly System.Func<int> _getOffset;
 
-    public MagicCursorMargin()
+    public MagicCursorMargin(System.Func<int> getOffset)
     {
+        _getOffset = getOffset;
     }
 
     public override void Render(DrawingContext context)
@@ -24,7 +25,7 @@ public class MagicCursorMargin : AbstractMargin
         var brush = new SolidColorBrush(Color.Parse("#00E5FF")); // Cyberpunk cyan
         var pen = new Pen(brush, 2);
 
-        var docLine = Document.GetLineByOffset(MagicCursorOffset);
+        var docLine = Document.GetLineByOffset(_getOffset());
         if (docLine != null)
         {
             var visualLine = TextView.GetVisualLine(docLine.LineNumber);

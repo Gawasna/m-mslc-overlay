@@ -12,11 +12,11 @@ public class PageBreakRenderer : IBackgroundRenderer
 {
     public KnownLayer Layer => KnownLayer.Background;
 
-    public List<int> PageBreakOffsets { get; set; } = new();
+    public IEnumerable<int> PageBreakOffsets { get; set; } = new List<int>();
 
     public void Draw(TextView textView, DrawingContext drawingContext)
     {
-        if (textView.Document == null || PageBreakOffsets.Count == 0) return;
+        if (textView.Document == null || !System.Linq.Enumerable.Any(PageBreakOffsets)) return;
 
         var pen = new Pen(new SolidColorBrush(Color.Parse("#E0E0E0")), 1)
         {

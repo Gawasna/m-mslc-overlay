@@ -5,16 +5,19 @@ using System.Text.RegularExpressions;
 
 namespace MMslcOverlay.Views.Controls;
 
-public class TranscriptColorizer : DocumentColorizingTransformer
+public partial class TranscriptColorizer : DocumentColorizingTransformer
 {
-    private readonly Regex _metaRegex = new Regex(@"^\[.*?\]\s\[.*?\]\s");
-    private readonly Regex _transRegex = new Regex(@"^\s*↳\s\[(.*?)\]");
+    [GeneratedRegex(@"^\[.*?\]\s\[.*?\]\s")]
+    private static partial Regex MetaRegex();
+
+    [GeneratedRegex(@"^\s*↳\s\[(.*?)\]")]
+    private static partial Regex TransRegex();
 
     protected override void ColorizeLine(DocumentLine line)
     {
         string text = CurrentContext.Document.GetText(line);
         
-        var match = _metaRegex.Match(text);
+        var match = MetaRegex().Match(text);
         if (match.Success)
         {
             ChangeLinePart(line.Offset, line.Offset + match.Length, element =>
@@ -24,7 +27,7 @@ public class TranscriptColorizer : DocumentColorizingTransformer
             });
         }
 
-        var transMatch = _transRegex.Match(text);
+        var transMatch = TransRegex().Match(text);
         if (transMatch.Success)
         {
             ChangeLinePart(line.Offset, line.EndOffset, element =>

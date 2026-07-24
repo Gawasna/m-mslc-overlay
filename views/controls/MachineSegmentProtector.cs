@@ -18,7 +18,33 @@ public class MachineSegmentProtector : IReadOnlySectionProvider
 
     public bool CanInsert(int offset)
     {
-        // For phase 3 mock, allow all insertions
+        if (_document == null || offset < 0 || offset > _document.TextLength) return true;
+
+        var line = _document.GetLineByOffset(offset);
+        string text = _document.GetText(line);
+        int offsetInLine = offset - line.Offset;
+
+        // Protect primary metadata: "[00:00:00] [SPK]"
+        var metaRegex = new System.Text.RegularExpressions.Regex(@"^\[.*?\]\s\[.*?\]\s");
+        var metaMatch = metaRegex.Match(text);
+        if (metaMatch.Success && offsetInLine < metaMatch.Length)
+        {
+            return false;
+        }
+
+        // Protect translation metadata: "  ↳ ["
+        var transRegex = new System.Text.RegularExpressions.Regex(@"^\s*↳\s\[");
+        var transMatch = transRegex.Match(text);
+        if (transMatch.Success && offsetInLine < transMatch.Length)
+        {
+            return false;
+        }
+        // Protect the closing bracket of translation metadata if offset is at the end of the line
+        if (transMatch.Success && text.EndsWith("]") && offsetInLine == text.Length - 1)
+        {
+             return false;
+        }
+
         return true; 
     }
 

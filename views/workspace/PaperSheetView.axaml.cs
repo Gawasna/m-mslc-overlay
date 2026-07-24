@@ -3,8 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using AvaloniaEdit;
 using MMslcOverlay.ViewModels.Workspace;
+using MMslcOverlay.Views.Controls;
 
-namespace MMslcOverlay.Views.Controls;
+namespace MMslcOverlay.Views.Workspace;
 
 public partial class PaperSheetView : UserControl
 {
@@ -25,8 +26,9 @@ public partial class PaperSheetView : UserControl
 
                 editor.TextArea.LeftMargins.Add(new TranscriptGutterMargin(editor.Document));
                 
-                var magicMargin = new MagicCursorMargin();
+                var magicMargin = new MagicCursorMargin(() => vm.MagicCursorOffset);
                 editor.TextArea.LeftMargins.Add(magicMargin);
+                editor.Document.Changed += (s, e) => magicMargin.InvalidateVisual();
 
                 editor.TextArea.TextView.LineTransformers.Add(new TranscriptColorizer());
                 
@@ -34,7 +36,8 @@ public partial class PaperSheetView : UserControl
                 editor.TextArea.ReadOnlySectionProvider = protector;
                 
                 editor.TextArea.TextView.BackgroundRenderers.Add(new MachineSegmentHighlighter());
-                editor.TextArea.TextView.BackgroundRenderers.Add(new PageBreakRenderer());
+                var pageBreakRenderer = new PageBreakRenderer { PageBreakOffsets = vm.PageBreakOffsets };
+                editor.TextArea.TextView.BackgroundRenderers.Add(pageBreakRenderer);
             }
         }
     }

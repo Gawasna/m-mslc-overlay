@@ -36,8 +36,26 @@ public class AudioRecorderService : IDisposable
 
     private void WriteDummyWavHeader()
     {
-        var header = new byte[44];
-        _audioWriter?.Write(header);
+        if (_audioWriter == null) return;
+        
+        // 44 bytes chuẩn WAV PCM (16kHz, 16-bit, Mono)
+        _audioWriter.Write("RIFF".ToCharArray());
+        _audioWriter.Write(36); // ChunkSize: 36 + dataSize (dummy data size 0 for now)
+        _audioWriter.Write("WAVE".ToCharArray());
+        
+        // fmt chunk
+        _audioWriter.Write("fmt ".ToCharArray());
+        _audioWriter.Write(16); // Subchunk1Size
+        _audioWriter.Write((short)1); // AudioFormat (PCM = 1)
+        _audioWriter.Write((short)1); // NumChannels (Mono = 1)
+        _audioWriter.Write(16000); // SampleRate
+        _audioWriter.Write(32000); // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
+        _audioWriter.Write((short)2); // BlockAlign (NumChannels * BitsPerSample/8)
+        _audioWriter.Write((short)16); // BitsPerSample
+        
+        // data chunk
+        _audioWriter.Write("data".ToCharArray());
+        _audioWriter.Write(0); // Subchunk2Size (0 initially)
     }
 
     public void StartRecording()

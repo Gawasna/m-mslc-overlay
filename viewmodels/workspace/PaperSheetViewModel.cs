@@ -13,11 +13,27 @@ public class PaperSheetViewModel
 
     private readonly WorkspaceService _workspace;
 
-    public int MagicCursorOffset { get; set; } = 0;
+    private TextAnchor? _magicCursorAnchor;
+
+    public int MagicCursorOffset 
+    { 
+        get => _magicCursorAnchor?.Offset ?? 0; 
+        set 
+        {
+            if (_magicCursorAnchor != null)
+                _magicCursorAnchor.SurviveDeletion = false; 
+            _magicCursorAnchor = Document.CreateAnchor(value);
+            _magicCursorAnchor.MovementType = AnchorMovementType.AfterInsertion;
+        }
+    }
+
+    public MagicCursorViewModel MagicCursor { get; }
+    public ScrollModeController ScrollController { get; } = new ScrollModeController();
 
     public PaperSheetViewModel(WorkspaceService workspace)
     {
         _workspace = workspace;
+        MagicCursor = new MagicCursorViewModel(() => MagicCursorOffset);
 
         if (_workspace.IngestionService != null)
         {
@@ -27,14 +43,23 @@ public class PaperSheetViewModel
         LoadInitialState();
     }
 
+    public System.Collections.ObjectModel.ObservableCollection<int> PageBreakOffsets { get; } = new();
+
     private void LoadInitialState()
     {
         var allSegments = _workspace.SegmentRepo?.GetMergedSegments();
         if (allSegments == null) return;
 
         var sb = new StringBuilder();
+        string? currentChunk = null;
+        
         foreach (var seg in allSegments)
         {
+            if (currentChunk != null && currentChunk != seg.BaseSegment.ChunkId)
+            {
+                PageBreakOffsets.Add(sb.Length);
+            }
+            currentChunk = seg.BaseSegment.ChunkId;
             sb.AppendLine(FormatSegmentForEditor(seg));
         }
 
@@ -48,8 +73,10 @@ public class PaperSheetViewModel
         
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            Document.Insert(MagicCursorOffset, textToInsert);
-            MagicCursorOffset += textToInsert.Length;
+            int insertOffset = MagicCursorOffset;
+            Document.Insert(insertOffset, textToInsert);
+            // Anchor automatically moves because MovementType is AfterInsertion, but just to be sure we set it to end of inserted text if needed.
+            // Since it's AfterInsertion, the anchor moves to the end of the inserted text automatically.
         });
     }
 
