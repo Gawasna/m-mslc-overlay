@@ -3,7 +3,7 @@
              xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
              x:Class="m_mslc_overlay.views.content.transcript.DocumentNavigationPane"
              x:DataType="vm:NavPaneViewModel"
-             Width="220">
+             Width="220" MinWidth="180" MaxWidth="400">
 
     <Grid RowDefinitions="Auto, *" IsVisible="{Binding IsVisible}">
 
@@ -76,7 +76,7 @@
 
         <!-- ─── State Panels ────────────────────────────────────────────────── -->
         <Border Grid.Row="1"
-                Background="#FFFFFF"
+                Background="{StaticResource BgCardBrush}"
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="0,0,1,0">
 
@@ -110,7 +110,7 @@
                                         <!-- Editable display name -->
                                         <StackPanel Grid.Column="1" Spacing="1">
                                             <TextBlock Text="{Binding SpeakerKey}"
-                                                       FontSize="9" Foreground="#9CA3AF" />
+                                                       FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
                                             <TextBox Text="{Binding DisplayName}"
                                                      FontSize="11"
                                                      Padding="2,1"
@@ -127,7 +127,7 @@
 
                     <!-- Hint when empty -->
                     <TextBlock Text="Speakers will appear here as segments arrive."
-                               FontSize="10" Foreground="#9CA3AF"
+                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap" Margin="10,12" />
 
                 </StackPanel>
@@ -191,11 +191,11 @@
                 <StackPanel IsVisible="{Binding ShowAiSummary}" Spacing="0">
 
                     <!-- Header -->
-                    <Border Background="#FFF4E6" BorderBrush="#FFD9AA"
+                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
                             BorderThickness="0,0,0,1" Padding="10,6">
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBlock Grid.Column="0" Text="AI Summary"
-                                       FontSize="11" FontWeight="SemiBold" Foreground="#1E40AF" />
+                                       FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
                             <TextBlock Grid.Column="1"
                                        Text="Gemini"
                                        FontSize="9" Foreground="{StaticResource PrimaryBrush}"
@@ -222,8 +222,8 @@
 
                         <!-- Summary output -->
                         <Border CornerRadius="3"
-                                Background="#F8FAFC"
-                                BorderBrush="#E2E8F0"
+                                Background="{StaticResource BgWindowBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
                                 BorderThickness="1"
                                 Padding="8,6"
                                 MinHeight="120">
@@ -241,10 +241,10 @@
                 <StackPanel IsVisible="{Binding ShowAiAutoCorrect}" Spacing="0">
 
                     <!-- Header -->
-                    <Border Background="#F0FDF4" BorderBrush="#BBF7D0"
+                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
                             BorderThickness="0,0,0,1" Padding="10,6">
                         <TextBlock Text="AI Auto-Correct"
-                                   FontSize="11" FontWeight="SemiBold" Foreground="#14532D" />
+                                   FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Border>
 
                     <StackPanel Spacing="10" Margin="10">
@@ -285,7 +285,7 @@
 
                         <!-- Result text -->
                         <TextBlock Text="{Binding AiPane.CorrectResultMessage}"
-                                   FontSize="10" Foreground="#16A34A"
+                                   FontSize="10" Foreground="{StaticResource StatusActiveBrush}"
                                    TextWrapping="Wrap" />
 
                     </StackPanel>
@@ -296,15 +296,15 @@
 
                     <!-- Header -->
                     <Border Grid.Row="0"
-                            Background="#FFF7ED" BorderBrush="#FED7AA"
+                            Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
                             BorderThickness="0,0,0,1" Padding="10,6">
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBlock Grid.Column="0"
                                        Text="Glossary"
-                                       FontSize="11" FontWeight="SemiBold" Foreground="#92400E" />
+                                       FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
                             <TextBlock Grid.Column="1"
                                        Text="{Binding GlossaryEntries.Count, StringFormat='{}{0} terms'}"
-                                       FontSize="9" Foreground="#D97706" VerticalAlignment="Center" />
+                                       FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
 
@@ -313,13 +313,13 @@
                         <ItemsControl ItemsSource="{Binding GlossaryEntries}">
                             <ItemsControl.DataTemplates>
                                 <DataTemplate x:DataType="vm:GlossaryEntry">
-                                    <Border BorderBrush="#FEF3C7"
+                                    <Border BorderBrush="{StaticResource BorderLightBrush}"
                                             BorderThickness="0,0,0,1"
                                             Padding="10,8">
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{Binding Term}"
                                                        FontSize="11" FontWeight="Bold"
-                                                       Foreground="#92400E" />
+                                                       Foreground="{StaticResource PrimaryBrush}" />
                                             <TextBlock Text="{Binding Definition}"
                                                        FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                                                        TextWrapping="Wrap" />
@@ -332,8 +332,8 @@
 
                     <!-- Add entry row -->
                     <Border Grid.Row="2"
-                            Background="#FFF7ED"
-                            BorderBrush="#FED7AA" BorderThickness="0,1,0,0"
+                            Background="{StaticResource BgWindowBrush}"
+                            BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0"
                             Padding="8">
                         <StackPanel Spacing="4">
                             <TextBox x:Name="GlossaryTermBox"

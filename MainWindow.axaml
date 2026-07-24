@@ -1,19 +1,80 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:transcript="using:m_mslc_overlay.views.content.transcript"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.MainWindow"
         Title="{DynamicResource Title_ControlCenter}"
         Background="{StaticResource BgWindowBrush}"
-        MinWidth="400" MinHeight="300"
-        Width="1024" Height="768"
+        MinWidth="960" MinHeight="300"
+        Width="1200" Height="768"
         WindowStartupLocation="CenterScreen">
-    
-    <Window.Resources>
-        <!-- Zap/Lightning icon for DLL Injection -->
-        <StreamGeometry x:Key="IconZap">M13 2L3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
-    </Window.Resources>
 
+    <Window.Styles>
+        <Style Selector="Border.SidebarItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Border.SidebarItem materialIcons|MaterialIcon">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.SidebarItem:pointerover">
+            <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+        </Style>
+        <Style Selector="Border.SidebarItem.Active">
+            <Setter Property="Background" Value="{StaticResource TranscriptActiveRowBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Border.SidebarItem.Active TextBlock">
+            <Setter Property="TextDecorations" Value="Underline"/>
+        </Style>
 
+        <!-- Responsive Sidebar Mini Mode styles -->
+        <Style Selector="Border.Mini TextBlock">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.Mini Border.SidebarItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+        </Style>
+        <Style Selector="Border.Mini Border.SidebarItem materialIcons|MaterialIcon">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="2"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Mini mode Recent Block responsive adjustments -->
+        <Style Selector="Border.Mini Border.RecentBlock">
+            <Setter Property="Padding" Value="0,12"/>
+        </Style>
+        <Style Selector="Border.Mini Border.PathBorder">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.Mini StackPanel.PathActions">
+            <Setter Property="Orientation" Value="Vertical"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Spacing" Value="6"/>
+        </Style>
+        <Style Selector="Border.Mini Button.ToggleSidebarBtn">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="Border.Mini Button.CopyPathBtn">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+    </Window.Styles>
 
     <Grid RowDefinitions="Auto, Auto, *, Auto">
         
@@ -59,6 +120,7 @@
                 </MenuItem>
                 <MenuItem Header="{DynamicResource Menu_Help}">
                     <MenuItem Header="{DynamicResource Menu_ViewDocumentation}" InputGesture="F1" />
+                    <MenuItem Header="Kiểm tra môi trường hệ thống (UAC)..." Click="CheckEnvironmentMenuItem_Click" />
                     <MenuItem Header="{DynamicResource Menu_CheckForUpdates}" />
                     <MenuItem Header="{DynamicResource Menu_AboutControlCenter}" />
                 </MenuItem>
@@ -82,7 +144,7 @@
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="PrimaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_InjectDll}">
-                        <PathIcon Data="{StaticResource IconZap}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
+                        <materialIcons:MaterialIcon Kind="Flash" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
                     </Button>
                     <!-- Open Overlay Button -->
                     <Button Click="OpenOverlayBtn_Click"
@@ -90,7 +152,7 @@
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_OpenOverlay}">
-                        <PathIcon Data="{StaticResource IconPlay}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <materialIcons:MaterialIcon Kind="Play" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                     <!-- Open Debug / Settings Button -->
                     <Button Click="OpenDebugWidgetBtn_Click"
@@ -98,36 +160,201 @@
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
                             Classes="SecondaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_OpenDebugSettings}">
-                        <PathIcon Data="{StaticResource IconSetting}" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <materialIcons:MaterialIcon Kind="Cog" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- PaperSheet Demo Button -->
+                    <Button Click="OpenPaperSheetDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Open PaperSheet Demo">
+                        <materialIcons:MaterialIcon Kind="FileDocumentEdit" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- TipTap Demo Button -->
+                    <Button Click="OpenTipTapDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="TipTap Editor Demo">
+                        <materialIcons:MaterialIcon Kind="LanguageHtml5" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Quill Demo Button -->
+                    <Button Click="OpenQuillDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Quill Editor Demo">
+                        <materialIcons:MaterialIcon Kind="Feather" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Monaco Demo Button -->
+                    <Button Click="OpenMonacoDemoBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Monaco Editor Demo">
+                        <materialIcons:MaterialIcon Kind="CodeBraces" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Theme Toggle Button (cycles: System → Light → Dark) -->
+                    <Button x:Name="ThemeToggleBtn" Click="ThemeToggleBtn_Click"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}"
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0"
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Toggle Theme (System / Light / Dark)">
+                        <materialIcons:MaterialIcon x:Name="ThemeIcon" Kind="WeatherSunny" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- 3. Blank Section (Content Area) -->
-        <Grid Grid.Row="2" ColumnDefinitions="240, *">
+        <Grid Grid.Row="2" x:Name="MainContentGrid" ColumnDefinitions="240, Auto, *">
             <!-- Sidebar_Panel -->
             <Border Grid.Column="0" 
+                    x:Name="SidebarBorder"
+                    HorizontalAlignment="Stretch"
                     Background="{StaticResource BgWindowBrush}" 
                     BorderBrush="{StaticResource BorderLightBrush}" 
                     BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="7*, 3*">
                     <!-- Sidebar_Primary_Slot -->
                     <Grid Grid.Row="0" RowDefinitions="Auto, *">
-                        <!-- Recent Block -->
-                        <Border Grid.Row="0" Height="24" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="12,0">
-                            <TextBlock Text="Recent" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <!-- Recent Block (Current Session) -->
+                        <Border Grid.Row="0" 
+                                Classes="RecentBlock"
+                                Background="Transparent" 
+                                BorderBrush="{StaticResource BorderLightBrush}" 
+                                BorderThickness="0,0,0,1" 
+                                Padding="16,12">
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="Session:" 
+                                               FontWeight="SemiBold" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Interview with Tech Lead" 
+                                               FontWeight="Bold" 
+                                               FontSize="13" 
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                </StackPanel>
+                                
+                                <TextBlock Text="Last Modified: 2026-07-19 14:30" 
+                                           FontSize="11" 
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                           
+                                <Grid ColumnDefinitions="*, Auto" Margin="0,4,0,0">
+                                    <!-- Workspace path container -->
+                                    <Border Grid.Column="0" 
+                                            Classes="PathBorder"
+                                            Background="{StaticResource BgCardBrush}" 
+                                            BorderBrush="{StaticResource BorderBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="0" 
+                                            Padding="8,4" 
+                                            Margin="0,0,8,0">
+                                        <TextBlock Text="C:\Workspaces\TechLead_2026..." 
+                                                   FontSize="11" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}" 
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+                                    
+                                    <!-- Actions Panel -->
+                                    <StackPanel Grid.Column="1" Classes="PathActions" Orientation="Horizontal" Spacing="4">
+                                        <!-- Toggle Sidebar Button -->
+                                        <Button x:Name="ToggleSidebarBtn"
+                                                Click="ToggleSidebarBtn_Click"
+                                                Classes="SecondaryBtn ToggleSidebarBtn"
+                                                Padding="6,4"
+                                                Height="24"
+                                                CornerRadius="0"
+                                                ToolTip.Tip="Expand/Collapse Sidebar">
+                                            <materialIcons:MaterialIcon Kind="DockLeft" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        </Button>
+                                        
+                                        <!-- Copy button -->
+                                        <Button Classes="SecondaryBtn CopyPathBtn"
+                                                Padding="6,4"
+                                                Height="24"
+                                                CornerRadius="0"
+                                                ToolTip.Tip="Copy Workspace Path">
+                                            <materialIcons:MaterialIcon Kind="ContentCopy" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
                         </Border>
-                        <!-- Primary_Blank_Placeholder -->
-                        <Border Grid.Row="1" Background="Transparent" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1">
-                            <TextBlock Text="Placeholder" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
-                        </Border>
+                        
+                        <!-- Session Files list -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <Border Background="Transparent"
+                                    BorderBrush="{StaticResource BorderLightBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    CornerRadius="0"
+                                    Margin="0"
+                                    Padding="4">
+                                <StackPanel Spacing="2">
+                                    <!-- File 1: transcript.srt (Active) -->
+                                    <Border Classes="SidebarItem Active">
+                                        <Grid ColumnDefinitions="Auto, *">
+                                            <!-- File icon -->
+                                            <materialIcons:MaterialIcon Grid.Column="0" 
+                                                                        Kind="FileDocumentOutline" 
+                                                                        Width="14" 
+                                                                        Height="14" 
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <!-- File name -->
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="transcript.srt" 
+                                                       FontSize="12" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- File 2: audio_source.wav (Inactive) -->
+                                    <Border Classes="SidebarItem">
+                                        <Grid ColumnDefinitions="Auto, *">
+                                            <!-- File icon -->
+                                            <materialIcons:MaterialIcon Grid.Column="0" 
+                                                                        Kind="MusicNote" 
+                                                                        Width="14" 
+                                                                        Height="14" 
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <!-- File name -->
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="audio_source.wav" 
+                                                       FontSize="12" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- File 3: notes.txt (Inactive) -->
+                                    <Border Classes="SidebarItem">
+                                        <Grid ColumnDefinitions="Auto, *">
+                                            <!-- File icon -->
+                                            <materialIcons:MaterialIcon Grid.Column="0" 
+                                                                        Kind="NotebookOutline" 
+                                                                        Width="14" 
+                                                                        Height="14" 
+                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <!-- File name -->
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="notes.txt" 
+                                                       FontSize="12" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </ScrollViewer>
                     </Grid>
 
                     <!-- Sidebar_Utility_Slot -->
                     <Grid Grid.Row="1" RowDefinitions="Auto, *">
                         <!-- Status Block -->
-                        <Border Grid.Row="0" Height="24" Background="White" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,1" Padding="12,0">
+                        <Border Grid.Row="0" Height="24" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,1" Padding="12,0">
                             <TextBlock Text="Status" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
                         </Border>
                         <!-- Status List -->
@@ -135,28 +362,28 @@
                             <StackPanel Spacing="10">
                                 <!-- Python runtime -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotPython" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Python runtime" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotPython" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextPython" Text="Python runtime" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- Live caption -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotCaption" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Live caption" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotCaption" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextCaption" Text="Live caption" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- CUDA status -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotCuda" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="CUDA status" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotCuda" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextCuda" Text="CUDA status" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- Extractor module -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotExtractor" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Extractor module" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotExtractor" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextExtractor" Text="Extractor module" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <!-- Local Network -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse x:Name="StatusDotNetwork" Width="8" Height="8" Fill="#CBCCC9" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Local Network" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="StatusDotNetwork" Width="8" Height="8" Fill="{StaticResource StatusInactiveBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="StatusTextNetwork" Text="Local Network" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -164,16 +391,22 @@
                 </Grid>
             </Border>
 
+            <!-- Sidebar Drag Splitter -->
+            <GridSplitter Grid.Column="1" 
+                          Width="5" 
+                          Background="Transparent"
+                          ResizeBehavior="PreviousAndNext"/>
+
             <!-- Main_Viewport: Transcript Viewport (Word-style bilingual transcript) -->
             <transcript:TranscriptViewport x:Name="TranscriptViewport"
-                                           Grid.Column="1" />
+                                           Grid.Column="2" />
         </Grid>
 
         <!-- 4. Downbar (Status Bar) -->
         <Border Grid.Row="3" 
                 Height="24" 
-                Background="#F3F3F3" 
-                BorderBrush="#E5E5E5" 
+                Background="{StaticResource BgWindowBrush}" 
+                BorderBrush="{StaticResource BorderLightBrush}" 
                 BorderThickness="0,1,0,0"
                 Padding="12,0">
             <Grid ColumnDefinitions="*, Auto, *">
@@ -181,7 +414,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
                     <TextBlock x:Name="StatusBarMainText" 
                                Text="{DynamicResource Status_Ready}" 
-                               Foreground="#666666" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
                                FontSize="11"/>
                 </StackPanel>
 
@@ -189,7 +422,7 @@
                 <TextBlock Grid.Column="1" 
                            x:Name="StatusBarInfoText"
                            Text="AI Model: Gemini 1.5 Pro | Topic: Game/Phim" 
-                           Foreground="#888888" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
                            FontSize="11" 
                            VerticalAlignment="Center"/>
 
@@ -202,25 +435,25 @@
                     <!-- Resource Usage -->
                     <TextBlock x:Name="ResourceUsageText" 
                                Text="SYS: 0% CPU 0MB | APP: 0% CPU 0MB" 
-                               Foreground="#888888" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
                                FontSize="11" 
                                VerticalAlignment="Center"/>
                                
                     <!-- Target PID -->
                     <TextBlock x:Name="TargetPidText" 
                                Text="{DynamicResource Status_PidNotRunning}" 
-                               Foreground="#666666" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
                                FontSize="11"/>
                     
                     <!-- Hook Status -->
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <Ellipse x:Name="HookStatusDot" 
                                  Width="8" Height="8" 
-                                 Fill="#CBCCC9" 
+                                 Fill="{StaticResource StatusInactiveBrush}" 
                                  VerticalAlignment="Center"/>
                         <TextBlock x:Name="HookStatusText" 
                                    Text="{DynamicResource Status_Disconnected}" 
-                                   Foreground="#666666" 
+                                   Foreground="{StaticResource TextSecondaryBrush}" 
                                    FontSize="11" 
                                    VerticalAlignment="Center"/>
                     </StackPanel>

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-24T17:51:00Z",
+  "atoms": [
+    {
+      "id": "atom26",
+      "name": "Offline Translation Server",
+      "version": "1.0.0",
+      "description": "CTranslate2-based NMT inference engine (NLLB-200 / OPUS-MT). Serves REST API at http://127.0.0.1:11435.",
+      "source_url": "https://github.com/Gawasna/mslc-atom26/releases/download/v1.0.0/mslc-atom26-v1.0.0.zip",
+      "sha256": "9c11faccf5f4d698ffef7fb2678ab84762d317c2db3e568b9769282048153298",
+      "install_dir": "plugins/atom26",
+      "entry_script": "translation_server.py",
+      "min_python": "3.10",
+      "changelog_url": "https://github.com/Gawasna/mslc-atom26/releases/tag/v1.0.0"
+    },
+    {
+      "id": "atom32",
+      "name": "Speaker Diarization Engine",
+      "version": "1.0.0",
+      "description": "ONNX-based speaker diarization with real-time LiveCaption labeling.",
+      "source_url": "https://github.com/Gawasna/mslc-atom32/releases/download/v1.0.0/mslc-atom32-v1.0.0.zip",
+      "sha256": "fb72a117f01d447cb06c62bdf073bee35e6bc6c8ed9c214438fc39a3d4545b22",
+      "install_dir": "plugins/atom32",
+      "entry_script": "cli_diarizer.py",
+      "min_python": "3.10",
+      "changelog_url": "https://github.com/Gawasna/mslc-atom32/releases/tag/v1.0.0"
+    }
+  ]
+}

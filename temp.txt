@@ -1,0 +1,512 @@
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using m_mslc_overlay.services;
+
+namespace m_mslc_overlay.views.dialogs
+{
+    public partial class PreferencesDialog : Window
+    {
+        public PreferencesDialog()
+        {
+            InitializeComponent();
+            ConfigManager.Load();
+            LoadSettings();
+
+            OfflineTranslationServerManager.OnStateChanged += OnServerStateChanged;
+
+            this.Closed += (s, e) => {
+                OfflineTranslationServerManager.OnStateChanged -= OnServerStateChanged;
+            };
+        }
+
+        private void OnServerStateChanged(OfflineServerState state)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                UpdateServerStateUI(state);
+            });
+        }
+
+        private void LoadSettings()
+        {
+            var cfg = ConfigManager.Current;
+            StartupCheck.IsChecked = cfg.RunAtStartup;
+            TrayIconCheck.IsChecked = cfg.StartMinimizedToTray;
+            CheckUpdatesCheck.IsChecked = cfg.CheckForUpdates;
+            
+            LanguageCombo.SelectedIndex = cfg.Language == "vi-VN" ? 0 : 1;
+            
+            TranslationEngineCombo.SelectedIndex = cfg.TranslationEngine switch {
+                "DeepL API" => 0,
+                "Cloud AI (Ollama/Gemini)" => 1,
+                "Offline CTranslate2" => 2,
+                _ => 1
+            };
+            DeepLApiKeyBox.Text = cfg.DeepLApiKey;
+            OfflineTranslateUrlBox.Text = cfg.OfflineTranslateUrl;
+            OfflineServerDirBox.Text = cfg.OfflineServerDir;
+            
+            AiModelCombo.SelectedIndex = cfg.AiModel switch {
+                "Gemini 1.5 Flash" => 1,
+                "Claude 3 Haiku" => 2,
+                _ => 0
+            };
+            
+            ApiKeyBox.Text = cfg.ApiKey;
+            SystemPromptBox.Text = cfg.SystemPrompt;
+            PipeNameBox.Text = cfg.PipeName;
+            VerboseLogCheck.IsChecked = cfg.VerboseLogging;
+            EnableHotkeysCheck.IsChecked = cfg.EnableGlobalHotkeys;
+
+            if (cfg.OfflineModel == "OPUS-MT")
+            {
+                if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
+            }
+            else
+            {
+                if (UseNllbRadio != null) UseNllbRadio.IsChecked = true;
+            }
+
+            UpdateServerStateUI(OfflineTranslationServerManager.State);
+        }
+
+        private void SaveSettings()
+        {
+            var cfg = ConfigManager.Current;
+            string oldEngine = cfg.TranslationEngine;
+
+            cfg.RunAtStartup = StartupCheck.IsChecked ?? false;
+            cfg.StartMinimizedToTray = TrayIconCheck.IsChecked ?? true;
+            cfg.CheckForUpdates = CheckUpdatesCheck.IsChecked ?? true;
+            
+            cfg.Language = LanguageCombo.SelectedIndex == 0 ? "vi-VN" : "en-US";
+            
+            cfg.TranslationEngine = TranslationEngineCombo.SelectedIndex switch {
+                0 => "DeepL API",
+                1 => "Cloud AI (Ollama/Gemini)",
+                2 => "Offline CTranslate2",
+                _ => "Cloud AI (Ollama/Gemini)"
+            };
+            cfg.DeepLApiKey = DeepLApiKeyBox.Text ?? "";
+            cfg.OfflineTranslateUrl = OfflineTranslateUrlBox.Text ?? "http://127.0.0.1:11435";
+            cfg.OfflineServerDir = OfflineServerDirBox.Text ?? "plugins/atom26";
+            
+            cfg.AiModel = AiModelCombo.SelectedIndex switch {
+                1 => "Gemini 1.5 Flash",
+                2 => "Claude 3 Haiku",
+                _ => "Gemini 1.5 Pro"
+            };
+            
+            cfg.ApiKey = ApiKeyBox.Text ?? "";
+            cfg.SystemPrompt = SystemPromptBox.Text ?? "";
+            cfg.PipeName = PipeNameBox.Text ?? "MSLCCaptionPipe";
+            cfg.VerboseLogging = VerboseLogCheck.IsChecked ?? false;
+            cfg.EnableGlobalHotkeys = EnableHotkeysCheck.IsChecked ?? true;
+            
+            ConfigManager.Save();
+
+            // Quản lý vòng đời Offline Server khi cấu hình Engine thay đổi
+            if (oldEngine != cfg.TranslationEngine)
+            {
+                if (cfg.TranslationEngine == "Offline CTranslate2")
+                {
+                    LoggerService.Log("[PreferencesDialog] Translation engine switched to Offline CTranslate2. Starting offline server...");
+                    // Parse port from URL if custom, else use default 11435
+                    if (Uri.TryCreate(cfg.OfflineTranslateUrl, UriKind.Absolute, out var uri))
+                    {
+                        OfflineTranslationServerManager.ServerPort = uri.Port;
+                    }
+                    _ = OfflineTranslationServerManager.StartServerAsync();
+                }
+                else if (oldEngine == "Offline CTranslate2")
+                {
+                    LoggerService.Log("[PreferencesDialog] Translation engine switched away from Offline CTranslate2. Stopping offline server...");
+                    OfflineTranslationServerManager.StopServer();
+                }
+            }
+
+            if (this.Owner is MainWindow mainWin)
+            {
+                mainWin.UpdateHotkeyRegistration();
+            }
+        }
+
+        private async void TestOfflineConnectionBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            OfflineStatusText.Text = LanguageManager.GetString("Pref_LocalAI_Testing") ?? "Đang kiểm tra kết nối...";
+            OfflineStatusText.Foreground = Avalonia.Media.Brushes.Gray;
+            
+            string url = OfflineTranslateUrlBox.Text ?? "";
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                url = "http://127.0.0.1:11435";
+            }
+
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
+                var response = await client.GetAsync($"{url.TrimEnd('/')}/status");
+                response.EnsureSuccessStatusCode();
+
+                string responseStr = await response.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(responseStr);
+                var root = doc.RootElement;
+                
+                string status = root.GetProperty("status").GetString() ?? "";
+                string device = root.GetProperty("device").GetString() ?? "";
+                string modelType = root.GetProperty("model_type").GetString() ?? "";
+                string modelPath = root.GetProperty("model_path").GetString() ?? "";
+                bool hasCuda = root.GetProperty("has_cuda").GetBoolean();
+
+                string statusMsg = LanguageManager.GetString("Pref_LocalAI_ConnSuccess") ?? "Kết nối thành công!";
+                string deviceMsg = device.ToUpper();
+                
+                OfflineStatusText.Text = $"{statusMsg}\nDevice: {deviceMsg} (CUDA: {hasCuda})\nModel Type: {modelType.ToUpper()}\nPath: {modelPath}";
+                OfflineStatusText.Foreground = Avalonia.Media.Brushes.Green;
+            }
+            catch (Exception ex)
+            {
+                string failMsg = LanguageManager.GetString("Pref_LocalAI_ConnFailed") ?? "Kết nối thất bại!";
+                OfflineStatusText.Text = $"{failMsg} Error: {ex.Message}";
+                OfflineStatusText.Foreground = Avalonia.Media.Brushes.Red;
+            }
+        }
+
+        private void TabSelector_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (TabSelector == null) return;
+            
+            // Hide all tabs
+            if (TabGeneral != null) TabGeneral.IsVisible = false;
+            if (TabTranslation != null) TabTranslation.IsVisible = false;
+            if (TabAppearance != null) TabAppearance.IsVisible = false;
+            if (TabNetwork != null) TabNetwork.IsVisible = false;
+            if (TabUtilities != null) TabUtilities.IsVisible = false;
+            if (TabAdvanced != null) TabAdvanced.IsVisible = false;
+            if (TabHotkeys != null) TabHotkeys.IsVisible = false;
+
+            // Show selected tab
+            switch (TabSelector.SelectedIndex)
+            {
+                case 0:
+                    if (TabGeneral != null) TabGeneral.IsVisible = true;
+                    break;
+                case 1:
+                    if (TabTranslation != null) TabTranslation.IsVisible = true;
+                    break;
+                case 2:
+                    if (TabAppearance != null) TabAppearance.IsVisible = true;
+                    break;
+                case 3:
+                    if (TabNetwork != null) TabNetwork.IsVisible = true;
+                    break;
+                case 4:
+                    if (TabUtilities != null) TabUtilities.IsVisible = true;
+                    break;
+                case 5:
+                    if (TabAdvanced != null) TabAdvanced.IsVisible = true;
+                    break;
+                case 6:
+                    if (TabHotkeys != null) TabHotkeys.IsVisible = true;
+                    break;
+            }
+        }
+
+        private void ResetBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            // Simple reset to defaults
+            ConfigManager.Current = new AppConfig();
+            LoadSettings();
+        }
+
+        private void CloseBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            SaveSettings();
+            Close();
+        }
+
+        private void UpdateServerStateUI(OfflineServerState state)
+        {
+            if (OfflineServerStateText == null) return;
+
+            switch (state)
+            {
+                case OfflineServerState.Stopped:
+                    OfflineServerStateText.Text = "Đã dừng";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Gray;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = false;
+                    break;
+                case OfflineServerState.Starting:
+                    OfflineServerStateText.Text = "Đang khởi động...";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Orange;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+                case OfflineServerState.Ready:
+                    OfflineServerStateText.Text = "Sẵn sàng (Đang chạy)";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Green;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+                case OfflineServerState.ModelMissing:
+                    OfflineServerStateText.Text = "Thiếu mô hình (Model Missing)";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+                case OfflineServerState.Failed:
+                    OfflineServerStateText.Text = $"Lỗi: {OfflineTranslationServerManager.LastErrorMessage}";
+                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
+                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
+                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
+                    break;
+            }
+        }
+
+        private async void StartOfflineServerBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            string url = OfflineTranslateUrlBox.Text ?? "";
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                OfflineTranslationServerManager.ServerPort = uri.Port;
+            }
+            await OfflineTranslationServerManager.StartServerAsync();
+        }
+
+        private void StopOfflineServerBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            OfflineTranslationServerManager.StopServer();
+        }
+
+        private async void StartInstallBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            if (StartInstallBtn == null || InstallModelCombo == null) return;
+
+            string modelId = "facebook/nllb-200-distilled-600m";
+            string modelOutputDir = "models/nllb-600m-int8";
+
+            if (InstallModelCombo.SelectedIndex == 1)
+            {
+                modelId = "Helsinki-NLP/opus-mt-en-vi";
+                modelOutputDir = "models/opus-en-vi-int8";
+            }
+
+            // Mở popup InstallationDialog để thực hiện và theo dõi cài đặt
+            var installDlg = new InstallationDialog(modelId, modelOutputDir);
+            await installDlg.ShowDialog(this);
+            
+            // Cập nhật lại UI sau khi dialog cài đặt đóng
+            UpdateModelSelectionUI();
+        }
+
+        private bool IsModelInstalled(string modelDirName)
+        {
+            try
+            {
+                string serverDir = OfflineTranslationServerManager.FindServerDirectory();
+                if (string.IsNullOrEmpty(serverDir))
+                {
+                    string configuredPath = ConfigManager.Current.OfflineServerDir;
+                    serverDir = Path.IsPathRooted(configuredPath) 
+                        ? configuredPath 
+                        : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                }
+                string path = Path.Combine(serverDir, "models", modelDirName);
+                return Directory.Exists(path) && File.Exists(Path.Combine(path, "model.bin"));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void UpdateModelSelectionUI()
+        {
+            bool nllbInstalled = IsModelInstalled("nllb-600m-int8");
+            bool opusInstalled = IsModelInstalled("opus-en-vi-int8");
+
+            if (UninstalledPanel == null || InstalledPanel == null || NllbRow == null || OpusRow == null) return;
+
+            if (!nllbInstalled && !opusInstalled)
+            {
+                UninstalledPanel.IsVisible = true;
+                InstalledPanel.IsVisible = false;
+            }
+            else
+            {
+                UninstalledPanel.IsVisible = false;
+                InstalledPanel.IsVisible = true;
+
+                NllbRow.IsVisible = nllbInstalled;
+                OpusRow.IsVisible = opusInstalled;
+
+                var cfg = ConfigManager.Current;
+                if (cfg.OfflineModel == "OPUS-MT" && opusInstalled)
+                {
+                    if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
+                }
+                else if (nllbInstalled)
+                {
+                    if (UseNllbRadio != null) UseNllbRadio.IsChecked = true;
+                    cfg.OfflineModel = "NLLB-200 600M";
+                }
+                else if (opusInstalled)
+                {
+                    if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
+                    cfg.OfflineModel = "OPUS-MT";
+                }
+            }
+        }
+
+        private void ShowInstallBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            if (UninstalledPanel != null) UninstalledPanel.IsVisible = true;
+        }
+
+        private void UseNllbRadio_Checked(object? sender, RoutedEventArgs e)
+        {
+            ConfigManager.Current.OfflineModel = "NLLB-200 600M";
+            ConfigManager.Save();
+        }
+
+        private void UseOpusRadio_Checked(object? sender, RoutedEventArgs e)
+        {
+            ConfigManager.Current.OfflineModel = "OPUS-MT";
+            ConfigManager.Save();
+        }
+
+        private async void UpdateNllbBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            await HandleModelUpdateCheckAsync(
+                sender as Button,
+                "facebook/nllb-200-distilled-600m",
+                "models/nllb-600m-int8",
+                "NLLB-200 600M"
+            );
+        }
+
+        private async void UpdateOpusBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            await HandleModelUpdateCheckAsync(
+                sender as Button,
+                "Helsinki-NLP/opus-mt-en-vi",
+                "models/opus-en-vi-int8",
+                "OPUS-MT"
+            );
+        }
+
+        private async Task HandleModelUpdateCheckAsync(Button? btn, string modelId, string modelOutputDir, string displayName)
+        {
+            if (btn == null) return;
+
+            string originalText = btn.Content?.ToString() ?? "Kiểm tra cập nhật";
+            btn.Content = "Đang kiểm tra...";
+            btn.IsEnabled = false;
+
+            try
+            {
+                var checkResult = await OfflineTranslationInstaller.CheckForModelUpdateAsync(modelId, modelOutputDir);
+                
+                // Khôi phục nút bấm
+                btn.Content = originalText;
+                btn.IsEnabled = true;
+
+                switch (checkResult)
+                {
+                    case OfflineTranslationInstaller.UpdateCheckResult.UpToDate:
+                        await MessageDialog.ShowAsync(
+                            this,
+                            "Kiểm tra cập nhật",
+                            $"Mô hình {displayName} hiện tại đang ở phiên bản mới nhất trên Hugging Face Hub. Không cần cập nhật."
+                        );
+                        break;
+
+                    case OfflineTranslationInstaller.UpdateCheckResult.UpdateAvailable:
+                        bool doUpdate = await MessageDialog.ShowAsync(
+                            this,
+                            "Phát hiện bản cập nhật mới",
+                            $"Mô hình {displayName} có một phiên bản mới hơn trên Hugging Face Hub. Bạn có muốn tải xuống và cài đặt bản cập nhật này không?",
+                            showCancel: true
+                        );
+                        if (doUpdate)
+                        {
+                            var installDlg = new InstallationDialog(modelId, modelOutputDir);
+                            await installDlg.ShowDialog(this);
+                            UpdateModelSelectionUI();
+                        }
+                        break;
+
+                    case OfflineTranslationInstaller.UpdateCheckResult.UpdateRequired:
+                        bool doFreshInstall = await MessageDialog.ShowAsync(
+                            this,
+                            "Cài đặt mới",
+                            $"Không tìm thấy siêu dữ liệu hoặc mô hình {displayName} cục bộ hợp lệ. Bạn có muốn tiến hành cài đặt mới không?",
+                            showCancel: true
+                        );
+                        if (doFreshInstall)
+                        {
+                            var installDlg = new InstallationDialog(modelId, modelOutputDir);
+                            await installDlg.ShowDialog(this);
+                            UpdateModelSelectionUI();
+                        }
+                        break;
+
+                    case OfflineTranslationInstaller.UpdateCheckResult.Error:
+                        await MessageDialog.ShowAsync(
+                            this,
+                            "Lỗi kiểm tra",
+                            $"Không thể kết nối đến Hugging Face Hub hoặc tệp thực thi bị thiếu. Vui lòng kiểm tra lại kết nối mạng."
+                        );
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                btn.Content = originalText;
+                btn.IsEnabled = true;
+                LoggerService.Log($"[PreferencesDialog] Update check exception: {ex.Message}");
+            }
+        }
+
+        private void DeleteNllbBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            DeleteModelFolder("nllb-600m-int8");
+            UpdateModelSelectionUI();
+        }
+
+        private void DeleteOpusBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            DeleteModelFolder("opus-en-vi-int8");
+            UpdateModelSelectionUI();
+        }
+
+        private void DeleteModelFolder(string modelDirName)
+        {
+            try
+            {
+                string serverDir = OfflineTranslationServerManager.FindServerDirectory();
+                if (string.IsNullOrEmpty(serverDir))
+                {
+                    string configuredPath = ConfigManager.Current.OfflineServerDir;
+                    serverDir = Path.IsPathRooted(configuredPath) 
+                        ? configuredPath 
+                        : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                }
+                string path = Path.Combine(serverDir, "models", modelDirName);
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                    LoggerService.Log($"[PreferencesDialog] Deleted model folder: {path}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Log($"[PreferencesDialog] Error deleting model folder {modelDirName}: {ex.Message}");
+            }
+        }
+    }
+}

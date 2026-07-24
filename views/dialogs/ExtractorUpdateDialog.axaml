@@ -20,7 +20,7 @@
             </Grid>
             
             <!-- Current step info -->
-            <TextBlock x:Name="CurrentStepText" Text="Nhấn 'Kiểm tra' để bắt đầu..." FontSize="11" Foreground="#FF8400" FontWeight="Bold" Margin="0,4,0,0"/>
+            <TextBlock x:Name="CurrentStepText" Text="Nhấn 'Kiểm tra' để bắt đầu..." FontSize="11" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" Margin="0,4,0,0"/>
         </StackPanel>
         
         <!-- Center Content (Progress & Logs) -->

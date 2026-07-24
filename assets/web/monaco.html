@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Monaco Demo</title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; cursor: text; }
+        #container { width: 100vw; height: 100vh; }
+        h3 { display: none; } /* Hide title for clean paper sheet look */
+    </style>
+</head>
+<body>
+    <h3>Monaco Editor</h3>
+    <div id="container"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/loader.min.js"></script>
+    <script>
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            var editor = monaco.editor.create(document.getElementById('container'), {
+                value: [
+                    'function helloWorld() {',
+                    '\tconsole.log("Hello World! This is Monaco inside Avalonia.");',
+                    '}'
+                ].join('\n'),
+                language: 'javascript',
+                theme: 'vs-dark'
+            });
+            window.addEventListener('resize', function() {
+                editor.layout();
+            });
+            
+            window.simulateMagicCursor = function(ts, spk, text) {
+                var lineCount = editor.getModel().getLineCount();
+                var textToInsert = `\n// [${ts}] [${spk}] ${text}\n// ↳ [Bản dịch tạm thời đang chờ xử lý...]`;
+                editor.executeEdits("", [
+                    { range: new monaco.Range(lineCount + 1, 1, lineCount + 1, 1), text: textToInsert }
+                ]);
+            };
+            
+            window.focusEditor = function() {
+                editor.focus();
+            };
+            
+            document.body.addEventListener('click', window.focusEditor);
+        });
+    </script>
+</body>
+</html>

@@ -1,12 +1,11 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="m_mslc_overlay.App"
-             RequestedThemeVariant="Light">
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="m_mslc_overlay.App">
 
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://m-mslc-overlay/assets/Icons.axaml"/>
                 <ResourceInclude Source="avares://m-mslc-overlay/assets/themes/Colors.axaml"/>
                 <ResourceInclude Source="avares://m-mslc-overlay/assets/themes/Metrics.axaml"/>
                 <ResourceInclude Source="avares://m-mslc-overlay/assets/themes/TranscriptConverters.axaml"/>
@@ -16,6 +15,8 @@
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+        <materialIcons:MaterialIconStyles />
         <StyleInclude Source="avares://m-mslc-overlay/assets/styles/Controls.axaml"/>
     </Application.Styles>
 </Application>

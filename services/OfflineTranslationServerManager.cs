@@ -20,7 +20,7 @@ namespace m_mslc_overlay.services
     public static class OfflineTranslationServerManager
     {
         private static Process? _serverProcess;
-        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromMilliseconds(500) };
+        private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromMilliseconds(2000) };
         private static readonly string LogTag = "[OfflineTranslationServerManager]";
         
         public static OfflineServerState State { get; private set; } = OfflineServerState.Stopped;
@@ -115,7 +115,7 @@ namespace m_mslc_overlay.services
             string serverDir = FindServerDirectory();
             if (string.IsNullOrEmpty(serverDir))
             {
-                UpdateState(OfflineServerState.Failed, "Không tìm thấy thư mục cài đặt Offline Translation Server.");
+                UpdateState(OfflineServerState.ModelMissing, "Chưa thiết lập môi trường (venv) hoặc mô hình. Hãy vào Tab 'Tiện ích' và nhấn nút Tải xuống.");
                 return false;
             }
 
@@ -142,7 +142,7 @@ namespace m_mslc_overlay.services
             }
             else
             {
-                UpdateState(OfflineServerState.Failed, "Thiếu file python server hoặc venv.");
+                UpdateState(OfflineServerState.ModelMissing, "Thiếu file venv hoặc mô hình. Hãy vào Tab 'Tiện ích' và nhấn nút Tải xuống để tự động cài đặt.");
                 return false;
             }
 
@@ -191,7 +191,7 @@ namespace m_mslc_overlay.services
                 LoggerService.Log($"{LogTag} Process started successfully. PID: {_serverProcess.Id}");
 
                 // Chờ đợi server khởi chạy thành công (ping kiểm tra)
-                int maxRetries = 15;
+                int maxRetries = 45;
                 for (int i = 0; i < maxRetries; i++)
                 {
                     await Task.Delay(1000);
@@ -205,11 +205,15 @@ namespace m_mslc_overlay.services
                     {
                         LoggerService.Log($"{LogTag} Server responded. Fetching engine status...");
                         await CheckEngineStatusAsync();
+                        if (State == OfflineServerState.Starting)
+                        {
+                            _ = Task.Run(MonitorStatusInBackground);
+                        }
                         return true;
                     }
                 }
 
-                UpdateState(OfflineServerState.Failed, "Server không phản hồi sau thời gian chờ tối đa.");
+                UpdateState(OfflineServerState.Failed, "Server không phản hồi sau thời gian chờ tối đa (45 giây).");
                 return false;
             }
             catch (Exception ex)
@@ -257,6 +261,15 @@ namespace m_mslc_overlay.services
             }
         }
 
+        private static async Task MonitorStatusInBackground()
+        {
+            while (State == OfflineServerState.Starting)
+            {
+                await Task.Delay(2000);
+                await CheckEngineStatusAsync();
+            }
+        }
+
         private static async Task CheckEngineStatusAsync()
         {
             try
@@ -272,6 +285,10 @@ namespace m_mslc_overlay.services
                         if (status == "ready")
                         {
                             UpdateState(OfflineServerState.Ready);
+                        }
+                        else if (status == "initializing")
+                        {
+                            UpdateState(OfflineServerState.Starting);
                         }
                         else if (status == "model_missing")
                         {

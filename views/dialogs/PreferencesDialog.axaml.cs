@@ -60,8 +60,16 @@ namespace m_mslc_overlay.views.dialogs
             VerboseLogCheck.IsChecked = cfg.VerboseLogging;
             EnableHotkeysCheck.IsChecked = cfg.EnableGlobalHotkeys;
 
+            if (cfg.OfflineModel == "OPUS-MT")
+            {
+                if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
+            }
+            else
+            {
+                if (UseNllbRadio != null) UseNllbRadio.IsChecked = true;
+            }
+
             UpdateServerStateUI(OfflineTranslationServerManager.State);
-            UpdateModelSelectionUI();
         }
 
         private void SaveSettings()
@@ -176,6 +184,7 @@ namespace m_mslc_overlay.views.dialogs
             if (TabTranslation != null) TabTranslation.IsVisible = false;
             if (TabAppearance != null) TabAppearance.IsVisible = false;
             if (TabNetwork != null) TabNetwork.IsVisible = false;
+            if (TabUtilities != null) TabUtilities.IsVisible = false;
             if (TabAdvanced != null) TabAdvanced.IsVisible = false;
             if (TabHotkeys != null) TabHotkeys.IsVisible = false;
 
@@ -195,9 +204,12 @@ namespace m_mslc_overlay.views.dialogs
                     if (TabNetwork != null) TabNetwork.IsVisible = true;
                     break;
                 case 4:
-                    if (TabAdvanced != null) TabAdvanced.IsVisible = true;
+                    if (TabUtilities != null) TabUtilities.IsVisible = true;
                     break;
                 case 5:
+                    if (TabAdvanced != null) TabAdvanced.IsVisible = true;
+                    break;
+                case 6:
                     if (TabHotkeys != null) TabHotkeys.IsVisible = true;
                     break;
             }
@@ -262,7 +274,10 @@ namespace m_mslc_overlay.views.dialogs
             {
                 OfflineTranslationServerManager.ServerPort = uri.Port;
             }
-            await OfflineTranslationServerManager.StartServerAsync();
+            
+            await LoadingDialog.ShowLoadingTaskAsync(this, "Đang khởi động Offline Server...\nLần đầu load mô hình có thể tốn từ 10-45 giây.", async (dlg) => {
+                await OfflineTranslationServerManager.StartServerAsync();
+            });
         }
 
         private void StopOfflineServerBtn_Click(object? sender, RoutedEventArgs e)
@@ -270,206 +285,58 @@ namespace m_mslc_overlay.views.dialogs
             OfflineTranslationServerManager.StopServer();
         }
 
-        private async void StartInstallBtn_Click(object? sender, RoutedEventArgs e)
+        // --- ACTIVE MODEL SELECTION (TAB DỊCH THUẬT) ---
+        private void ActiveModelRadio_Checked(object? sender, RoutedEventArgs e)
         {
-            if (StartInstallBtn == null || InstallModelCombo == null) return;
+            if (UseOpusRadio != null && UseOpusRadio.IsChecked == true)
+            {
+                ConfigManager.Current.OfflineModel = "OPUS-MT";
+            }
+            else if (UseNllbRadio != null && UseNllbRadio.IsChecked == true)
+            {
+                ConfigManager.Current.OfflineModel = "NLLB-200 600M";
+            }
+            ConfigManager.Save();
+        }
+
+        // --- TAB TIỆN ÍCH (UTILITIES) ---
+
+        // Dịch thuật Offline
+        private async void UtilTransDownloadBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            if (UtilTransModelCombo == null) return;
 
             string modelId = "facebook/nllb-200-distilled-600m";
             string modelOutputDir = "models/nllb-600m-int8";
 
-            if (InstallModelCombo.SelectedIndex == 1)
+            if (UtilTransModelCombo.SelectedIndex == 1)
             {
                 modelId = "Helsinki-NLP/opus-mt-en-vi";
                 modelOutputDir = "models/opus-en-vi-int8";
             }
 
-            // Mở popup InstallationDialog để thực hiện và theo dõi cài đặt
+            // Tải/Cài đặt model
             var installDlg = new InstallationDialog(modelId, modelOutputDir);
             await installDlg.ShowDialog(this);
-            
-            // Cập nhật lại UI sau khi dialog cài đặt đóng
-            UpdateModelSelectionUI();
         }
 
-        private bool IsModelInstalled(string modelDirName)
+        private void UtilTransDeleteBtn_Click(object? sender, RoutedEventArgs e)
         {
-            try
-            {
-                string serverDir = OfflineTranslationServerManager.FindServerDirectory();
-                if (string.IsNullOrEmpty(serverDir))
-                {
-                    string configuredPath = ConfigManager.Current.OfflineServerDir;
-                    serverDir = Path.IsPathRooted(configuredPath) 
-                        ? configuredPath 
-                        : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
-                }
-                string path = Path.Combine(serverDir, "models", modelDirName);
-                return Directory.Exists(path) && File.Exists(Path.Combine(path, "model.bin"));
-            }
-            catch
-            {
-                return false;
-            }
+            if (UtilTransModelCombo == null) return;
+            string modelDir = UtilTransModelCombo.SelectedIndex == 1 ? "opus-en-vi-int8" : "nllb-600m-int8";
+            DeleteModelFolder(modelDir);
         }
 
-        private void UpdateModelSelectionUI()
+        // Speaker Diarization
+        private async void UtilSpeakerDownloadBtn_Click(object? sender, RoutedEventArgs e)
         {
-            bool nllbInstalled = IsModelInstalled("nllb-600m-int8");
-            bool opusInstalled = IsModelInstalled("opus-en-vi-int8");
-
-            if (UninstalledPanel == null || InstalledPanel == null || NllbRow == null || OpusRow == null) return;
-
-            if (!nllbInstalled && !opusInstalled)
-            {
-                UninstalledPanel.IsVisible = true;
-                InstalledPanel.IsVisible = false;
-            }
-            else
-            {
-                UninstalledPanel.IsVisible = false;
-                InstalledPanel.IsVisible = true;
-
-                NllbRow.IsVisible = nllbInstalled;
-                OpusRow.IsVisible = opusInstalled;
-
-                var cfg = ConfigManager.Current;
-                if (cfg.OfflineModel == "OPUS-MT" && opusInstalled)
-                {
-                    if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
-                }
-                else if (nllbInstalled)
-                {
-                    if (UseNllbRadio != null) UseNllbRadio.IsChecked = true;
-                    cfg.OfflineModel = "NLLB-200 600M";
-                }
-                else if (opusInstalled)
-                {
-                    if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
-                    cfg.OfflineModel = "OPUS-MT";
-                }
-            }
+            // Placeholder cho Speaker Labeling models
+            await MessageDialog.ShowAsync(this, "Thông báo", "Tính năng cài đặt mô hình Speaker Diarization đang được hoàn thiện.");
         }
 
-        private void ShowInstallBtn_Click(object? sender, RoutedEventArgs e)
+        private void UtilSpeakerDeleteBtn_Click(object? sender, RoutedEventArgs e)
         {
-            if (UninstalledPanel != null) UninstalledPanel.IsVisible = true;
-        }
-
-        private void UseNllbRadio_Checked(object? sender, RoutedEventArgs e)
-        {
-            ConfigManager.Current.OfflineModel = "NLLB-200 600M";
-            ConfigManager.Save();
-        }
-
-        private void UseOpusRadio_Checked(object? sender, RoutedEventArgs e)
-        {
-            ConfigManager.Current.OfflineModel = "OPUS-MT";
-            ConfigManager.Save();
-        }
-
-        private async void UpdateNllbBtn_Click(object? sender, RoutedEventArgs e)
-        {
-            await HandleModelUpdateCheckAsync(
-                sender as Button,
-                "facebook/nllb-200-distilled-600m",
-                "models/nllb-600m-int8",
-                "NLLB-200 600M"
-            );
-        }
-
-        private async void UpdateOpusBtn_Click(object? sender, RoutedEventArgs e)
-        {
-            await HandleModelUpdateCheckAsync(
-                sender as Button,
-                "Helsinki-NLP/opus-mt-en-vi",
-                "models/opus-en-vi-int8",
-                "OPUS-MT"
-            );
-        }
-
-        private async Task HandleModelUpdateCheckAsync(Button? btn, string modelId, string modelOutputDir, string displayName)
-        {
-            if (btn == null) return;
-
-            string originalText = btn.Content?.ToString() ?? "Kiểm tra cập nhật";
-            btn.Content = "Đang kiểm tra...";
-            btn.IsEnabled = false;
-
-            try
-            {
-                var checkResult = await OfflineTranslationInstaller.CheckForModelUpdateAsync(modelId, modelOutputDir);
-                
-                // Khôi phục nút bấm
-                btn.Content = originalText;
-                btn.IsEnabled = true;
-
-                switch (checkResult)
-                {
-                    case OfflineTranslationInstaller.UpdateCheckResult.UpToDate:
-                        await MessageDialog.ShowAsync(
-                            this,
-                            "Kiểm tra cập nhật",
-                            $"Mô hình {displayName} hiện tại đang ở phiên bản mới nhất trên Hugging Face Hub. Không cần cập nhật."
-                        );
-                        break;
-
-                    case OfflineTranslationInstaller.UpdateCheckResult.UpdateAvailable:
-                        bool doUpdate = await MessageDialog.ShowAsync(
-                            this,
-                            "Phát hiện bản cập nhật mới",
-                            $"Mô hình {displayName} có một phiên bản mới hơn trên Hugging Face Hub. Bạn có muốn tải xuống và cài đặt bản cập nhật này không?",
-                            showCancel: true
-                        );
-                        if (doUpdate)
-                        {
-                            var installDlg = new InstallationDialog(modelId, modelOutputDir);
-                            await installDlg.ShowDialog(this);
-                            UpdateModelSelectionUI();
-                        }
-                        break;
-
-                    case OfflineTranslationInstaller.UpdateCheckResult.UpdateRequired:
-                        bool doFreshInstall = await MessageDialog.ShowAsync(
-                            this,
-                            "Cài đặt mới",
-                            $"Không tìm thấy siêu dữ liệu hoặc mô hình {displayName} cục bộ hợp lệ. Bạn có muốn tiến hành cài đặt mới không?",
-                            showCancel: true
-                        );
-                        if (doFreshInstall)
-                        {
-                            var installDlg = new InstallationDialog(modelId, modelOutputDir);
-                            await installDlg.ShowDialog(this);
-                            UpdateModelSelectionUI();
-                        }
-                        break;
-
-                    case OfflineTranslationInstaller.UpdateCheckResult.Error:
-                        await MessageDialog.ShowAsync(
-                            this,
-                            "Lỗi kiểm tra",
-                            $"Không thể kết nối đến Hugging Face Hub hoặc tệp thực thi bị thiếu. Vui lòng kiểm tra lại kết nối mạng."
-                        );
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                btn.Content = originalText;
-                btn.IsEnabled = true;
-                LoggerService.Log($"[PreferencesDialog] Update check exception: {ex.Message}");
-            }
-        }
-
-        private void DeleteNllbBtn_Click(object? sender, RoutedEventArgs e)
-        {
-            DeleteModelFolder("nllb-600m-int8");
-            UpdateModelSelectionUI();
-        }
-
-        private void DeleteOpusBtn_Click(object? sender, RoutedEventArgs e)
-        {
-            DeleteModelFolder("opus-en-vi-int8");
-            UpdateModelSelectionUI();
+            // Placeholder
         }
 
         private void DeleteModelFolder(string modelDirName)
@@ -489,12 +356,23 @@ namespace m_mslc_overlay.views.dialogs
                 {
                     Directory.Delete(path, true);
                     LoggerService.Log($"[PreferencesDialog] Deleted model folder: {path}");
+                    _ = MessageDialog.ShowAsync(this, "Thành công", $"Đã xóa mô hình: {modelDirName}");
+                }
+                else 
+                {
+                    _ = MessageDialog.ShowAsync(this, "Thông báo", $"Không tìm thấy thư mục mô hình: {modelDirName}");
                 }
             }
             catch (Exception ex)
             {
                 LoggerService.Log($"[PreferencesDialog] Error deleting model folder {modelDirName}: {ex.Message}");
+                _ = MessageDialog.ShowAsync(this, "Lỗi", $"Lỗi khi xóa mô hình: {ex.Message}");
             }
+        }
+
+        private async void RunEnvCheckBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            await EnvironmentCheckDialog.ShowDiagnosticAsync(this);
         }
     }
 }

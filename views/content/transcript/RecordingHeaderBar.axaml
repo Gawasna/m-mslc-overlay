@@ -5,9 +5,9 @@
              x:DataType="vm:RecordingSessionViewModel"
              Height="28">
 
-    <!-- Recording status bar — warm amber tint aligns with app's orange Primary -->
-    <Border Background="#FFF8F0"
-            BorderBrush="#FFD9AA"
+    <!-- Recording status bar -->
+    <Border Background="{StaticResource TranscriptActiveRowBrush}"
+            BorderBrush="{StaticResource BorderLightBrush}"
             BorderThickness="0,0,0,1"
             Padding="10,0">
 
@@ -24,12 +24,12 @@
                            VerticalAlignment="Center" />
                 <TextBlock Text="|"
                            FontSize="10"
-                           Foreground="#BDBDBD"
+                           Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" />
                 <TextBlock Text="{Binding ElapsedFormatted}"
                            FontSize="10"
                            FontFamily="Consolas"
-                           Foreground="#616161"
+                           Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" />
             </StackPanel>
 
@@ -37,7 +37,7 @@
             <TextBlock Grid.Column="1"
                        Text="{Binding SessionName, StringFormat='LIVE TRANSCRIPT REPORT — {0}'}"
                        FontSize="10"
-                       Foreground="#888888"
+                       Foreground="{StaticResource TextSecondaryBrush}"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
                        FontWeight="Normal" />
@@ -46,9 +46,9 @@
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,10,0">
                 <TextBlock Text="MIC Level"
                            FontSize="9"
-                           Foreground="#9E9E9E"
+                           Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" />
-                <Border Width="80" Height="6" CornerRadius="3" Background="#E0E0E0">
+                <Border Width="80" Height="6" CornerRadius="3" Background="{StaticResource SecondaryBrush}">
                     <Border CornerRadius="3" Background="#4CAF50"
                             HorizontalAlignment="Left"
                             Width="{Binding MicLevel, Converter={StaticResource DoubleToMeterWidthConverter}, ConverterParameter=80}" />

@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <NoWarn>$(NoWarn);CA1416;MSB3277</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <StartupObject>m_mslc_overlay.Program</StartupObject>
@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.11" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.1.0" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.11" />
@@ -20,6 +21,9 @@
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Material.Icons.Avalonia" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" />
     <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
@@ -31,10 +35,12 @@
 
   <ItemGroup>
     <AvaloniaResource Include="assets\**" />
+    <AvaloniaResource Remove="assets\**\*.axaml" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="docs\**" />
+    <Compile Remove="plugins\**" />
     <None Include="docs\**" />
     <Content Include="plugins\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

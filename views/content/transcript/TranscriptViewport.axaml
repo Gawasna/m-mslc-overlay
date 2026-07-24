@@ -32,7 +32,7 @@
                                 DataContext="{Binding}" />
 
         <!-- ─── Row 3: Main Content (Nav Pane + Paper Sheet) ─────────────────── -->
-        <Grid Grid.Row="3" ColumnDefinitions="Auto, *">
+        <Grid Grid.Row="3" ColumnDefinitions="Auto, Auto, *">
 
             <!-- Left: Document Navigation Pane (conditionally shown) -->
             <!-- IsVisible delegated to a wrapper so compiled binding targets root VM -->
@@ -40,8 +40,14 @@
                 <transcript:DocumentNavigationPane DataContext="{Binding NavPane}" />
             </Border>
 
+            <!-- Flex Splitter -->
+            <GridSplitter Grid.Column="1"
+                          Width="4"
+                          Background="{StaticResource BorderLightBrush}"
+                          IsVisible="{Binding NavPane.IsVisible}"/>
+
             <!-- Right: Paper Sheet viewport (fills remaining width) -->
-            <transcript:PaperSheet Grid.Column="1"
+            <transcript:PaperSheet Grid.Column="2"
                                    DataContext="{Binding PaperSheet}" />
 
         </Grid>

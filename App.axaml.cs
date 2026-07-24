@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -20,6 +21,16 @@ namespace m_mslc_overlay
             string savedLang = m_mslc_overlay.services.ConfigManager.Current.Language;
             if (string.IsNullOrEmpty(savedLang)) savedLang = "vi-VN";
             m_mslc_overlay.services.LanguageManager.LoadLanguage(savedLang);
+
+            // Apply saved theme (System | Light | Dark)
+            if (!Enum.TryParse<m_mslc_overlay.services.ThemeMode>(
+                    m_mslc_overlay.services.ConfigManager.Current.ThemeMode,
+                    ignoreCase: true,
+                    out var savedTheme))
+            {
+                savedTheme = m_mslc_overlay.services.ThemeMode.System;
+            }
+            m_mslc_overlay.services.ThemeManager.Instance.Initialize(savedTheme);
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {

@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:avalonEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+             x:Class="MMslcOverlay.Views.Controls.PaperSheetView">
+    <Grid>
+        <avalonEdit:TextEditor x:Name="Editor"
+                               ShowLineNumbers="False"
+                               FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+                               FontSize="14"
+                               WordWrap="True"
+                               HorizontalScrollBarVisibility="Disabled"
+                               VerticalScrollBarVisibility="Auto" />
+    </Grid>
+</UserControl>

@@ -50,10 +50,10 @@ namespace m_mslc_overlay.views.content.transcript
     {
         public static readonly BoolToActiveBorderColorConverter Instance = new();
 
-        // Active -> app Primary orange (#FF8400), Inactive -> light border
+        // Active -> app Primary blue (#0078D4), Inactive -> light border
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
             => value is true
-                ? new SolidColorBrush(Color.Parse("#FF8400"))
+                ? new SolidColorBrush(Color.Parse("#0078D4"))
                 : new SolidColorBrush(Color.Parse("#E5E5E5"));
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -68,10 +68,10 @@ namespace m_mslc_overlay.views.content.transcript
     {
         public static readonly BoolToActiveBackgroundConverter Instance = new();
 
-        // Active -> very light orange wash (#FFF4E6), Inactive -> white
+        // Active -> light blue wash (#EFF6FF), Inactive -> white
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
             => value is true
-                ? new SolidColorBrush(Color.Parse("#FFF4E6"))
+                ? new SolidColorBrush(Color.Parse("#EFF6FF"))
                 : new SolidColorBrush(Color.Parse("#FFFFFF"));
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

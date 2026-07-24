@@ -1,0 +1,16 @@
+{
+  "id": "atom26",
+  "name": "Offline Translation Server",
+  "description": "CTranslate2-based NMT inference engine. Supports NLLB-200 (600M INT8) and OPUS-MT (EN-VI INT8). Serves local REST API at http://127.0.0.1:11435.",
+  "version": "1.0.0",
+  "min_python": "3.10",
+  "entry_script": "translation_server.py",
+  "install_requires_cuda": false,
+  "cuda_optional": true,
+  "files": [
+    "translation_server.py",
+    "model_downloader.py",
+    "requirements.txt",
+    "gui/index.html"
+  ]
+}

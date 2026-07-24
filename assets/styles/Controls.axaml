@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
     <!-- Menu Bar Styles -->
     <Style Selector="Menu">
         <Setter Property="Background" Value="Transparent"/>
@@ -80,18 +81,18 @@
     <Style Selector="Button.CloseBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="#E81123"/>
     </Style>
-    <Style Selector="Button.CloseBtn:pointerover PathIcon">
+    <Style Selector="Button.CloseBtn:pointerover materialIcons|MaterialIcon">
         <Setter Property="Foreground" Value="White"/>
     </Style>
     <Style Selector="Button.CloseBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="#F1707A"/>
     </Style>
-    <Style Selector="Button.CloseBtn:pressed PathIcon">
+    <Style Selector="Button.CloseBtn:pressed materialIcons|MaterialIcon">
         <Setter Property="Foreground" Value="White"/>
     </Style>
 
-    <!-- ToggleButton Style -->
-    <Style Selector="ToggleButton">
+    <!-- ToggleButton Style (exclude CheckBox and RadioButton) -->
+    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton)">
         <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
@@ -100,25 +101,57 @@
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
-    <Style Selector="ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
     </Style>
-    <Style Selector="ToggleButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource BgCardBrush}"/>
     </Style>
-    <Style Selector="ToggleButton:checked PathIcon">
+    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked materialIcons|MaterialIcon">
         <Setter Property="Foreground" Value="White"/>
     </Style>
-    <Style Selector="ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}"/>
     </Style>
-    <Style Selector="ToggleButton:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/>
+    </Style>
+
+    <!-- RadioButton Style (Clean without text wrapper background box) -->
+    <Style Selector="RadioButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="6,2"/>
+    </Style>
+    <Style Selector="RadioButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+    </Style>
+    <Style Selector="RadioButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+    </Style>
+
+    <!-- CheckBox Style (Clean without text wrapper background box) -->
+    <Style Selector="CheckBox">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="6,2"/>
+    </Style>
+    <Style Selector="CheckBox:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+    </Style>
+    <Style Selector="CheckBox:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
 
     <!-- Transcript: Word-style toolbar icon toggle button -->
@@ -166,9 +199,9 @@
     <Style Selector="ToggleButton.SubToolbarPill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
     </Style>
-    <!-- Checked: orange tint pill — same PrimaryBrush as Edit Mode badge -->
+    <!-- Checked: blue tint pill — same PrimaryBrush as Edit Mode badge -->
     <Style Selector="ToggleButton.SubToolbarPill:checked /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="#FFF4E6"/>
+        <Setter Property="Background" Value="#EFF6FF"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
     </Style>
     <Style Selector="ToggleButton.SubToolbarPill:checked TextBlock">
@@ -176,7 +209,7 @@
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
     <Style Selector="ToggleButton.SubToolbarPill:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="#FFE8CC"/>
+        <Setter Property="Background" Value="#DBEAFE"/>
     </Style>
 
 </Styles>

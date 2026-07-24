@@ -10,6 +10,7 @@ using m_mslc_overlay.views.components;
 using m_mslc_overlay.views.overlay;
 using m_mslc_overlay.services;
 using m_mslc_overlay.core;
+using MMslcOverlay.Services;
 
 namespace m_mslc_overlay
 {
@@ -34,6 +35,8 @@ namespace m_mslc_overlay
 
         private bool _isTranslationEnabled = true;
         private string _contextTopic = "Game/Phim";
+        
+        private DiarizerProcessManager? _diarizerManager;
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -55,6 +58,9 @@ namespace m_mslc_overlay
             Failed
         }
         private HookState _currentHookState = HookState.Waiting;
+        private bool _userNavPanePreference = true;
+        private bool _isAdjustingSidebar = false;
+        private double _userSidebarWidth = 240.0;
 
         public MainWindow()
         {
@@ -104,6 +110,9 @@ namespace m_mslc_overlay
             _uiUpdateTimer.Start();
             
             _aiService.ContextTopic = _contextTopic;
+
+            // Run startup bootstrap to query environment & update status pane immediately
+            _ = InitBootstrapAsync();
 
             // ATOM80: log when a revision (hot-replace) occurs
             _revisionWindow.OnRevise += (prev, merged) => {
@@ -251,6 +260,11 @@ namespace m_mslc_overlay
                 _hotkeyManager?.Dispose();
                 _focusKeyController?.Dispose();
                 OfflineTranslationServerManager.StopServer();
+                
+                if (_diarizerManager != null)
+                {
+                    _diarizerManager.Dispose();
+                }
             };
 
             this.Opened += (s, e) => {
@@ -271,6 +285,27 @@ namespace m_mslc_overlay
                 }
                 _ = OfflineTranslationServerManager.StartServerAsync();
             }
+
+            // Register responsive layout events
+            this.SizeChanged += MainWindow_SizeChanged;
+            var sidebar = this.FindControl<Border>("SidebarBorder");
+            if (sidebar != null)
+            {
+                sidebar.SizeChanged += SidebarBorder_SizeChanged;
+            }
+            if (TranscriptViewport?.ViewModel?.NavPane != null)
+            {
+                TranscriptViewport.ViewModel.NavPane.PropertyChanged += (s, ev) =>
+                {
+                    if (ev.PropertyName == nameof(TranscriptViewport.ViewModel.NavPane.IsVisible))
+                    {
+                        if (this.Bounds.Width >= 960)
+                        {
+                            _userNavPanePreference = TranscriptViewport.ViewModel.NavPane.IsVisible;
+                        }
+                    }
+                };
+            }
         }
 
         private void AppendLog(string logLine)
@@ -281,6 +316,7 @@ namespace m_mslc_overlay
                 _isLogDirty = true;
             }
             LoggerService.Log(logLine);
+            Console.Write(logLine);
         }
 
         private void OnUiUpdateTimerTick(object? sender, EventArgs e)
@@ -494,6 +530,53 @@ namespace m_mslc_overlay
             }
         }
 
+        private async System.Threading.Tasks.Task InitializeDiarizerAsync()
+        {
+            if (_diarizerManager != null) return;
+            
+            _diarizerManager = new DiarizerProcessManager();
+            
+            _diarizerManager.OnLog += (logMessage) => 
+            {
+                AppendLog($"[DIARIZER] {logMessage}\n");
+            };
+
+            _diarizerManager.OnEvent += (evt) =>
+            {
+                // MOCK: Dump event to log
+                // AppendLog($"[DIARIZER_EVT] {evt.GetType().Name}\n");
+            };
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string pythonExe = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\plugins\atom32\.venv\Scripts\python.exe"));
+            string scriptPath = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\plugins\atom32\cli_diarizer.py"));
+
+            if (!File.Exists(pythonExe) || !File.Exists(scriptPath))
+            {
+                AppendLog($"[DIARIZER ERROR] Cannot find python ({pythonExe}) or script ({scriptPath}). Try building or running from correct directory.\n");
+                return;
+            }
+
+            var config = new DiarizerConfig(
+                DeviceIndex: 0,
+                Debug: true
+            );
+
+            AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Starting Speaker Diarizer Process...\n");
+            await _diarizerManager.StartAsync(config, pythonExe, scriptPath);
+        }
+
+        private async System.Threading.Tasks.Task ShutdownDiarizerAsync()
+        {
+            if (_diarizerManager != null)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Stopping Speaker Diarizer Process...\n");
+                await _diarizerManager.StopAsync();
+                _diarizerManager.Dispose();
+                _diarizerManager = null;
+            }
+        }
+
         public AIService AIService => _aiService;
         public SegmentDisplayModel SegmentDisplayModel => _segmentDisplayModel;
         public m_mslc_overlay.core.Animation.FadeAnimationController FadeAnimationController => _fadeAnimationController;
@@ -519,12 +602,16 @@ namespace m_mslc_overlay
             }
         }
 
-        private void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
+        private async void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_currentOverlay == null || !_currentOverlay.IsVisible)
             {
                 _currentOverlay = new FloatingTextOverlay(this);
+                _currentOverlay.Closed += async (s, ev) => {
+                    await ShutdownDiarizerAsync();
+                };
                 _currentOverlay.Show();
+                await InitializeDiarizerAsync();
             }
             else
             {
@@ -548,6 +635,58 @@ namespace m_mslc_overlay
             {
                 _debugWidget.Activate();
             }
+        }
+
+        private void OpenPaperSheetDemoBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var demoWindow = new m_mslc_overlay.views.dialogs.PaperSheetDemoWindow();
+            demoWindow.Show();
+        }
+
+        private void OpenTipTapDemoBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var win = new views.webview_demos.WebViewDemoWindow("TipTap Demo", "assets/web/tiptap.html");
+            win.Show();
+        }
+
+        private void OpenQuillDemoBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var win = new views.webview_demos.WebViewDemoWindow("Quill Demo", "assets/web/quill.html");
+            win.Show();
+        }
+
+        private void OpenMonacoDemoBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var win = new views.webview_demos.WebViewDemoWindow("Monaco Demo", "assets/web/monaco.html");
+            win.Show();
+        }
+
+        private void ThemeToggleBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            var tm = services.ThemeManager.Instance;
+            // Cycle: System -> Light -> Dark -> System
+            var next = tm.Mode switch
+            {
+                services.ThemeMode.System => services.ThemeMode.Light,
+                services.ThemeMode.Light  => services.ThemeMode.Dark,
+                services.ThemeMode.Dark   => services.ThemeMode.System,
+                _                         => services.ThemeMode.System
+            };
+            tm.Apply(next);
+            UpdateThemeIcon(next);
+        }
+
+        private void UpdateThemeIcon(services.ThemeMode mode)
+        {
+            var icon = this.FindControl<Material.Icons.Avalonia.MaterialIcon>("ThemeIcon");
+            if (icon == null) return;
+            icon.Kind = mode switch
+            {
+                services.ThemeMode.Light  => Material.Icons.MaterialIconKind.WeatherSunny,
+                services.ThemeMode.Dark   => Material.Icons.MaterialIconKind.WeatherNight,
+                services.ThemeMode.System => Material.Icons.MaterialIconKind.ThemeLightDark,
+                _                         => Material.Icons.MaterialIconKind.ThemeLightDark
+            };
         }
 
         private void PreferencesMenuItem_Click(object? sender, RoutedEventArgs e)
@@ -751,11 +890,15 @@ namespace m_mslc_overlay
 
         public void ToggleOverlay()
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () => {
                 if (_currentOverlay == null || !_currentOverlay.IsVisible)
                 {
                     _currentOverlay = new FloatingTextOverlay(this);
+                    _currentOverlay.Closed += async (s, ev) => {
+                        await ShutdownDiarizerAsync();
+                    };
                     _currentOverlay.Show();
+                    await InitializeDiarizerAsync();
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Floating Overlay opened.\n");
                 }
                 else
@@ -829,6 +972,293 @@ namespace m_mslc_overlay
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Font size changed to {newSize:F1}\n");
                 }
             });
+        }
+
+        private void MainWindow_SizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            UpdateResponsiveLayout(e.NewSize.Width);
+        }
+
+        private void UpdateResponsiveLayout(double width)
+        {
+            var grid = this.FindControl<Grid>("MainContentGrid");
+            var sidebar = this.FindControl<Border>("SidebarBorder");
+            if (sidebar != null && grid != null && grid.ColumnDefinitions.Count > 0)
+            {
+                if (width >= 1200)
+                {
+                    sidebar.IsVisible = true;
+                    if (sidebar.Classes.Contains("Mini"))
+                    {
+                        sidebar.Classes.Remove("Mini");
+                        _isAdjustingSidebar = true;
+                        try
+                        {
+                            grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(_userSidebarWidth) };
+                        }
+                        finally
+                        {
+                            _isAdjustingSidebar = false;
+                        }
+                    }
+                    else if (grid.ColumnDefinitions[0].Width.Value < 160)
+                    {
+                        _isAdjustingSidebar = true;
+                        try
+                        {
+                            grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(_userSidebarWidth) };
+                        }
+                        finally
+                        {
+                            _isAdjustingSidebar = false;
+                        }
+                    }
+                }
+                else if (width >= 768)
+                {
+                    sidebar.IsVisible = true;
+                    if (!sidebar.Classes.Contains("Mini"))
+                    {
+                        sidebar.Classes.Add("Mini");
+                    }
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(60) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+                else
+                {
+                    sidebar.IsVisible = false;
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(0) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+            }
+
+            // 2. Document Navigation Pane (NavPane) Responsive Control
+            if (TranscriptViewport?.ViewModel != null)
+            {
+                var navPaneVm = TranscriptViewport.ViewModel.NavPane;
+                if (width >= 960)
+                {
+                    // Restore previous visibility state based on user choice
+                    navPaneVm.IsVisible = _userNavPanePreference;
+                }
+                else
+                {
+                    // Force-collapse navigation pane on smaller widths
+                    navPaneVm.IsVisible = false;
+                }
+            }
+        }
+
+        private void SidebarBorder_SizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            if (_isAdjustingSidebar) return;
+
+            var sidebar = sender as Border;
+            if (sidebar == null) return;
+
+            var grid = this.FindControl<Grid>("MainContentGrid");
+            if (grid == null || grid.ColumnDefinitions.Count == 0) return;
+
+            double width = e.NewSize.Width;
+
+            // Nếu đang ở Mini mode (collapsed)
+            if (sidebar.Classes.Contains("Mini"))
+            {
+                // Nếu người dùng kéo mở rộng ra vượt quá ngưỡng 80px
+                if (width > 80)
+                {
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        sidebar.Classes.Remove("Mini");
+                        double targetWidth = Math.Max(180.0, Math.Min(width, 360.0));
+                        _userSidebarWidth = targetWidth; // Ghi nhận kích thước mới được khôi phục
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(targetWidth) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+            }
+            else // Đang ở Normal mode
+            {
+                // Ghi nhận lựa chọn kích thước của người dùng nếu nó hợp lệ
+                if (width >= 160 && width <= 360)
+                {
+                    _userSidebarWidth = width;
+                }
+
+                // Nếu kéo nhỏ hơn MIN_VISIBLE (160px), tự động thu gọn về collapsed state (60px)
+                if (width < 160)
+                {
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        if (!sidebar.Classes.Contains("Mini"))
+                        {
+                            sidebar.Classes.Add("Mini");
+                        }
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(60) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+                else if (width > 360) // Giới hạn MAX_EXPAND là 360px
+                {
+                    _isAdjustingSidebar = true;
+                    try
+                    {
+                        grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(360) };
+                    }
+                    finally
+                    {
+                        _isAdjustingSidebar = false;
+                    }
+                }
+            }
+        }
+
+        private void ToggleSidebarBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            var sidebar = this.FindControl<Border>("SidebarBorder");
+            var grid = this.FindControl<Grid>("MainContentGrid");
+            if (sidebar == null || grid == null || grid.ColumnDefinitions.Count == 0) return;
+
+            _isAdjustingSidebar = true;
+            try
+            {
+                if (sidebar.Classes.Contains("Mini"))
+                {
+                    // Bung ra Normal mode
+                    sidebar.Classes.Remove("Mini");
+                    grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(_userSidebarWidth) };
+                }
+                else
+                {
+                    // Thu gọn về Mini mode
+                    if (!sidebar.Classes.Contains("Mini"))
+                    {
+                        sidebar.Classes.Add("Mini");
+                    }
+                    grid.ColumnDefinitions[0] = new ColumnDefinition { Width = new GridLength(60.0) };
+                }
+            }
+            finally
+            {
+                _isAdjustingSidebar = false;
+            }
+        }
+
+        private async void CheckEnvironmentMenuItem_Click(object? sender, RoutedEventArgs e)
+        {
+            await m_mslc_overlay.views.dialogs.EnvironmentCheckDialog.ShowDiagnosticAsync(this);
+        }
+
+        private async System.Threading.Tasks.Task InitBootstrapAsync()
+        {
+            try
+            {
+                LoggerService.Log("[MainWindow] Starting bootstrap environment check...");
+
+                // Run system environment diagnostic asynchronously
+                var diag = await EnvironmentCheckerService.RunDiagnosticAsync();
+
+                // Check Extractor binaries (Host.exe & Agent.dll)
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                bool hasHost = File.Exists(Path.Combine(baseDir, "Host.exe"));
+                bool hasAgent = File.Exists(Path.Combine(baseDir, "Agent.dll"));
+                bool hasExtractor = hasHost && hasAgent;
+
+                // Update UI thread controls
+                Dispatcher.UIThread.Post(() => {
+                    // 1. Python Runtime
+                    var dotPy = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotPython");
+                    var txtPy = this.FindControl<TextBlock>("StatusTextPython");
+                    if (dotPy != null)
+                    {
+                        dotPy.Fill = diag.HasPython ? Brush.Parse("#10B981") : Brush.Parse("#EF4444");
+                        ToolTip.SetTip(dotPy, diag.HasPython ? $"Python: {diag.PythonVersion}\n{diag.PythonPath}" : "Python: Not Installed / Not in PATH");
+                    }
+                    if (txtPy != null && diag.HasPython)
+                    {
+                        txtPy.Text = $"Python ({diag.PythonVersion.Replace("Python ", "")})";
+                    }
+
+                    // 2. Live Caption
+                    var dotCap = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotCaption");
+                    var txtCap = this.FindControl<TextBlock>("StatusTextCaption");
+                    if (dotCap != null)
+                    {
+                        dotCap.Fill = diag.HasLiveCaptionsBinary ? Brush.Parse("#10B981") : Brush.Parse("#F59E0B");
+                        ToolTip.SetTip(dotCap, diag.HasLiveCaptionsBinary 
+                            ? $"LiveCaptions: {(diag.IsLiveCaptionsRunning ? "Running" : "Available")}\nPath: {diag.LiveCaptionsPath}"
+                            : "LiveCaptions: Not Found");
+                    }
+                    if (txtCap != null)
+                    {
+                        txtCap.Text = diag.IsLiveCaptionsRunning 
+                            ? $"Live caption (PID: {diag.LiveCaptionsPid})" 
+                            : (diag.HasLiveCaptionsBinary ? "Live caption (Ready)" : "Live caption (Missing)");
+                    }
+
+                    // 3. CUDA Status
+                    var dotCuda = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotCuda");
+                    var txtCuda = this.FindControl<TextBlock>("StatusTextCuda");
+                    if (dotCuda != null)
+                    {
+                        dotCuda.Fill = diag.HasCuda ? Brush.Parse("#10B981") : Brush.Parse("#6B7280");
+                        ToolTip.SetTip(dotCuda, diag.HasCuda ? $"CUDA: {diag.CudaVersion}\nGPU: {diag.GpuName}" : "CUDA: Not Available (CPU Mode)");
+                    }
+                    if (txtCuda != null)
+                    {
+                        txtCuda.Text = diag.HasCuda ? "CUDA (Active)" : "CUDA (CPU Mode)";
+                    }
+
+                    // 4. Extractor Module
+                    var dotExt = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotExtractor");
+                    var txtExt = this.FindControl<TextBlock>("StatusTextExtractor");
+                    if (dotExt != null)
+                    {
+                        dotExt.Fill = hasExtractor ? Brush.Parse("#10B981") : Brush.Parse("#EF4444");
+                        ToolTip.SetTip(dotExt, hasExtractor ? "Extractor Module: Host.exe & Agent.dll Ready" : "Extractor Module: Host.exe or Agent.dll Missing");
+                    }
+                    if (txtExt != null)
+                    {
+                        txtExt.Text = hasExtractor ? "Extractor (Ready)" : "Extractor (Missing)";
+                    }
+
+                    // 5. Local Network
+                    var dotNet = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("StatusDotNetwork");
+                    if (dotNet != null)
+                    {
+                        dotNet.Fill = Brush.Parse("#10B981");
+                        ToolTip.SetTip(dotNet, "Local Network Listener: 127.0.0.1 IPC Binding OK");
+                    }
+
+                    LoggerService.Log("[MainWindow] Status pane indicators updated from bootstrap diagnostic.");
+                });
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Log($"[MainWindow] Bootstrap environment check error: {ex.Message}");
+            }
         }
     }
 }

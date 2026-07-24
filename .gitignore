@@ -404,3 +404,7 @@ GEMINI.md
 *.md
 *.ttf
 /.kiro
+/plugins/atom32/.venv
+/plugins/atom32/tests
+# Pattern B: Plugin lock file is a local runtime artifact — not committed
+/plugins.lock.json
