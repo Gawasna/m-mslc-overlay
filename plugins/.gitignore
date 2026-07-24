@@ -1,10 +1,28 @@
-# Ignored for ATOM plugins
+# Pattern B: Manifest-driven plugin management
+# Python source files are distributed via plugins.manifest.json (GitHub Release Assets)
+# Only atom.json and requirements.txt are committed to git
+
+# Source files — managed via manifest download
+*.py
+*.html
+*.md
+
+# Ignore JSON files except atom descriptor
+*.json
+!atom.json
+
+# Keep requirements.txt for pip install step
+!requirements.txt
+
+# Generated and local runtime artifacts
 venv/
+.venv/
 models/
 __pycache__/
 *.db
 *.sqlite
 *.wav
 *.log
-*.jpg
+*.json.lock
 tmp_*/
+tests/

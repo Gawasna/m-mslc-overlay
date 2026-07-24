@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-24T10:40:00Z",
+  "atoms": [
+    {
+      "id": "atom26",
+      "name": "Offline Translation Server",
+      "version": "1.0.0",
+      "description": "CTranslate2-based NMT inference engine (NLLB-200 / OPUS-MT). Serves REST API at http://127.0.0.1:11435.",
+      "source_url": "local:plugins/atom26",
+      "sha256": "",
+      "install_dir": "plugins/atom26",
+      "entry_script": "translation_server.py",
+      "min_python": "3.10",
+      "changelog_url": ""
+    },
+    {
+      "id": "atom32",
+      "name": "Speaker Diarization Engine",
+      "version": "1.0.0",
+      "description": "ONNX-based speaker diarization with real-time LiveCaption labeling.",
+      "source_url": "local:plugins/atom32",
+      "sha256": "",
+      "install_dir": "plugins/atom32",
+      "entry_script": "cli_diarizer.py",
+      "min_python": "3.10",
+      "changelog_url": ""
+    }
+  ]
+}

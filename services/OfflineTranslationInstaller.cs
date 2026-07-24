@@ -111,10 +111,22 @@ namespace m_mslc_overlay.services
 
                 if (_cancelRequested) { HandleCancel(); return; }
 
-                // Bước 2: Chuẩn bị file script (Copy từ thư mục R&D nếu chạy chế độ development và thư mục đích chưa có script)
+                // Bước 2: Đảm bảo source script được cài đặt qua manifest (Pattern B)
+                // Dev-mode: source_url=local:plugins/atom26 → copy từ repo root
+                // Production: source_url=https://... → download ZIP, verify SHA256, extract
                 SetProgress(20);
-                Log("=== [Bước 2/5] Chuẩn bị tệp tin script ===");
-                await PrepareScriptsAsync(targetDir);
+                Log("=== [Bước 2/5] Chuẩn bị tệp tin script (via Plugin Manifest) ===");
+                bool scriptsReady = await PluginManifestService.EnsureInstalledAsync(
+                    "atom26",
+                    onLog: Log,
+                    onProgress: pct => SetProgress(20.0 + pct * 0.08));
+
+                if (!scriptsReady)
+                {
+                    Log("Lỗi: Không thể chuẩn bị các tệp script từ plugin manifest.");
+                    OnInstallationCompleted?.Invoke(false, "Không thể tải/chuẩn bị plugin atom26 từ manifest.");
+                    return;
+                }
 
                 if (_cancelRequested) { HandleCancel(); return; }
 
@@ -246,81 +258,7 @@ namespace m_mslc_overlay.services
             OnInstallationCompleted?.Invoke(false, "Đã hủy cài đặt.");
         }
 
-        private static Task PrepareScriptsAsync(string targetDir)
-        {
-            string scriptPath = Path.Combine(targetDir, "translation_server.py");
-            string downloaderPath = Path.Combine(targetDir, "model_downloader.py");
-            string reqPath = Path.Combine(targetDir, "requirements.txt");
-
-            if (File.Exists(scriptPath) && File.Exists(downloaderPath) && File.Exists(reqPath))
-            {
-                Log("Các tệp script đã có sẵn trong thư mục đích.");
-                return Task.CompletedTask;
-            }
-
-            // Dò tìm thư mục R&D ở các cấp cha
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string? currentDir = baseDir;
-            string devSourceDir = string.Empty;
-
-            for (int i = 0; i < 5 && currentDir != null; i++)
-            {
-                string pluginPath = Path.Combine(currentDir, "plugins", "atom26");
-                string docPath = Path.Combine(currentDir, "docs", "atoms", "atom26_offline_translation");
-                
-                if (Directory.Exists(pluginPath) && File.Exists(Path.Combine(pluginPath, "translation_server.py")))
-                {
-                    devSourceDir = pluginPath;
-                    break;
-                }
-                else if (Directory.Exists(docPath) && File.Exists(Path.Combine(docPath, "translation_server.py")))
-                {
-                    devSourceDir = docPath;
-                    break;
-                }
-                currentDir = Directory.GetParent(currentDir)?.FullName;
-            }
-
-            if (!string.IsNullOrEmpty(devSourceDir))
-            {
-                Log($"Phát hiện môi trường dev. Đang copy script từ: {devSourceDir}");
-                try
-                {
-                    CopyFileIfExist(Path.Combine(devSourceDir, "translation_server.py"), scriptPath);
-                    CopyFileIfExist(Path.Combine(devSourceDir, "model_downloader.py"), downloaderPath);
-                    CopyFileIfExist(Path.Combine(devSourceDir, "requirements.txt"), reqPath);
-                    
-                    // Tạo thư mục gui và copy index.html nếu có
-                    string guiSrc = Path.Combine(devSourceDir, "gui");
-                    string guiDst = Path.Combine(targetDir, "gui");
-                    if (Directory.Exists(guiSrc))
-                    {
-                        Directory.CreateDirectory(guiDst);
-                        CopyFileIfExist(Path.Combine(guiSrc, "index.html"), Path.Combine(guiDst, "index.html"));
-                    }
-                    Log("Đã copy toàn bộ tệp script phát triển thành công.");
-                }
-                catch (Exception ex)
-                {
-                    Log($"Lỗi copy tệp script phát triển: {ex.Message}");
-                }
-            }
-            else
-            {
-                Log("Cảnh báo: Không tìm thấy nguồn tệp script gốc (Dev). Vui lòng đảm bảo các tệp translation_server.py và requirements.txt đã được đặt trong thư mục đích.");
-            }
-
-            return Task.CompletedTask;
-        }
-
-        private static void CopyFileIfExist(string source, string destination)
-        {
-            if (File.Exists(source))
-            {
-                File.Copy(source, destination, true);
-                LoggerService.Log($"{LogTag} Copied file {Path.GetFileName(source)} -> {destination}");
-            }
-        }
+        // PrepareScriptsAsync removed — replaced by PluginManifestService.EnsureInstalledAsync (Pattern B).
 
         private static async Task<bool> RunCommandAsync(string fileName, string arguments, string workingDir)
         {
