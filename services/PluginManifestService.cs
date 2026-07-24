@@ -79,10 +79,17 @@ namespace m_mslc_overlay.services
         // Fallback: check repo root during development (app runs from bin/Debug)
         private static readonly string ManifestDevPath = FindManifestDevPath();
 
-        private static readonly HttpClient _httpClient = new HttpClient
+        private static readonly HttpClient _httpClient = CreateHttpClient();
+
+        private static HttpClient CreateHttpClient()
         {
-            Timeout = TimeSpan.FromMinutes(10)
-        };
+            var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(10)
+            };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("MSLC-Overlay/1.0 (Windows; PluginManifestService)");
+            return client;
+        }
 
         private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {
