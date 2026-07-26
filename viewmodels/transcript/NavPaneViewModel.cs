@@ -181,14 +181,17 @@ namespace m_mslc_overlay.viewmodels.transcript
         public bool IsVisible
         {
             get => _isVisible;
-            set { _isVisible = value; OnPropertyChanged(); }
+            set { _isVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowSplitter)); }
         }
 
         public bool IsCompact
         {
             get => _isCompact;
-            set { _isCompact = value; OnPropertyChanged(); }
+            set { _isCompact = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowSplitter)); }
         }
+
+        public bool ShowSplitter => _isVisible && !_isCompact;
+
 
         // ─── Commands ─────────────────────────────────────────────────────
 

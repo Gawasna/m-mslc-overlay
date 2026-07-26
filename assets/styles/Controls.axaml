@@ -185,6 +185,14 @@
         <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
     </Style>
 
+    <Style Selector="Button.NavTabBtn.active /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+    </Style>
+    <Style Selector="Button.NavTabBtn.active">
+        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+    </Style>
+
+
     <!-- Sub-toolbar compact pill toggle (replaces CheckBox inside Border) -->
     <Style Selector="ToggleButton.SubToolbarPill">
         <Setter Property="Background" Value="{StaticResource BgCardBrush}"/>

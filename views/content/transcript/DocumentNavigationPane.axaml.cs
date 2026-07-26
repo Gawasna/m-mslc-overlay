@@ -22,6 +22,14 @@ namespace m_mslc_overlay.views.content.transcript
             this.Get<Button>("BtnAutoCorrect").Click += (_, _) => Vm()?.SwitchState(NavPaneState.AiAutoCorrect);
             this.Get<Button>("BtnGlossary").Click    += (_, _) => Vm()?.SwitchState(NavPaneState.Glossary);
             this.Get<Button>("BtnClose").Click       += (_, _) => Vm()?.Close();
+            this.Get<Button>("BtnToggleCompact").Click += (_, _) => Vm()?.ToggleCompact();
+
+            this.Get<Button>("BtnSpeakerCompact").Click     += (_, _) => Vm()?.SwitchState(NavPaneState.SpeakerAnnotation);
+            this.Get<Button>("BtnFindReplaceCompact").Click += (_, _) => Vm()?.SwitchState(NavPaneState.FindReplace);
+            this.Get<Button>("BtnSummaryCompact").Click     += (_, _) => Vm()?.SwitchState(NavPaneState.AiSummary);
+            this.Get<Button>("BtnAutoCorrectCompact").Click += (_, _) => Vm()?.SwitchState(NavPaneState.AiAutoCorrect);
+            this.Get<Button>("BtnGlossaryCompact").Click    += (_, _) => Vm()?.SwitchState(NavPaneState.Glossary);
+            this.Get<Button>("BtnToggleCompactExpand").Click += (_, _) => Vm()?.ToggleCompact();
         }
 
         private void WireUtilityButtons()

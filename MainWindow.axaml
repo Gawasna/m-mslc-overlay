@@ -87,6 +87,8 @@
                 Padding="8,0">
             <Menu VerticalAlignment="Center">
                 <MenuItem Header="{DynamicResource Menu_File}">
+                    <MenuItem Header="Open Workspace..." Click="OnOpenWorkspaceMenuClick" />
+                    <Separator />
                     <MenuItem Header="{DynamicResource Menu_InjectTargetDll}">
                         <MenuItem Header="{DynamicResource Menu_ByActivePid}" />
                         <MenuItem Header="{DynamicResource Menu_ByProcessName}" />
@@ -153,6 +155,16 @@
                             Classes="SecondaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_OpenOverlay}">
                         <materialIcons:MaterialIcon Kind="Play" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Button>
+                    <!-- Bring WorkspaceWindow to Front -->
+                    <Button x:Name="BringToFrontButton"
+                            Click="OnBringWorkspaceToFrontClick"
+                            IsVisible="False"
+                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="Bring transcript editor to front">
+                        <materialIcons:MaterialIcon Kind="FileDocument" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                     <!-- Open Debug / Settings Button -->
                     <Button Click="OpenDebugWidgetBtn_Click"

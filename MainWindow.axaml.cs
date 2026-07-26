@@ -11,6 +11,7 @@ using m_mslc_overlay.views.overlay;
 using m_mslc_overlay.services;
 using m_mslc_overlay.core;
 using MMslcOverlay.Services;
+using MMslcOverlay.Views.Workspace;
 
 namespace m_mslc_overlay
 {
@@ -716,6 +717,36 @@ namespace m_mslc_overlay
         public enum PanelPosition { Left, Right, Top, Bottom }
         public PanelPosition ConfiguredSidePanelPosition = PanelPosition.Right;
         public bool ConfiguredSidePanelTopmost = false;
+
+        private WorkspaceWindow? _workspaceWindow;
+
+        private void OnOpenWorkspaceMenuClick(object? sender, RoutedEventArgs e)
+        {
+            if (_workspaceWindow == null || !_workspaceWindow.IsVisible)
+            {
+                _workspaceWindow = new WorkspaceWindow();
+                _workspaceWindow.Show();
+            }
+            else
+            {
+                _workspaceWindow.Activate();
+            }
+            UpdateBringToFrontButtonVisibility();
+        }
+
+        private void OnBringWorkspaceToFrontClick(object? sender, RoutedEventArgs e)
+        {
+            _workspaceWindow?.Activate();
+        }
+
+        private void UpdateBringToFrontButtonVisibility()
+        {
+            var btn = this.FindControl<Button>("BringToFrontButton");
+            if (btn != null)
+            {
+                btn.IsVisible = _workspaceWindow != null && _workspaceWindow.IsVisible;
+            }
+        }
 
         private SidePanelWindow? _sidePanelWindow;
 
