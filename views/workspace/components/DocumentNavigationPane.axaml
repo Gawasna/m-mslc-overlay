@@ -1,0 +1,431 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMslcOverlay.ViewModels.Workspace"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="MMslcOverlay.Views.Workspace.Components.DocumentNavigationPane"
+             x:DataType="vm:NavPaneViewModel"
+             Classes.compact="{Binding IsCompact}">
+
+    <UserControl.Styles>
+        <Style Selector="UserControl">
+            <Setter Property="MinWidth" Value="180" />
+            <Setter Property="MaxWidth" Value="400" />
+        </Style>
+        <Style Selector="UserControl.compact">
+            <Setter Property="MinWidth" Value="42" />
+            <Setter Property="MaxWidth" Value="42" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!-- EXPANDED MODE -->
+        <Grid RowDefinitions="Auto, *" IsVisible="{Binding !IsCompact}">
+            <!-- ─── Pane Header ─────────────────────────────────────────────────── -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource BgWindowBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,1,1"
+                    Height="32"
+                    Padding="8,0">
+                <Grid ColumnDefinitions="Auto, *, Auto">
+                    <!-- State switcher: icon-style tabs -->
+                    <StackPanel Grid.Column="0"
+                                Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                        
+                        <Button x:Name="BtnSpeaker"
+                                Width="24" Height="24" Padding="0" CornerRadius="3"
+                                ToolTip.Tip="Speaker Annotation"
+                                Classes="NavTabBtn"
+                                Classes.active="{Binding ShowSpeakerAnnotation}">
+                            <mi:MaterialIcon Kind="AccountVoice" Width="16" Height="16" />
+                        </Button>
+                        
+                        <Button x:Name="BtnFindReplace"
+                                Width="24" Height="24" Padding="0" CornerRadius="3"
+                                ToolTip.Tip="Find &amp; Replace"
+                                Classes="NavTabBtn"
+                                Classes.active="{Binding ShowFindReplace}">
+                            <mi:MaterialIcon Kind="Magnify" Width="16" Height="16" />
+                        </Button>
+                        
+                        <Button x:Name="BtnSummary"
+                                Width="24" Height="24" Padding="0" CornerRadius="3"
+                                ToolTip.Tip="AI Summary"
+                                Classes="NavTabBtn"
+                                Classes.active="{Binding ShowAiSummary}">
+                            <mi:MaterialIcon Kind="AutoAwesome" Width="16" Height="16" />
+                        </Button>
+                        
+                        <Button x:Name="BtnAutoCorrect"
+                                Width="24" Height="24" Padding="0" CornerRadius="3"
+                                ToolTip.Tip="AI Auto-Correct"
+                                Classes="NavTabBtn"
+                                Classes.active="{Binding ShowAiAutoCorrect}">
+                            <mi:MaterialIcon Kind="Spellcheck" Width="16" Height="16" />
+                        </Button>
+                        
+                        <Button x:Name="BtnGlossary"
+                                Width="24" Height="24" Padding="0" CornerRadius="3"
+                                ToolTip.Tip="Glossary"
+                                Classes="NavTabBtn"
+                                Classes.active="{Binding ShowGlossary}">
+                            <mi:MaterialIcon Kind="BookAlphabet" Width="16" Height="16" />
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Compact toggle & close -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+                        <Button x:Name="BtnToggleCompact"
+                                ToolTip.Tip="Collapse Pane"
+                                Width="24" Height="24"
+                                Padding="0" CornerRadius="2"
+                                Classes="NavTabBtn">
+                            <mi:MaterialIcon Kind="ChevronLeft" Width="16" Height="16" />
+                        </Button>
+                        
+                        <Button x:Name="BtnClose"
+                                ToolTip.Tip="Close Pane"
+                                Width="24" Height="24"
+                                Padding="0" CornerRadius="2"
+                                Classes="NavTabBtn">
+                            <mi:MaterialIcon Kind="Close" Width="16" Height="16" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+        <!-- ─── State Panels ────────────────────────────────────────────────── -->
+        <Border Grid.Row="1"
+                Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,1,0">
+
+            <Panel>
+
+                <!-- ══ STATE 1: Speaker Annotation ════════════════════════════ -->
+                <StackPanel IsVisible="{Binding ShowSpeakerAnnotation}"
+                            Spacing="0">
+
+                    <!-- Header -->
+                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                            BorderThickness="0,0,0,1" Padding="10,6">
+                        <TextBlock Text="Speaker Annotation"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Border>
+
+                    <!-- Speaker list -->
+                    <ItemsControl ItemsSource="{Binding Speakers}"
+                                  Padding="0">
+                        <ItemsControl.DataTemplates>
+                            <DataTemplate x:DataType="vm:SpeakerAnnotation">
+                                <Border BorderBrush="{StaticResource BgWindowBrush}" BorderThickness="0,0,0,1" Padding="10,8">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <!-- Speaker color dot -->
+                                        <Ellipse Grid.Column="0"
+                                                 Width="10" Height="10"
+                                                 Fill="{StaticResource PrimaryBrush}"
+                                                 VerticalAlignment="Center"
+                                                 Margin="0,0,8,0" />
+                                        <!-- Editable display name -->
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock Text="{Binding SpeakerKey}"
+                                                       FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                            <TextBox Text="{Binding DisplayName}"
+                                                     FontSize="11"
+                                                     Padding="2,1"
+                                                     Background="Transparent"
+                                                     BorderThickness="0,0,0,1"
+                                                     BorderBrush="{StaticResource BorderBrush}"
+                                                     Foreground="{StaticResource TextPrimaryBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.DataTemplates>
+                    </ItemsControl>
+
+                    <!-- Hint when empty -->
+                    <TextBlock Text="Speakers will appear here as segments arrive."
+                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap" Margin="10,12" />
+
+                </StackPanel>
+
+                <!-- ══ STATE 2: Find & Replace ════════════════════════════════ -->
+                <StackPanel IsVisible="{Binding ShowFindReplace}" Spacing="0">
+
+                    <!-- Header -->
+                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                            BorderThickness="0,0,0,1" Padding="10,6">
+                        <TextBlock Text="Find &amp; Replace"
+                                   FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Border>
+
+                    <StackPanel Spacing="8" Margin="10">
+
+                        <!-- Find field -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Find" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <TextBox x:Name="FindTextBox"
+                                     Text="{Binding FindReplace.FindText}"
+                                     FontSize="11" Height="28"
+                                     Watermark="Search in transcript..." />
+                        </StackPanel>
+
+                        <!-- Replace field -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Replace with" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <TextBox x:Name="ReplaceTextBox"
+                                     Text="{Binding FindReplace.ReplaceText}"
+                                     FontSize="11" Height="28"
+                                     Watermark="Replacement text..." />
+                        </StackPanel>
+
+                        <!-- Action buttons -->
+                        <Grid ColumnDefinitions="*, 8, *">
+                            <Button Grid.Column="0" x:Name="FindNextBtn"
+                                    Content="Find Next"
+                                    FontSize="10" Padding="0,5"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Classes="SecondaryBtn" CornerRadius="3" />
+                            <Button Grid.Column="2" x:Name="ReplaceAllBtn"
+                                    Content="Replace All"
+                                    FontSize="10" Padding="0,5"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Classes="PrimaryBtn" CornerRadius="3" />
+                        </Grid>
+
+                        <!-- Result message -->
+                        <TextBlock Text="{Binding FindReplace.ResultMessage}"
+                                   FontSize="10" Foreground="{StaticResource PrimaryBrush}"
+                                   IsVisible="{Binding FindReplace.MatchCount,
+                                               Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ══ STATE 3: AI Summary ════════════════════════════════════ -->
+                <StackPanel IsVisible="{Binding ShowAiSummary}" Spacing="0">
+
+                    <!-- Header -->
+                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                            BorderThickness="0,0,0,1" Padding="10,6">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Column="0" Text="AI Summary"
+                                       FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Grid.Column="1"
+                                       Text="Gemini"
+                                       FontSize="9" Foreground="{StaticResource PrimaryBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Spacing="8" Margin="10">
+
+                        <!-- Generate button -->
+                        <Button x:Name="GenerateSummaryBtn"
+                                Content="Generate Summary"
+                                FontSize="10"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Padding="0,6"
+                                Classes="PrimaryBtn" CornerRadius="3"
+                                IsEnabled="{Binding !AiPane.IsBusy}" />
+
+                        <!-- Busy indicator -->
+                        <ProgressBar IsVisible="{Binding AiPane.IsBusy}"
+                                     IsIndeterminate="True"
+                                     Height="3" />
+
+                        <!-- Summary output -->
+                        <Border CornerRadius="3"
+                                Background="{StaticResource BgWindowBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                Padding="8,6"
+                                MinHeight="120">
+                            <TextBlock Text="{Binding AiPane.SummaryText}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       LineHeight="18" />
+                        </Border>
+
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ══ STATE 4: AI Auto-Correct ═══════════════════════════════ -->
+                <StackPanel IsVisible="{Binding ShowAiAutoCorrect}" Spacing="0">
+
+                    <!-- Header -->
+                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                            BorderThickness="0,0,0,1" Padding="10,6">
+                        <TextBlock Text="AI Auto-Correct"
+                                   FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                    </Border>
+
+                    <StackPanel Spacing="10" Margin="10">
+
+                        <!-- Options -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Correction scope" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <StackPanel Spacing="4">
+                                <CheckBox IsChecked="{Binding AiPane.FixSpelling}">
+                                    <TextBlock Text="Fix spelling &amp; grammar" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" />
+                                </CheckBox>
+                                <CheckBox IsChecked="{Binding AiPane.ImproveStyle}">
+                                    <TextBlock Text="Improve readability" FontSize="11" Foreground="{StaticResource TextPrimaryBrush}" />
+                                </CheckBox>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Run button -->
+                        <Button x:Name="RunCorrectBtn"
+                                Content="Apply Corrections"
+                                FontSize="10"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Padding="0,6"
+                                Classes="PrimaryBtn" CornerRadius="3"
+                                IsEnabled="{Binding !AiPane.IsBusy}" />
+
+                        <!-- Busy indicator -->
+                        <ProgressBar IsVisible="{Binding AiPane.IsBusy}"
+                                     IsIndeterminate="True"
+                                     Height="3" />
+
+                        <!-- Result text -->
+                        <TextBlock Text="{Binding AiPane.CorrectResultMessage}"
+                                   FontSize="10" Foreground="{StaticResource StatusActiveBrush}"
+                                   TextWrapping="Wrap" />
+
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ══ STATE 5: Glossary ══════════════════════════════════════ -->
+                <Grid IsVisible="{Binding ShowGlossary}" RowDefinitions="Auto, *, Auto">
+
+                    <!-- Header -->
+                    <Border Grid.Row="0"
+                            Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                            BorderThickness="0,0,0,1" Padding="10,6">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Column="0"
+                                       Text="Glossary"
+                                       FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding GlossaryEntries.Count, StringFormat='{}{0} terms'}"
+                                       FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Term list -->
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl ItemsSource="{Binding GlossaryEntries}">
+                            <ItemsControl.DataTemplates>
+                                <DataTemplate x:DataType="vm:GlossaryEntry">
+                                    <Border BorderBrush="{StaticResource BorderLightBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="10,8">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding Term}"
+                                                       FontSize="11" FontWeight="Bold"
+                                                       Foreground="{StaticResource PrimaryBrush}" />
+                                            <TextBlock Text="{Binding Definition}"
+                                                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.DataTemplates>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Add entry row -->
+                    <Border Grid.Row="2"
+                            Background="{StaticResource BgWindowBrush}"
+                            BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0"
+                            Padding="8">
+                        <StackPanel Spacing="4">
+                            <TextBox x:Name="GlossaryTermBox"
+                                     Watermark="Term..." FontSize="10" Height="24" />
+                            <TextBox x:Name="GlossaryDefBox"
+                                     Watermark="Definition..." FontSize="10" Height="24" />
+                            <Button x:Name="AddGlossaryEntryBtn"
+                                    Content="Add Term"
+                                    FontSize="10" Padding="0,4"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Classes="SecondaryBtn" CornerRadius="3" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+            </Panel>
+        </Border>
+
+        </Grid>
+
+        <!-- COMPACT MODE -->
+        <Border IsVisible="{Binding IsCompact}"
+                Background="{StaticResource BgWindowBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,1,0"
+                Padding="0,8">
+            <Grid RowDefinitions="*, Auto">
+                <StackPanel Grid.Row="0" Orientation="Vertical" Spacing="4" HorizontalAlignment="Center">
+                    <Button x:Name="BtnSpeakerCompact"
+                            Width="28" Height="28" Padding="0" CornerRadius="3"
+                            ToolTip.Tip="Speaker Annotation"
+                            Classes="NavTabBtn"
+                            Classes.active="{Binding ShowSpeakerAnnotation}">
+                        <mi:MaterialIcon Kind="AccountVoice" Width="18" Height="18" />
+                    </Button>
+                    
+                    <Button x:Name="BtnFindReplaceCompact"
+                            Width="28" Height="28" Padding="0" CornerRadius="3"
+                            ToolTip.Tip="Find &amp; Replace"
+                            Classes="NavTabBtn"
+                            Classes.active="{Binding ShowFindReplace}">
+                        <mi:MaterialIcon Kind="Magnify" Width="18" Height="18" />
+                    </Button>
+                    
+                    <Button x:Name="BtnSummaryCompact"
+                            Width="28" Height="28" Padding="0" CornerRadius="3"
+                            ToolTip.Tip="AI Summary"
+                            Classes="NavTabBtn"
+                            Classes.active="{Binding ShowAiSummary}">
+                        <mi:MaterialIcon Kind="AutoAwesome" Width="18" Height="18" />
+                    </Button>
+                    
+                    <Button x:Name="BtnAutoCorrectCompact"
+                            Width="28" Height="28" Padding="0" CornerRadius="3"
+                            ToolTip.Tip="AI Auto-Correct"
+                            Classes="NavTabBtn"
+                            Classes.active="{Binding ShowAiAutoCorrect}">
+                        <mi:MaterialIcon Kind="Spellcheck" Width="18" Height="18" />
+                    </Button>
+                    
+                    <Button x:Name="BtnGlossaryCompact"
+                            Width="28" Height="28" Padding="0" CornerRadius="3"
+                            ToolTip.Tip="Glossary"
+                            Classes="NavTabBtn"
+                            Classes.active="{Binding ShowGlossary}">
+                        <mi:MaterialIcon Kind="BookAlphabet" Width="18" Height="18" />
+                    </Button>
+                </StackPanel>
+
+                <Button Grid.Row="1" x:Name="BtnToggleCompactExpand"
+                        ToolTip.Tip="Expand Pane"
+                        Width="28" Height="28" Padding="0" CornerRadius="3"
+                        HorizontalAlignment="Center" Margin="0,0,0,8"
+                        Classes="NavTabBtn">
+                    <mi:MaterialIcon Kind="ChevronRight" Width="18" Height="18" />
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

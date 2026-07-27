@@ -3,25 +3,91 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:avalonEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="MMslcOverlay.Views.Workspace.PaperSheetView">
-    <Grid>
-        <avalonEdit:TextEditor x:Name="Editor"
-                               ShowLineNumbers="False"
-                               FontFamily="Consolas"
-                               FontSize="14"
-                               Background="#FAFAFA"
-                               Foreground="#333333"
-                               HorizontalScrollBarVisibility="Auto"
-                               VerticalScrollBarVisibility="Visible">
-            <avalonEdit:TextEditor.ContextMenu>
-                <ContextMenu>
-                    <MenuItem x:Name="MenuEditSegment" Header="Edit Segment (Double-Click)" Click="OnEditSegmentClick" />
-                    <MenuItem x:Name="MenuPlaceMagicCursor" Header="Place Magic Cursor Here" Click="OnPlaceMagicCursorClick" />
-                    <Separator />
-                    <MenuItem x:Name="MenuDeleteFreeform" Header="Delete Freeform Block" Click="OnDeleteFreeformClick" />
-                </ContextMenu>
-            </avalonEdit:TextEditor.ContextMenu>
-        </avalonEdit:TextEditor>
+             xmlns:vm="using:MMslcOverlay.ViewModels.Workspace"
+             xmlns:components="using:MMslcOverlay.Views.Workspace.Components"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="MMslcOverlay.Views.Workspace.PaperSheetView"
+             x:DataType="vm:WorkspaceViewModel">
+    <Grid RowDefinitions="Auto, Auto, *, Auto">
+        <!-- Row 0: Word-Style Toolbar -->
+        <components:WordStyleToolbar Grid.Row="0" DataContext="{Binding Sheet}" />
+
+        <!-- Row 1: Sub-Toolbar -->
+        <components:SubToolbar Grid.Row="1" />
+
+        <!-- Row 2: Main Content (Nav Pane + Paper Sheet) -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto, Auto, *">
+            <!-- Left: Document Navigation Pane -->
+            <Border Grid.Column="0" IsVisible="{Binding NavPane.IsVisible}">
+                <components:DocumentNavigationPane DataContext="{Binding NavPane}" />
+            </Border>
+
+            <!-- Flex Splitter -->
+            <GridSplitter Grid.Column="1"
+                          Width="4"
+                          Background="{StaticResource BorderLightBrush}"
+                          IsVisible="{Binding NavPane.ShowSplitter}"/>
+
+            <!-- Right: Paper Sheet viewport -->
+            <Border Grid.Column="2" Background="{StaticResource BgWindowBrush}" ClipToBounds="True">
+                <ScrollViewer x:Name="MainScrollViewer"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              Padding="0">
+
+                    <!-- Centering stack -->
+                    <StackPanel x:Name="PaperCenteringStack"
+                                HorizontalAlignment="Stretch"
+                                Spacing="0"
+                                Margin="56,0,56,24">
+
+                        <!-- Ruler track -->
+                        <Border MaxWidth="680"
+                                HorizontalAlignment="Stretch"
+                                Height="20"
+                                Background="{StaticResource BgWindowBrush}"
+                                BorderBrush="{StaticResource BorderLightBrush}"
+                                BorderThickness="0,0,0,1">
+                            <Canvas />
+                        </Border>
+
+                        <!-- A4 Paper sheet -->
+                        <Border MaxWidth="680"
+                                HorizontalAlignment="Stretch"
+                                MinHeight="960"
+                                Background="{StaticResource BgCardBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                ClipToBounds="True">
+
+                            <!-- Paper margins -->
+                            <StackPanel x:Name="PaperContentStack" Margin="64,60" Spacing="0">
+                                <avalonEdit:TextEditor x:Name="Editor"
+                                                       MinHeight="800"
+                                                       ShowLineNumbers="False"
+                                                       FontFamily="Consolas"
+                                                       FontSize="14"
+                                                       Background="Transparent"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       HorizontalScrollBarVisibility="Disabled"
+                                                       VerticalScrollBarVisibility="Disabled">
+                                    <avalonEdit:TextEditor.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem x:Name="MenuEditSegment" Header="Edit Segment (Double-Click)" Click="OnEditSegmentClick" />
+                                            <MenuItem x:Name="MenuPlaceMagicCursor" Header="Place Magic Cursor Here" Click="OnPlaceMagicCursorClick" />
+                                            <Separator />
+                                            <MenuItem x:Name="MenuDeleteFreeform" Header="Delete Freeform Block" Click="OnDeleteFreeformClick" />
+                                        </ContextMenu>
+                                    </avalonEdit:TextEditor.ContextMenu>
+                                </avalonEdit:TextEditor>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Row 3: Word Status Bar -->
+        <components:WordStatusBar Grid.Row="3" DataContext="{Binding Sheet}" />
     </Grid>
 </UserControl>

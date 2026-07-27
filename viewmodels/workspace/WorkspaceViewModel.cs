@@ -7,9 +7,11 @@ using MMslcOverlay.Services.Workspace;
 
 namespace MMslcOverlay.ViewModels.Workspace;
 
+public enum WorkspaceState { Idle, Active }
+
 /// <summary>
 /// Root ViewModel cho một workspace session.
-/// Hold WorkspaceService (lifetime), expose PaperSheetViewModel sang Window.
+/// Hold WorkspaceService (lifetime), expose PaperSheetViewModel sang MainWindow.
 /// </summary>
 public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
 {
@@ -17,6 +19,30 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     private bool _isOpen;
     private PaperSheetViewModel? _sheet;
     private string _workspaceName = "Untitled";
+
+    public NavPaneViewModel NavPane { get; } = new NavPaneViewModel();
+
+    private string _selectedAiModel = "Gemini 1.5 Pro";
+    public string SelectedAiModel
+    {
+        get => _selectedAiModel;
+        set
+        {
+            if (_selectedAiModel != value)
+            {
+                _selectedAiModel = value;
+                NavPane.AiPane.SelectedModel = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private WorkspaceState _state = WorkspaceState.Idle;
+    public WorkspaceState State
+    {
+        get => _state;
+        private set { if (_state != value) { _state = value; OnPropertyChanged(); } }
+    }
 
     public bool IsOpen
     {
@@ -94,6 +120,7 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
             WorkspaceName = Path.GetFileName(workspaceRoot);
             Sheet = new PaperSheetViewModel(_service);
             IsOpen = true;
+            State = WorkspaceState.Active;
 
             // Save settings
             var settings = WorkspaceSettings.Load();
@@ -115,6 +142,20 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     public event PropertyChangedEventHandler? PropertyChanged;
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    // ─── UI Actions ────────────────────────────────────────────────────────
+    public void ExportSrt()
+    {
+        if (ExportSrtCommand.CanExecute(null))
+        {
+            ExportSrtCommand.Execute(null);
+        }
+    }
+
+    public void ImportScript()
+    {
+        // Stub for importing script in workspace
+    }
 }
 
 public class RelayCommand : ICommand

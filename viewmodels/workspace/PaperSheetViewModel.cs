@@ -1,4 +1,6 @@
 using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text;
 using AvaloniaEdit.Document;
 using MMslcOverlay.Core.Workspace.Models;
@@ -6,7 +8,7 @@ using MMslcOverlay.Services.Workspace;
 
 namespace MMslcOverlay.ViewModels.Workspace;
 
-public class PaperSheetViewModel
+public class PaperSheetViewModel : INotifyPropertyChanged
 {
     public TextDocument Document { get; } = new TextDocument();
     public UndoRedoStack History { get; } = new UndoRedoStack();
@@ -29,6 +31,49 @@ public class PaperSheetViewModel
 
     public MagicCursorViewModel MagicCursor { get; }
     public ScrollModeController ScrollController { get; } = new ScrollModeController();
+
+    // ─── UI State Properties for Chrome ───────────────────────────────
+    private int _wordCount;
+    public int WordCount
+    {
+        get => _wordCount;
+        set { if (_wordCount != value) { _wordCount = value; OnPropertyChanged(); } }
+    }
+
+    private int _zoomPercent = 100;
+    public int ZoomPercent
+    {
+        get => _zoomPercent;
+        set { if (_zoomPercent != value) { _zoomPercent = value; OnPropertyChanged(); } }
+    }
+
+    private string _documentLanguage = "Bilingual";
+    public string DocumentLanguage
+    {
+        get => _documentLanguage;
+        set { if (_documentLanguage != value) { _documentLanguage = value; OnPropertyChanged(); } }
+    }
+
+    private bool _autoScroll = true;
+    public bool AutoScroll
+    {
+        get => _autoScroll;
+        set { if (_autoScroll != value) { _autoScroll = value; OnPropertyChanged(); } }
+    }
+
+    private bool _focusMode = false;
+    public bool FocusMode
+    {
+        get => _focusMode;
+        set { if (_focusMode != value) { _focusMode = value; OnPropertyChanged(); } }
+    }
+
+    private int _pageNumber = 1;
+    public int PageNumber
+    {
+        get => _pageNumber;
+        set { if (_pageNumber != value) { _pageNumber = value; OnPropertyChanged(); } }
+    }
 
     public PaperSheetViewModel(WorkspaceService workspace)
     {
@@ -92,5 +137,20 @@ public class PaperSheetViewModel
             result += $"  ↳ [{seg.TextTrs}]\n";
         }
         return result;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    // ─── UI Actions ────────────────────────────────────────────────────────
+    public void ZoomIn()
+    {
+        if (ZoomPercent < 300) ZoomPercent += 10;
+    }
+
+    public void ZoomOut()
+    {
+        if (ZoomPercent > 50) ZoomPercent -= 10;
     }
 }

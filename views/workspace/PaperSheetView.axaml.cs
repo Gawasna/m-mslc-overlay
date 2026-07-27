@@ -17,7 +17,7 @@ public partial class PaperSheetView : UserControl
 
     private void OnDataContextChangedHandler(object? sender, EventArgs e)
     {
-        if (DataContext is PaperSheetViewModel vm)
+        if (DataContext is WorkspaceViewModel workspaceVm && workspaceVm.Sheet is PaperSheetViewModel vm)
         {
             var editor = this.FindControl<TextEditor>("Editor");
             if (editor != null)
@@ -61,7 +61,7 @@ public partial class PaperSheetView : UserControl
     private void OnEditSegmentClick(object? sender, RoutedEventArgs e)
     {
         var editor = this.FindControl<TextEditor>("Editor");
-        if (editor == null || DataContext is not PaperSheetViewModel vm) return;
+        if (editor == null || !(DataContext is WorkspaceViewModel wvm && wvm.Sheet is PaperSheetViewModel vm)) return;
 
         var caretOffset = editor.TextArea.Caret.Offset;
         // Logic to extract segment from caret offset and trigger SegmentEditSession
@@ -72,7 +72,7 @@ public partial class PaperSheetView : UserControl
     private void OnPlaceMagicCursorClick(object? sender, RoutedEventArgs e)
     {
         var editor = this.FindControl<TextEditor>("Editor");
-        if (editor == null || DataContext is not PaperSheetViewModel vm) return;
+        if (editor == null || !(DataContext is WorkspaceViewModel wvm && wvm.Sheet is PaperSheetViewModel vm)) return;
 
         vm.MagicCursorOffset = editor.TextArea.Caret.Offset;
     }

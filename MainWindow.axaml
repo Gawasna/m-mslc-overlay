@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:transcript="using:m_mslc_overlay.views.content.transcript"
+        xmlns:views="clr-namespace:MMslcOverlay.Views.Workspace"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.MainWindow"
         Title="{DynamicResource Title_ControlCenter}"
@@ -87,7 +88,15 @@
                 Padding="8,0">
             <Menu VerticalAlignment="Center">
                 <MenuItem Header="{DynamicResource Menu_File}">
-                    <MenuItem Header="Open Workspace..." Click="OnOpenWorkspaceMenuClick" />
+                    <MenuItem Header="_New Workspace" Click="OnNewWorkspaceMenuClick" />
+                    <MenuItem Header="_Open Workspace..." Click="OnOpenWorkspaceMenuClick" />
+                    <Separator />
+                    <MenuItem Header="_Export" IsEnabled="False">
+                        <MenuItem Header="SRT..." />
+                        <MenuItem Header="TXT..." />
+                        <MenuItem Header="Markdown..." />
+                        <MenuItem Header="PDF..." />
+                    </MenuItem>
                     <Separator />
                     <MenuItem Header="{DynamicResource Menu_InjectTargetDll}">
                         <MenuItem Header="{DynamicResource Menu_ByActivePid}" />
@@ -155,16 +164,6 @@
                             Classes="SecondaryBtn"
                             ToolTip.Tip="{DynamicResource Tooltip_OpenOverlay}">
                         <materialIcons:MaterialIcon Kind="Play" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
-                    </Button>
-                    <!-- Bring WorkspaceWindow to Front -->
-                    <Button x:Name="BringToFrontButton"
-                            Click="OnBringWorkspaceToFrontClick"
-                            IsVisible="False"
-                            Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
-                            CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
-                            Classes="SecondaryBtn"
-                            ToolTip.Tip="Bring transcript editor to front">
-                        <materialIcons:MaterialIcon Kind="FileDocument" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                     <!-- Open Debug / Settings Button -->
                     <Button Click="OpenDebugWidgetBtn_Click"
@@ -409,9 +408,31 @@
                           Background="Transparent"
                           ResizeBehavior="PreviousAndNext"/>
 
-            <!-- Main_Viewport: Transcript Viewport (Word-style bilingual transcript) -->
-            <transcript:TranscriptViewport x:Name="TranscriptViewport"
-                                           Grid.Column="2" />
+            <!-- Workspace Content Area — State Machine IDLE / ACTIVE -->
+            <Grid Grid.Column="2">
+                <!-- IDLE: Chưa có workspace, hướng dẫn user -->
+                <Border x:Name="WorkspaceIdlePlaceholder"
+                        IsVisible="True"
+                        Background="{StaticResource BgWindowBrush}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                        <materialIcons:MaterialIcon Kind="FileDocumentOutline"
+                                                    Width="48" Height="48"
+                                                    Foreground="{StaticResource TextSecondaryBrush}"
+                                                    HorizontalAlignment="Center"/>
+                        <TextBlock Text="Nhấn Record để bắt đầu phiên mới"
+                                   FontSize="14"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="hoặc File > Open Workspace để mở phiên đã lưu"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <!-- ACTIVE: PaperSheetView in-place — IsVisible và DataContext set từ code-behind -->
+                <views:PaperSheetView x:Name="WorkspacePaperSheet"
+                                      IsVisible="False" />
+            </Grid>
         </Grid>
 
         <!-- 4. Downbar (Status Bar) -->
