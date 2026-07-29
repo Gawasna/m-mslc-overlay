@@ -5,6 +5,7 @@
              xmlns:avalonEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
              xmlns:vm="using:MMslcOverlay.ViewModels.Workspace"
              xmlns:components="using:MMslcOverlay.Views.Workspace.Components"
+             xmlns:controls="using:m_mslc_overlay.views.controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="MMslcOverlay.Views.Workspace.PaperSheetView"
              x:DataType="vm:WorkspaceViewModel">
@@ -29,61 +30,8 @@
                           IsVisible="{Binding NavPane.ShowSplitter}"/>
 
             <!-- Right: Paper Sheet viewport -->
-            <Border Grid.Column="2" Background="{StaticResource BgWindowBrush}" ClipToBounds="True">
-                <ScrollViewer x:Name="MainScrollViewer"
-                              HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Auto"
-                              Padding="0">
-
-                    <!-- Centering stack -->
-                    <StackPanel x:Name="PaperCenteringStack"
-                                HorizontalAlignment="Stretch"
-                                Spacing="0"
-                                Margin="56,0,56,24">
-
-                        <!-- Ruler track -->
-                        <Border MaxWidth="680"
-                                HorizontalAlignment="Stretch"
-                                Height="20"
-                                Background="{StaticResource BgWindowBrush}"
-                                BorderBrush="{StaticResource BorderLightBrush}"
-                                BorderThickness="0,0,0,1">
-                            <Canvas />
-                        </Border>
-
-                        <!-- A4 Paper sheet -->
-                        <Border MaxWidth="680"
-                                HorizontalAlignment="Stretch"
-                                MinHeight="960"
-                                Background="{StaticResource BgCardBrush}"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                ClipToBounds="True">
-
-                            <!-- Paper margins -->
-                            <StackPanel x:Name="PaperContentStack" Margin="64,60" Spacing="0">
-                                <avalonEdit:TextEditor x:Name="Editor"
-                                                       MinHeight="800"
-                                                       ShowLineNumbers="False"
-                                                       FontFamily="Consolas"
-                                                       FontSize="14"
-                                                       Background="Transparent"
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                       HorizontalScrollBarVisibility="Disabled"
-                                                       VerticalScrollBarVisibility="Disabled">
-                                    <avalonEdit:TextEditor.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem x:Name="MenuEditSegment" Header="Edit Segment (Double-Click)" Click="OnEditSegmentClick" />
-                                            <MenuItem x:Name="MenuPlaceMagicCursor" Header="Place Magic Cursor Here" Click="OnPlaceMagicCursorClick" />
-                                            <Separator />
-                                            <MenuItem x:Name="MenuDeleteFreeform" Header="Delete Freeform Block" Click="OnDeleteFreeformClick" />
-                                        </ContextMenu>
-                                    </avalonEdit:TextEditor.ContextMenu>
-                                </avalonEdit:TextEditor>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
+            <Border Grid.Column="2" Background="{StaticResource BgWindowBrush}" Cursor="Arrow">
+                <controls:WebView2Control x:Name="Editor" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
             </Border>
         </Grid>
 

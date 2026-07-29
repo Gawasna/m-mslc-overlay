@@ -88,6 +88,7 @@ namespace m_mslc_overlay
         public static AppBuilder BuildAvaloniaApp()
             => AppBuilder.Configure<App>()
                 .UsePlatformDetect()
+                .With(new Win32PlatformOptions { CompositionMode = new[] { Win32CompositionMode.RedirectionSurface } })
                 .WithInterFont()
                 .LogToTrace();
     }

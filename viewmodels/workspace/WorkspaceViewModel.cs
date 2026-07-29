@@ -16,6 +16,7 @@ public enum WorkspaceState { Idle, Active }
 public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
 {
     private WorkspaceService? _service;
+    public WorkspaceService? Service => _service;
     private bool _isOpen;
     private PaperSheetViewModel? _sheet;
     private string _workspaceName = "Untitled";
