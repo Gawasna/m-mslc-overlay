@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:avalonEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+             xmlns:vm="using:MMslcOverlay.ViewModels.Workspace"
+             xmlns:components="using:MMslcOverlay.Views.Workspace.Components"
+             xmlns:controls="using:m_mslc_overlay.views.controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="MMslcOverlay.Views.Workspace.PaperSheetView"
+             x:DataType="vm:WorkspaceViewModel">
+    <Grid RowDefinitions="Auto, Auto, *, Auto">
+        <!-- Row 0: Word-Style Toolbar -->
+        <components:WordStyleToolbar Grid.Row="0" DataContext="{Binding Sheet}" />
+
+        <!-- Row 1: Sub-Toolbar -->
+        <components:SubToolbar Grid.Row="1" />
+
+        <!-- Row 2: Main Content (Nav Pane + Paper Sheet) -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto, Auto, *">
+            <!-- Left: Document Navigation Pane -->
+            <Border Grid.Column="0" IsVisible="{Binding NavPane.IsVisible}">
+                <components:DocumentNavigationPane DataContext="{Binding NavPane}" />
+            </Border>
+
+            <!-- Flex Splitter -->
+            <GridSplitter Grid.Column="1"
+                          Width="4"
+                          Background="{StaticResource BorderLightBrush}"
+                          IsVisible="{Binding NavPane.ShowSplitter}"/>
+
+            <!-- Right: Paper Sheet viewport -->
+            <Border Grid.Column="2" Background="{StaticResource BgWindowBrush}" Cursor="Arrow">
+                <controls:WebView2Control x:Name="Editor" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+            </Border>
+        </Grid>
+
+        <!-- Row 3: Word Status Bar -->
+        <components:WordStatusBar Grid.Row="3" DataContext="{Binding Sheet}" />
+    </Grid>
+</UserControl>

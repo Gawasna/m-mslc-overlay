@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             xmlns:vm="using:MMslcOverlay.ViewModels.Workspace"
              xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
-             x:Class="m_mslc_overlay.views.content.transcript.DocumentNavigationPane"
+             x:Class="MMslcOverlay.Views.Workspace.Components.DocumentNavigationPane"
              x:DataType="vm:NavPaneViewModel"
              Classes.compact="{Binding IsCompact}">
 

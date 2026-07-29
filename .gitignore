@@ -408,3 +408,5 @@ GEMINI.md
 /plugins/atom32/tests
 # Pattern B: Plugin lock file is a local runtime artifact — not committed
 /plugins.lock.json
+/.vscode
+assets/workspace/editor.js

@@ -1,7 +1,7 @@
 using Avalonia.Controls;
-using m_mslc_overlay.viewmodels.transcript;
+using MMslcOverlay.ViewModels.Workspace;
 
-namespace m_mslc_overlay.views.content.transcript
+namespace MMslcOverlay.Views.Workspace.Components
 {
     public partial class DocumentNavigationPane : UserControl
     {

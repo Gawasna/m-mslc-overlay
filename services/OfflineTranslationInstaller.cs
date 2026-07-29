@@ -130,11 +130,22 @@ namespace m_mslc_overlay.services
 
                 if (_cancelRequested) { HandleCancel(); return; }
 
-                // Bước 3: Khởi tạo Virtual Environment
+                // Bước 3: Khởi tạo Virtual Environment với Multi-level Python Resolution Fallback
                 SetProgress(30);
                 Log("=== [Bước 3/5] Khởi tạo Virtual Environment (venv) ===");
-                Log("Đang chạy 'python -m venv venv'... Việc này có thể mất 10-30 giây.");
-                bool venvSuccess = await RunCommandAsync("python", "-m venv venv", targetDir);
+
+                var (sysPyExec, sysPyArgs) = await ResolveSystemPythonAsync();
+                if (string.IsNullOrEmpty(sysPyExec))
+                {
+                    Log("Lỗi: Không tìm thấy Python 3.10+ trên hệ thống (Đã quét PATH, 'py' launcher và Windows Registry).");
+                    Log("Vui lòng tải và cài đặt Python từ https://www.python.org/downloads/ (chú ý tích chọn 'Add Python to PATH').");
+                    OnInstallationCompleted?.Invoke(false, "Không tìm thấy Python 3.10+ trên máy tính.");
+                    return;
+                }
+
+                Log($"Sử dụng Python: {sysPyExec} {sysPyArgs}");
+                string venvCmdArgs = string.IsNullOrEmpty(sysPyArgs) ? "-m venv venv" : $"{sysPyArgs} -m venv venv";
+                bool venvSuccess = await RunCommandAsync(sysPyExec, venvCmdArgs, targetDir);
                 if (!venvSuccess)
                 {
                     Log("Lỗi: Khởi tạo venv thất bại.");
@@ -300,6 +311,54 @@ namespace m_mslc_overlay.services
             catch (Exception ex)
             {
                 Log($"Lỗi khi chạy lệnh '{fileName} {arguments}': {ex.Message}");
+                return false;
+            }
+        }
+
+        private static async Task<(string Exec, string Args)> ResolveSystemPythonAsync()
+        {
+            // 1. Try standard 'python' command
+            if (await TestCommandAsync("python", "--version"))
+            {
+                return ("python", "");
+            }
+
+            // 2. Try Windows Python launcher 'py -3'
+            if (await TestCommandAsync("py", "-3 --version"))
+            {
+                return ("py", "-3");
+            }
+
+            // 3. Fallback to Windows Registry path
+            string regPath = EnvironmentCheckerService.CheckPythonRegistry();
+            if (!string.IsNullOrEmpty(regPath) && File.Exists(regPath))
+            {
+                return (regPath, "");
+            }
+
+            return ("", "");
+        }
+
+        private static async Task<bool> TestCommandAsync(string fileName, string arguments)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = fileName,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                using var p = Process.Start(psi);
+                if (p == null) return false;
+                await p.WaitForExitAsync();
+                return p.ExitCode == 0;
+            }
+            catch
+            {
                 return false;
             }
         }

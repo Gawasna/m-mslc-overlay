@@ -11,6 +11,7 @@ using m_mslc_overlay.views.overlay;
 using m_mslc_overlay.services;
 using m_mslc_overlay.core;
 using MMslcOverlay.Services;
+using MMslcOverlay.ViewModels.Workspace;
 
 namespace m_mslc_overlay
 {
@@ -58,14 +59,36 @@ namespace m_mslc_overlay
             Failed
         }
         private HookState _currentHookState = HookState.Waiting;
-        private bool _userNavPanePreference = true;
         private bool _isAdjustingSidebar = false;
         private double _userSidebarWidth = 240.0;
+
+        // Workspace ViewModel — DataContext của MainWindow, quản lý toàn bộ session lifecycle
+        private readonly WorkspaceViewModel _workspaceVm = new();
 
         public MainWindow()
         {
             LoggerService.Initialize();
             InitializeComponent();
+
+            // MainWindow IS the workspace container — set DataContext ngay sau InitializeComponent
+            DataContext = _workspaceVm;
+            _workspaceVm.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(WorkspaceViewModel.IsOpen))
+                {
+                    var idlePlaceholder = this.FindControl<Border>("WorkspaceIdlePlaceholder");
+                    var paperSheet = this.FindControl<MMslcOverlay.Views.Workspace.PaperSheetView>("WorkspacePaperSheet");
+                    if (idlePlaceholder != null) idlePlaceholder.IsVisible = !_workspaceVm.IsOpen;
+                    if (paperSheet != null)
+                    {
+                        paperSheet.IsVisible = _workspaceVm.IsOpen;
+                        // Thay đổi DataContext của PaperSheetView thành WorkspaceViewModel thay vì Sheet
+                        // Vì PaperSheetView giờ đây là Composite Root bao gồm cả Toolbars (cần WorkspaceViewModel)
+                        if (_workspaceVm.IsOpen) paperSheet.DataContext = _workspaceVm;
+                    }
+                }
+            };
+
             _hiderService = new AppContainerHiderService();
             _pipeService = new LiveCaptionPipeService();
             _injectorService = new InjectorService();
@@ -293,19 +316,33 @@ namespace m_mslc_overlay
             {
                 sidebar.SizeChanged += SidebarBorder_SizeChanged;
             }
-            if (TranscriptViewport?.ViewModel?.NavPane != null)
-            {
-                TranscriptViewport.ViewModel.NavPane.PropertyChanged += (s, ev) =>
-                {
-                    if (ev.PropertyName == nameof(TranscriptViewport.ViewModel.NavPane.IsVisible))
-                    {
-                        if (this.Bounds.Width >= 960)
-                        {
-                            _userNavPanePreference = TranscriptViewport.ViewModel.NavPane.IsVisible;
-                        }
-                    }
-                };
-            }
+            // TranscriptViewport was removed — NavPane wiring removed with it
+        }
+
+        /// <summary>
+        /// Overload constructor: mở MainWindow mới với một workspace path đã chọn.
+        /// Dùng cho VS Code pattern: close current + open new.
+        /// </summary>
+        public MainWindow(string workspacePath) : this()
+        {
+            _workspaceVm.OpenOrCreate(workspacePath);
+        }
+
+        private void OnNewWorkspaceMenuClick(object? sender, RoutedEventArgs e)
+        {
+            // New Workspace: open in-place trong MainWindow hiện tại
+            var settings = MMslcOverlay.Services.Workspace.WorkspaceSettings.Load();
+            _workspaceVm.OpenOrCreate(settings.ResolveWorkspacePath());
+        }
+
+        private void OnOpenWorkspaceMenuClick(object? sender, RoutedEventArgs e)
+        {
+            // Open Workspace: VS Code pattern — close current, open new MainWindow với workspace path
+            var settings = MMslcOverlay.Services.Workspace.WorkspaceSettings.Load();
+            string targetPath = settings.ResolveWorkspacePath();
+            var newWindow = new MainWindow(targetPath);
+            newWindow.Show();
+            this.Close();
         }
 
         private void AppendLog(string logLine)
@@ -1046,21 +1083,7 @@ namespace m_mslc_overlay
                 }
             }
 
-            // 2. Document Navigation Pane (NavPane) Responsive Control
-            if (TranscriptViewport?.ViewModel != null)
-            {
-                var navPaneVm = TranscriptViewport.ViewModel.NavPane;
-                if (width >= 960)
-                {
-                    // Restore previous visibility state based on user choice
-                    navPaneVm.IsVisible = _userNavPanePreference;
-                }
-                else
-                {
-                    // Force-collapse navigation pane on smaller widths
-                    navPaneVm.IsVisible = false;
-                }
-            }
+            // TranscriptViewport was removed — NavPane responsive control removed with it
         }
 
         private void SidebarBorder_SizeChanged(object? sender, SizeChangedEventArgs e)

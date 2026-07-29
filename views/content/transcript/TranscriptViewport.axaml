@@ -44,7 +44,8 @@
             <GridSplitter Grid.Column="1"
                           Width="4"
                           Background="{StaticResource BorderLightBrush}"
-                          IsVisible="{Binding NavPane.IsVisible}"/>
+                          IsVisible="{Binding NavPane.ShowSplitter}"/>
+
 
             <!-- Right: Paper Sheet viewport (fills remaining width) -->
             <transcript:PaperSheet Grid.Column="2"

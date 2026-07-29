@@ -160,7 +160,7 @@ namespace m_mslc_overlay.services
             }
         }
 
-        private static string CheckPythonRegistry()
+        public static string CheckPythonRegistry()
         {
             try
             {

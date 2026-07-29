@@ -6,7 +6,7 @@ namespace MMslcOverlay.Core.Workspace.Export;
 
 public interface IExporter
 {
-    string Export(IEnumerable<MergedSegment> segments);
+    string Export(IEnumerable<MergedSegment> segments, IEnumerable<FreeformBlock>? blocks = null);
 }
 
 public class ExportEngine
@@ -21,6 +21,7 @@ public class ExportEngine
     public string RunExport(IExporter exporter)
     {
         var segments = _segmentRepo.GetMergedSegments();
-        return exporter.Export(segments);
+        var blocks = _segmentRepo.UserDataRepo?.GetAllFreeformBlocks();
+        return exporter.Export(segments, blocks);
     }
 }

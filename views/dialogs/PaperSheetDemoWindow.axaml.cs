@@ -9,7 +9,7 @@ using AvaloniaEdit.Editing;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using MMslcOverlay.Views.Controls;
+// using MMslcOverlay.Views.Controls;
 
 namespace m_mslc_overlay.views.dialogs
 {
@@ -40,10 +40,10 @@ namespace m_mslc_overlay.views.dialogs
             _magicCaretOffset = 0; // Magic cursor starts at top
             
             // Register Custom Margin for Timestamps and Speakers (Replicating the Gutter in original concept)
-            Editor.TextArea.LeftMargins.Add(new TranscriptGutterMargin(Editor.Document));
+            // Editor.TextArea.LeftMargins.Add(new TranscriptGutterMargin(Editor.Document));
 
             // Register Custom Colorizer for formatting
-            Editor.TextArea.TextView.LineTransformers.Add(new TranscriptColorizer());
+            // Editor.TextArea.TextView.LineTransformers.Add(new TranscriptColorizer());
         }
 
         private void SimulateSttBtn_Click(object sender, RoutedEventArgs e)

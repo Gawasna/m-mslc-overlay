@@ -12,12 +12,12 @@ public class SegmentRepository
     // Cần mở rộng để hỗ trợ đọc nhiều BaseSegmentRepository (active.db, seg_001.db, v.v.)
     // Ở bản đơn giản, truyền vào danh sách base repos.
     private readonly List<BaseSegmentRepository> _baseRepos;
-    private readonly UserDataRepository _userDataRepo;
+    public UserDataRepository UserDataRepo { get; }
 
     public SegmentRepository(List<BaseSegmentRepository> baseRepos, UserDataRepository userDataRepo)
     {
         _baseRepos = baseRepos;
-        _userDataRepo = userDataRepo;
+        UserDataRepo = userDataRepo;
     }
 
     public List<MergedSegment> GetMergedSegments()
@@ -44,7 +44,7 @@ public class SegmentRepository
         }
 
         // 3. Lấy tất cả patch events và apply tuần tự (Event Sourcing Replay)
-        var events = _userDataRepo.GetAllPatchEvents();
+        var events = UserDataRepo.GetAllPatchEvents();
         
         foreach (var evt in events)
         {

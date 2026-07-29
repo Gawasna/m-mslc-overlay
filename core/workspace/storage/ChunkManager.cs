@@ -85,6 +85,30 @@ public class ChunkManager
             File.Move(activeOffsetsPath, newOffsetsPath);
         }
 
+        // Tạo lại active.db rỗng với schema chuẩn
+        using (var activeConnection = new SqliteConnection($"Data Source={activeDbPath};Mode=ReadWriteCreate"))
+        {
+            activeConnection.Open();
+            using var cmd = activeConnection.CreateCommand();
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS segments (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts_start_ms   INTEGER NOT NULL,
+                    ts_end_ms     INTEGER NOT NULL,
+                    speaker_id    TEXT,
+                    text_src      TEXT NOT NULL,
+                    text_trs      TEXT,
+                    commit_type   TEXT NOT NULL,
+                    supersedes_id INTEGER,
+                    chunk_id      TEXT NOT NULL,
+                    created_at    INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_ts ON segments(ts_start_ms);
+                PRAGMA journal_mode = WAL;
+            ";
+            cmd.ExecuteNonQuery();
+        }
+
         // Cập nhật session meta
         _sessionMeta.SealedChunks.Add(newChunkId);
         _sessionMeta.LastUpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
