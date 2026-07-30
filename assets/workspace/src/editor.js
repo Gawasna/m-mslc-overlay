@@ -513,7 +513,24 @@ window.__bridge = {
                 
                 view.dispatch(view.state.tr.replaceWith(pos, pos + node.nodeSize, newNode));
             }
-            }
+        } else if (msg.type === "FREEFORM_PERSISTED") {
+            const { anchorAfter, blockId } = msg;
+            let found = false;
+
+            view.state.doc.descendants((node, pos) => {
+                if (found) return false;
+                if (node.type.name === "freeform_block" && node.attrs.anchorAfter === anchorAfter) {
+                    view.dispatch(
+                        view.state.tr.setNodeMarkup(pos, null, {
+                            ...node.attrs,
+                            blockId: blockId
+                        })
+                    );
+                    found = true;
+                    return false;
+                }
+            });
+        }
         } catch (e) {
             sendToHost({ type: "JS_ERROR", message: e.toString(), stack: e.stack });
         }

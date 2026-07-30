@@ -107,28 +107,46 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     LoadInitialState();
                     break;
                 case "FREEFORM_CHANGED":
-                    System.Diagnostics.Debug.WriteLine($"Freeform block changed");
-                    if (!string.IsNullOrEmpty(msg.Content))
+                {
+                    if (_workspace.UserDataRepo == null) break;
+
+                    string? blockIdStr = msg.BlockId;
+                    string? anchorAfter = msg.AnchorAfter;
+                    string content = msg.Content ?? string.Empty;
+                    long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                    if (string.IsNullOrEmpty(blockIdStr))
                     {
                         var block = new FreeformBlock
                         {
-                            Id = long.TryParse(msg.BlockId, out long bid) ? bid : 0,
-                            AnchorAfter = msg.AnchorAfter,
-                            Content = msg.Content
+                            AnchorAfter = anchorAfter,
+                            Content = content,
+                            CreatedAt = now,
+                            UpdatedAt = now
                         };
-                        
-                        if (string.IsNullOrEmpty(msg.BlockId))
+                        long newId = _workspace.UserDataRepo.InsertFreeformBlock(block);
+
+                        var ack = new BridgeMessage
                         {
-                            // New block
-                            long newId = _workspace.UserDataRepo?.InsertFreeformBlock(block) ?? 0;
-                            // TODO: Send back the new blockId to JS so it doesn't keep creating new ones
-                        }
-                        else
+                            Type = "FREEFORM_PERSISTED",
+                            AnchorAfter = anchorAfter,
+                            BlockId = newId.ToString()
+                        };
+                        SendToEditor(ack);
+                    }
+                    else if (long.TryParse(blockIdStr, out long blockId))
+                    {
+                        var block = new FreeformBlock
                         {
-                            _workspace.UserDataRepo?.UpdateFreeformBlock(block);
-                        }
+                            Id = blockId,
+                            AnchorAfter = anchorAfter,
+                            Content = content,
+                            UpdatedAt = now
+                        };
+                        _workspace.UserDataRepo.UpdateFreeformBlock(block);
                     }
                     break;
+                }
                 case "PLAY_AUDIO":
                     System.Diagnostics.Debug.WriteLine($"Play audio for seg {msg.SegId}");
                     break;
