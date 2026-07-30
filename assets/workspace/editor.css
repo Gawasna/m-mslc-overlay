@@ -26,6 +26,7 @@ body {
 
 /* Machine segment */
 .machine-segment {
+  position: relative;
   display: flex;
   gap: 16px;
   margin: 4px 0;

@@ -153,7 +153,7 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     break;
                 case "SHOW_CONTEXT_MENU":
                     System.Diagnostics.Debug.WriteLine($"Show context menu: {msg.MenuType} {msg.TargetId}");
-                    ShowContextMenuAction?.Invoke(msg.MenuType, msg.TargetId);
+                    ShowContextMenuAction?.Invoke(msg.MenuType ?? "Unknown", msg.TargetId ?? "");
                     break;
                 case "JS_ERROR":
                     Console.WriteLine($"[JS_ERROR] {json}");

@@ -149,6 +149,21 @@ class FreeformBlockView {
         }
         this.contentDOM = this.dom;
     }
+
+    update(node) {
+        if (node.type.name !== "freeform_block") return false;
+        if (node.attrs.blockId) {
+            this.dom.setAttribute("data-block-id", node.attrs.blockId);
+        } else {
+            this.dom.removeAttribute("data-block-id");
+        }
+        if (node.attrs.anchorAfter) {
+            this.dom.setAttribute("data-anchor", node.attrs.anchorAfter);
+        } else {
+            this.dom.removeAttribute("data-anchor");
+        }
+        return true;
+    }
 }
 
 const ICONS = {
@@ -267,12 +282,13 @@ const trackChangesPlugin = new Plugin({
                     const state = trackChangesPluginKey.getState(view.state);
                     if (!state || state.dirtyPositions.length === 0) return;
                     
-                    let dirtyBlocks = new Set();
+                    let dirtyBlocks = new Map();
                     state.dirtyPositions.forEach(pos => {
                         let actualPos = Math.min(pos, view.state.doc.content.size);
                         view.state.doc.nodesBetween(actualPos, actualPos, (node, nPos) => {
                             if (node.type.name === "freeform_block") {
-                                dirtyBlocks.add({
+                                const key = node.attrs.blockId || node.attrs.anchorAfter || '__root__';
+                                dirtyBlocks.set(key, {
                                     blockId: node.attrs.blockId,
                                     anchorAfter: node.attrs.anchorAfter,
                                     content: node.textContent
@@ -400,40 +416,40 @@ window.__bridge = {
             if (msg.type === "LOAD_DOCUMENT") {
                 const nodes = [];
             
-            const getFreeform = (anchorId) => {
-                if (!msg.freeformBlocks) return null;
-                return msg.freeformBlocks.find(b => b.anchorAfter === anchorId);
-            };
+                const getFreeform = (anchorId) => {
+                    if (!msg.freeformBlocks) return null;
+                    return msg.freeformBlocks.find(b => b.anchorAfter === anchorId);
+                };
 
-            const createFreeformNode = (anchorId) => {
-                const b = getFreeform(anchorId);
-                const attrs = { anchorAfter: anchorId, blockId: b ? b.blockId : null };
-                const contentNodes = b && b.content ? [schema.text(b.content)] : [];
-                return schema.nodes.freeform_block.create(attrs, contentNodes);
-            };
-            
-            if (!msg.segments || msg.segments.length === 0) {
-                nodes.push(createFreeformNode(null));
-            } else {
-                nodes.push(createFreeformNode(null));
-                for (const seg of msg.segments) {
-                    const textNode = schema.nodes.seg_text.create({}, schema.text(seg.textSrc));
-                    const segNode = schema.nodes.machine_segment.create(
-                        { segId: seg.segId, tsStartMs: seg.tsStartMs, tsEndMs: seg.tsEndMs, speakerId: seg.speakerId },
-                        textNode
-                    );
-                    nodes.push(segNode);
-                    nodes.push(createFreeformNode(seg.segId));
+                const createFreeformNode = (anchorId) => {
+                    const b = getFreeform(anchorId);
+                    const attrs = { anchorAfter: anchorId, blockId: b ? b.blockId : null };
+                    const contentNodes = b && b.content ? [schema.text(b.content)] : [];
+                    return schema.nodes.freeform_block.create(attrs, contentNodes);
+                };
+                
+                if (!msg.segments || msg.segments.length === 0) {
+                    nodes.push(createFreeformNode(null));
+                } else {
+                    nodes.push(createFreeformNode(null));
+                    for (const seg of msg.segments) {
+                        const textNode = schema.nodes.seg_text.create({}, schema.text(seg.textSrc));
+                        const segNode = schema.nodes.machine_segment.create(
+                            { segId: seg.segId, tsStartMs: seg.tsStartMs, tsEndMs: seg.tsEndMs, speakerId: seg.speakerId },
+                            textNode
+                        );
+                        nodes.push(segNode);
+                        nodes.push(createFreeformNode(seg.segId));
+                    }
                 }
-            }
-            
-            const doc = schema.nodes.doc.create({}, nodes);
-            const state = EditorState.create({
-                doc,
-                plugins: view.state.plugins
-            });
-            view.updateState(state);
-            
+                
+                const doc = schema.nodes.doc.create({}, nodes);
+                const state = EditorState.create({
+                    doc,
+                    plugins: view.state.plugins
+                });
+                view.updateState(state);
+                
         } else if (msg.type === "INSERT_MACHINE_SEGMENT") {
             const { segId, tsStartMs, tsEndMs, speakerId, textSrc, textTrs } = msg;
             
