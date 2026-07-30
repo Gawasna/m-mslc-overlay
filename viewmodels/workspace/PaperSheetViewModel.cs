@@ -18,6 +18,8 @@ public class PaperSheetViewModel : INotifyPropertyChanged
     // Action to send messages to the view's WebView2
     public Action<BridgeMessage>? SendToEditorAction { get; set; }
 
+    public Action<string?, string?>? ShowContextMenuAction { get; set; }
+
     public MagicCursorViewModel MagicCursor { get; }
     public ScrollModeController ScrollController { get; } = new ScrollModeController();
 
@@ -142,8 +144,16 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                         }
                     }
                     break;
+                case "SCROLL_MODE_CHANGED":
+                    System.Diagnostics.Debug.WriteLine($"Scroll mode changed: {msg.Mode}");
+                    // Sync with C# controller if needed
+                    break;
                 case "MAGIC_CURSOR_MOVED":
                     System.Diagnostics.Debug.WriteLine($"Magic cursor moved to {msg.Pos}");
+                    break;
+                case "SHOW_CONTEXT_MENU":
+                    System.Diagnostics.Debug.WriteLine($"Show context menu: {msg.MenuType} {msg.TargetId}");
+                    ShowContextMenuAction?.Invoke(msg.MenuType, msg.TargetId);
                     break;
                 case "JS_ERROR":
                     Console.WriteLine($"[JS_ERROR] {json}");
