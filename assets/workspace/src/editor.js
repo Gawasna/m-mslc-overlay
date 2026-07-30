@@ -547,6 +547,22 @@ window.__bridge = {
                     return false;
                 }
             });
+        } else if (msg.type === "AUDIO_PLAY_START") {
+            document.querySelectorAll(".seg-gutter").forEach(el => {
+                const segEl = el.closest(".machine-segment");
+                if (segEl && segEl.dataset.segId === msg.segId) {
+                    el.style.color = "#00E5FF";
+                    el.title = "Đang phát...";
+                } else {
+                    el.style.color = "";
+                    el.title = "";
+                }
+            });
+        } else if (msg.type === "AUDIO_PLAY_END") {
+            document.querySelectorAll(".seg-gutter").forEach(el => {
+                el.style.color = "";
+                el.title = "";
+            });
         }
         } catch (e) {
             sendToHost({ type: "JS_ERROR", message: e.toString(), stack: e.stack });

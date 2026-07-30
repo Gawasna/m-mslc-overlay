@@ -12,6 +12,7 @@ namespace MMslcOverlay.ViewModels.Workspace;
 public class PaperSheetViewModel : INotifyPropertyChanged
 {
     private readonly WorkspaceService _workspace;
+    private AudioPlayerService? _audioPlayer;
 
     public Action<MMslcOverlay.Core.Workspace.Models.MergedSegment>? OpenEditDialogAction { get; set; }
 
@@ -78,6 +79,22 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         }
 
         ScrollController.ModeChanged += OnScrollModeChanged;
+
+        _audioPlayer = new AudioPlayerService();
+        _audioPlayer.PlaybackStarted += (segId) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                SendToEditor(new BridgeMessage { Type = "AUDIO_PLAY_START", SegId = segId });
+            });
+        };
+        _audioPlayer.PlaybackEnded += (segId) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                SendToEditor(new BridgeMessage { Type = "AUDIO_PLAY_END", SegId = segId });
+            });
+        };
     }
 
     private void OnScrollModeChanged(ScrollMode mode)
@@ -178,8 +195,45 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     break;
                 }
                 case "PLAY_AUDIO":
+                {
                     System.Diagnostics.Debug.WriteLine($"Play audio for seg {msg.SegId}");
+                    string? segId = msg.SegId;
+                    if (segId == null) break;
+
+                    var parts = segId.Split(':');
+                    string chunkId = "active";
+                    long segmentId = -1;
+
+                    if (parts.Length == 2)
+                    {
+                        chunkId = parts[0];
+                        long.TryParse(parts[1], out segmentId);
+                    }
+                    else if (parts.Length == 1)
+                    {
+                        long.TryParse(parts[0], out segmentId);
+                    }
+                    if (segmentId == -1) break;
+
+                    var offsetsPath = _workspace.Storage.GetSegmentOffsetsPath(chunkId);
+                    if (!System.IO.File.Exists(offsetsPath)) break;
+
+                    var offsetIndex = new MMslcOverlay.Core.Workspace.Storage.AudioOffsetIndex(offsetsPath);
+                    long? byteOffset = offsetIndex.GetOffset(segmentId);
+                    if (!byteOffset.HasValue) break;
+
+                    var all = _workspace.SegmentRepo?.GetMergedSegments();
+                    var seg = all?.FirstOrDefault(s => s.BaseSegment.Id == segmentId);
+                    if (seg == null) break;
+
+                    long durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
+                    if (durationMs <= 0) break;
+
+                    string wavPath = System.IO.Path.Combine(_workspace.Storage.MslcDir, "segments", $"{chunkId}.audio.wav");
+
+                    _audioPlayer?.PlaySegment(segId, wavPath, byteOffset.Value, durationMs);
                     break;
+                }
                 case "OPEN_EDIT_FIELD":
                     System.Diagnostics.Debug.WriteLine($"Open edit field for seg {msg.SegId}");
                     if (msg.SegId != null)
