@@ -87,7 +87,49 @@ public partial class PaperSheetView : UserControl
                     Editor.PostWebMessage(json);
                 }
             };
+            
+            vm.ShowContextMenuAction = (menuType, targetId) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    ShowEditorContextMenu(menuType, targetId);
+                });
+            };
         }
+    }
+
+    private void ShowEditorContextMenu(string menuType, string targetId)
+    {
+        var menu = this.FindControl<ContextMenu>("EditorContextMenu");
+        if (menu == null || Editor == null) return;
+        
+        if (menuType == "MachineSegment")
+        {
+            menu.ItemsSource = new[]
+            {
+                new MenuItem { Header = $"Phát lại đoạn âm thanh ({targetId})" },
+                new MenuItem { Header = "Ẩn phân đoạn này" },
+                new MenuItem { Header = "Chuyển thành văn bản tự do" }
+            };
+        }
+        else if (menuType == "FreeformBlock")
+        {
+            menu.ItemsSource = new[]
+            {
+                new MenuItem { Header = "Định dạng lại đoạn văn bản" },
+                new MenuItem { Header = $"Xóa khối văn bản tự do ({targetId})" }
+            };
+        }
+        else 
+        {
+            menu.ItemsSource = new[]
+            {
+                new MenuItem { Header = "Sao chép" },
+                new MenuItem { Header = "Dán" }
+            };
+        }
+        
+        menu.Open(Editor);
     }
 
     private void OnWebMessageReceived(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
