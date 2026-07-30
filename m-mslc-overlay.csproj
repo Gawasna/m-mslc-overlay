@@ -55,6 +55,10 @@
   <ItemGroup>
     <AvaloniaResource Include="assets\**" />
     <AvaloniaResource Remove="assets\**\*.axaml" />
+    <AvaloniaResource Remove="assets\workspace\node_modules\**" />
+    <AvaloniaResource Remove="assets\workspace\src\**" />
+    <AvaloniaResource Remove="assets\workspace\package.json" />
+    <AvaloniaResource Remove="assets\workspace\package-lock.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -64,6 +68,10 @@
     <Content Include="plugins\**" Exclude="plugins\**\.venv\**;plugins\**\venv\**;plugins\**\__pycache__\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Compile Remove="**/*.test.cs" />
   </ItemGroup>
 
   <Target Name="BuildEditorWorkspace" BeforeTargets="Build">

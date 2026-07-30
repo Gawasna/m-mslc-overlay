@@ -53,7 +53,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; 1. Main Published Application Files (Excluding dynamic runtime files & extractor binaries)
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "extractor\*,extractor,logs\*,*.log,plugins.lock.json,*.pdb,testhost.*,Microsoft.TestPlatform.*,Microsoft.VisualStudio.TestPlatform.*,xunit.*,CodeCoverage\*,InstrumentationEngine\*,Microsoft.CodeCoverage.*,plugins\atom32\tests\*"
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "extractor\*,extractor,logs\*,*.log,plugins.lock.json,*.pdb,testhost.*,Microsoft.TestPlatform.*,Microsoft.VisualStudio.TestPlatform.*,xunit.*,CodeCoverage\*,InstrumentationEngine\*,Microsoft.CodeCoverage.*,plugins\*,Mono.Cecil.*,Microsoft.VisualStudio.CodeCoverage.*"
 
 ; 2. Root Plugin Manifest File
 Source: "plugins.manifest.json"; DestDir: "{app}"; Flags: ignoreversion
