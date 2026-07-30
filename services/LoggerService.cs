@@ -13,8 +13,7 @@ namespace m_mslc_overlay.services
         {
             try
             {
-                string baseDir = AppContext.BaseDirectory;
-                string logsDir = Path.Combine(baseDir, "logs");
+                string logsDir = AppPathHelper.GetLogsDirectory();
                 if (!Directory.Exists(logsDir))
                 {
                     Directory.CreateDirectory(logsDir);

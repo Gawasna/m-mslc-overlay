@@ -349,7 +349,7 @@ namespace m_mslc_overlay.views.dialogs
                     string configuredPath = ConfigManager.Current.OfflineServerDir;
                     serverDir = Path.IsPathRooted(configuredPath) 
                         ? configuredPath 
-                        : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                        : AppPathHelper.GetWritablePath(configuredPath);
                 }
                 string path = Path.Combine(serverDir, "models", modelDirName);
                 if (Directory.Exists(path))

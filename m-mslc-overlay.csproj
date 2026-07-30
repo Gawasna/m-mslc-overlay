@@ -8,6 +8,22 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <StartupObject>m_mslc_overlay.Program</StartupObject>
     <GenerateProgramFile>false</GenerateProgramFile>
+
+    <!-- Runtime & Target Architecture Configuration -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <!-- Publish Optimizations -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+
+    <!-- Assembly Metadata & Packaging Versioning -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>m-mslc-overlay</Product>
+    <Company>Gawasna</Company>
+    <Authors>MSLC Team</Authors>
+    <Copyright>Copyright © 2026 Gawasna</Copyright>
+    <Description>MSLC Overlay Application</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -45,7 +61,7 @@
     <Compile Remove="docs\**" />
     <Compile Remove="plugins\**" />
     <None Include="docs\**" />
-    <Content Include="plugins\**">
+    <Content Include="plugins\**" Exclude="plugins\**\.venv\**;plugins\**\venv\**;plugins\**\__pycache__\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

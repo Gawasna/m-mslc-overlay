@@ -73,8 +73,7 @@ namespace m_mslc_overlay.services
     /// </summary>
     public static class PluginManifestService
     {
-        private static readonly string ManifestPath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "plugins.manifest.json");
+        private static readonly string ManifestPath = AppPathHelper.GetPluginManifestPath();
 
         // Fallback: check repo root during development (app runs from bin/Debug)
         private static readonly string ManifestDevPath = FindManifestDevPath();
@@ -260,18 +259,23 @@ namespace m_mslc_overlay.services
         {
             if (Path.IsPathRooted(installDir)) return installDir;
 
-            // Try BaseDirectory first (production)
-            string fromBase = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, installDir));
+            // Try writable path first (%LOCALAPPDATA% or BaseDir in DevMode)
+            string targetPath = AppPathHelper.GetWritablePath(installDir);
+            if (Directory.Exists(targetPath)) return targetPath;
+
+            // Try BaseDirectory (production bundled read-only plugins)
+            string fromBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, installDir));
             if (Directory.Exists(fromBase)) return fromBase;
 
             // Try repo root (dev mode)
             if (!string.IsNullOrEmpty(ManifestDevPath))
             {
                 string repoRoot = Path.GetDirectoryName(ManifestDevPath)!;
-                return Path.GetFullPath(Path.Combine(repoRoot, installDir));
+                string fromRepo = Path.GetFullPath(Path.Combine(repoRoot, installDir));
+                if (Directory.Exists(fromRepo)) return fromRepo;
             }
 
-            return fromBase;
+            return targetPath;
         }
 
         /// <summary>

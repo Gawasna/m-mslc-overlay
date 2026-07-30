@@ -455,8 +455,9 @@ namespace m_mslc_overlay
 
             // 4. Extractor module
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            bool hasHost = File.Exists(Path.Combine(baseDir, "extractor", "Host.exe")) || File.Exists(Path.Combine(baseDir, "Host.exe"));
-            bool hasAgent = File.Exists(Path.Combine(baseDir, "extractor", "Agent.dll")) || File.Exists(Path.Combine(baseDir, "Agent.dll"));
+            string extractorDir = AppPathHelper.GetExtractorDirectory();
+            bool hasHost = File.Exists(Path.Combine(extractorDir, "Host.exe")) || File.Exists(Path.Combine(baseDir, "extractor", "Host.exe")) || File.Exists(Path.Combine(baseDir, "Host.exe"));
+            bool hasAgent = File.Exists(Path.Combine(extractorDir, "Agent.dll")) || File.Exists(Path.Combine(baseDir, "extractor", "Agent.dll")) || File.Exists(Path.Combine(baseDir, "Agent.dll"));
             
             StatusDotExtractor.Fill = (hasHost && hasAgent) ? green : red;
         }
@@ -1205,8 +1206,9 @@ namespace m_mslc_overlay
 
                 // Check Extractor binaries (Host.exe & Agent.dll)
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                bool hasHost = File.Exists(Path.Combine(baseDir, "Host.exe"));
-                bool hasAgent = File.Exists(Path.Combine(baseDir, "Agent.dll"));
+                string extractorDir = AppPathHelper.GetExtractorDirectory();
+                bool hasHost = File.Exists(Path.Combine(extractorDir, "Host.exe")) || File.Exists(Path.Combine(baseDir, "extractor", "Host.exe")) || File.Exists(Path.Combine(baseDir, "Host.exe"));
+                bool hasAgent = File.Exists(Path.Combine(extractorDir, "Agent.dll")) || File.Exists(Path.Combine(baseDir, "extractor", "Agent.dll")) || File.Exists(Path.Combine(baseDir, "Agent.dll"));
                 bool hasExtractor = hasHost && hasAgent;
 
                 // Update UI thread controls

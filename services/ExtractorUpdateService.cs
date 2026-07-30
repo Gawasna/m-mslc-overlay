@@ -118,7 +118,7 @@ namespace m_mslc_overlay.services
                     throw new Exception("Không tìm thấy tệp nén phù hợp cho Windows x64 trong bản phát hành.");
                 }
 
-                string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp_update");
+                string tempDir = AppPathHelper.GetWritablePath("temp_update");
                 if (Directory.Exists(tempDir))
                 {
                     Directory.Delete(tempDir, true);
@@ -184,7 +184,7 @@ namespace m_mslc_overlay.services
                 Log("Xác thực mã băm thành công. Đang ánh xạ và sao chép các tệp...");
                 OnProgressChanged?.Invoke(95);
 
-                string extractorDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "extractor");
+                string extractorDir = AppPathHelper.GetExtractorDirectory();
                 if (!Directory.Exists(extractorDir))
                 {
                     Directory.CreateDirectory(extractorDir);

@@ -32,7 +32,7 @@ namespace m_mslc_overlay.services
 
     public static class ConfigManager
     {
-        private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+        private static readonly string ConfigPath = AppPathHelper.GetConfigFilePath();
         public static AppConfig Current { get; set; } = new AppConfig();
 
         public static void Load()
