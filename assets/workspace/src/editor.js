@@ -500,18 +500,35 @@ window.__bridge = {
             
         } else if (msg.type === "APPLY_PATCH") {
             let pos = -1;
+            let existingNode = null;
             view.state.doc.descendants((node, p) => {
                 if (node.type.name === "machine_segment" && node.attrs.segId === msg.segId) {
                     pos = p;
+                    existingNode = node;
                     return false;
                 }
             });
-            if (pos !== -1) {
-                const node = view.state.doc.nodeAt(pos);
-                const textNode = schema.nodes.seg_text.create({}, schema.text(msg.newValue));
-                const newNode = schema.nodes.machine_segment.create(node.attrs, textNode);
-                
-                view.dispatch(view.state.tr.replaceWith(pos, pos + node.nodeSize, newNode));
+            if (pos !== -1 && existingNode) {
+                let contentNodes = [];
+                let existingTextSrcNode = existingNode.child(0);
+                let existingTextTrsNode = existingNode.childCount > 1 ? existingNode.child(1) : null;
+
+                if (msg.field === "TextSrc") {
+                    contentNodes.push(schema.nodes.seg_text.create({}, schema.text(msg.newValue)));
+                    if (existingTextTrsNode) {
+                        contentNodes.push(existingTextTrsNode);
+                    }
+                } else if (msg.field === "TextTrs") {
+                    contentNodes.push(existingTextSrcNode);
+                    if (msg.newValue) {
+                        contentNodes.push(schema.nodes.seg_trs.create({}, schema.text(msg.newValue)));
+                    }
+                } else {
+                    return;
+                }
+
+                const newNode = schema.nodes.machine_segment.create(existingNode.attrs, contentNodes);
+                view.dispatch(view.state.tr.replaceWith(pos, pos + existingNode.nodeSize, newNode));
             }
         } else if (msg.type === "FREEFORM_PERSISTED") {
             const { anchorAfter, blockId } = msg;

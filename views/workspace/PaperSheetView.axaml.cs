@@ -95,6 +95,19 @@ public partial class PaperSheetView : UserControl
                     ShowEditorContextMenu(menuType, targetId);
                 });
             };
+
+            vm.OpenEditDialogAction = async (segment) =>
+            {
+                var dialog = new SegmentEditDialog(segment);
+                if (this.VisualRoot is Window window)
+                {
+                    await dialog.ShowDialog(window);
+                    if (dialog.Confirmed)
+                    {
+                        vm.CommitSegmentEdit(segment, dialog.ResultTextSrc, dialog.ResultTextTrs);
+                    }
+                }
+            };
         }
     }
 

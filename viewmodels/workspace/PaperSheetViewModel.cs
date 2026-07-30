@@ -89,6 +89,36 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         });
     }
 
+    public void CommitSegmentEdit(MMslcOverlay.Core.Workspace.Models.MergedSegment original, string newTextSrc, string? newTextTrs)
+    {
+        if (_workspace.UserDataRepo == null) return;
+
+        var session = new SegmentEditSession(original, _workspace.UserDataRepo);
+        session.CommitEdit(newTextSrc, newTextTrs);
+
+        if (original.TextSrc != newTextSrc)
+        {
+            SendToEditor(new BridgeMessage
+            {
+                Type = "APPLY_PATCH",
+                SegId = original.BaseSegment.Id.ToString(),
+                Field = "TextSrc",
+                NewValue = newTextSrc
+            });
+        }
+
+        if (!string.IsNullOrEmpty(newTextTrs) && original.TextTrs != newTextTrs)
+        {
+            SendToEditor(new BridgeMessage
+            {
+                Type = "APPLY_PATCH",
+                SegId = original.BaseSegment.Id.ToString(),
+                Field = "TextTrs",
+                NewValue = newTextTrs
+            });
+        }
+    }
+
     public void SendToEditor(BridgeMessage msg)
     {
         SendToEditorAction?.Invoke(msg);

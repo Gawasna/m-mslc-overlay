@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MMslcOverlay.Views.Workspace.SegmentEditDialog"
+        Title="Edit Segment"
+        SizeToContent="Height"
+        Width="520"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+    <StackPanel Margin="24" Spacing="12">
+        <!-- Segment info header -->
+        <TextBlock x:Name="SegmentInfoLabel"
+                   FontFamily="Cascadia Code, Consolas, Monospace"
+                   FontSize="11"
+                   Foreground="#6B7280" />
+
+        <!-- TextSrc field -->
+        <TextBlock Text="Transcript (source)" FontSize="11" Foreground="#9CA3AF" />
+        <TextBox x:Name="TextSrcBox"
+                 TextWrapping="Wrap"
+                 MinHeight="80"
+                 AcceptsReturn="True"
+                 FontSize="14" />
+
+        <!-- TextTrs field (optional) -->
+        <TextBlock Text="Translation (optional)" FontSize="11" Foreground="#9CA3AF" />
+        <TextBox x:Name="TextTrsBox"
+                 TextWrapping="Wrap"
+                 MinHeight="60"
+                 AcceptsReturn="True"
+                 FontSize="13"
+                 Foreground="#6B7280" />
+
+        <!-- Actions -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" />
+            <Button x:Name="ConfirmButton" Content="Confirm" Click="OnConfirm"
+                    Classes="AccentButton" />
+        </StackPanel>
+    </StackPanel>
+</Window>
