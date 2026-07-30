@@ -31,7 +31,11 @@
 
             <!-- Right: Paper Sheet viewport -->
             <Border Grid.Column="2" Background="{StaticResource BgWindowBrush}" Cursor="Arrow">
-                <controls:WebView2Control x:Name="Editor" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                <controls:WebView2Control x:Name="Editor" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <controls:WebView2Control.ContextMenu>
+                        <ContextMenu x:Name="EditorContextMenu" />
+                    </controls:WebView2Control.ContextMenu>
+                </controls:WebView2Control>
             </Border>
         </Grid>
 
