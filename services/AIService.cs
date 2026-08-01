@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
@@ -13,6 +14,8 @@ namespace m_mslc_overlay.services
     public class AIService : IDisposable
     {
         private readonly HttpClient _httpClient;
+        private readonly Queue<string> _contextQueue = new Queue<string>();
+        private readonly object _contextLock = new object();
 
         // ATOM81: event now carries TranslationResult (includes source CommitMetadata)
         public event Action<TranslationResult>? OnTranslationCompleted;
@@ -24,10 +27,19 @@ namespace m_mslc_overlay.services
         public string ContextTopic { get; set; } = "Game/Phim";
         public string TargetLanguage { get; set; } = "Tiếng Việt";
 
-        public AIService()
+        public AIService() : this((HttpMessageHandler?)null)
         {
-            _httpClient = new HttpClient();
+        }
+
+        public AIService(HttpMessageHandler? handler)
+        {
+            _httpClient = handler != null ? new HttpClient(handler) : new HttpClient();
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
+        }
+
+        public AIService(HttpClient httpClient)
+        {
+            _httpClient = httpClient ?? new HttpClient();
         }
 
         // ATOM81: primary entry point — enqueue with priority based on CommitMetadata
@@ -121,6 +133,68 @@ namespace m_mslc_overlay.services
         }
 
         // -----------------------------------------------------------------------
+        // Sliding Context Window Management (DeepL API)
+        // -----------------------------------------------------------------------
+
+        public string? GetDeepLContextString()
+        {
+            lock (_contextLock)
+            {
+                int windowSize = ConfigManager.Current.DeepLContextWindowSize;
+                if (windowSize <= 0 || _contextQueue.Count == 0)
+                {
+                    return null;
+                }
+
+                while (_contextQueue.Count > windowSize)
+                {
+                    _contextQueue.Dequeue();
+                }
+
+                return string.Join("\n", _contextQueue);
+            }
+        }
+
+        public void RecordSourceContext(string sourceText)
+        {
+            lock (_contextLock)
+            {
+                int maxSize = ConfigManager.Current.DeepLContextWindowSize;
+                if (maxSize <= 0)
+                {
+                    _contextQueue.Clear();
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(sourceText))
+                {
+                    return;
+                }
+
+                string normalized = sourceText.Replace("\r\n", " ").Replace("\r", " ").Replace("\n", " ").Trim();
+                if (string.IsNullOrEmpty(normalized))
+                {
+                    return;
+                }
+
+                _contextQueue.Enqueue(normalized);
+
+                while (_contextQueue.Count > maxSize)
+                {
+                    _contextQueue.Dequeue();
+                }
+            }
+        }
+
+        public void ClearContextQueue()
+        {
+            lock (_contextLock)
+            {
+                _contextQueue.Clear();
+            }
+        }
+
+        // -----------------------------------------------------------------------
         // Engine: DeepL API
         // -----------------------------------------------------------------------
 
@@ -149,11 +223,17 @@ namespace m_mslc_overlay.services
                     _ => "VI"
                 };
 
-                var requestBody = new
+                var requestBody = new Dictionary<string, object>
                 {
-                    text = new[] { meta.Text },
-                    target_lang = targetLangCode
+                    ["text"] = new[] { meta.Text },
+                    ["target_lang"] = targetLangCode
                 };
+
+                string? contextStr = GetDeepLContextString();
+                if (!string.IsNullOrEmpty(contextStr))
+                {
+                    requestBody["context"] = contextStr;
+                }
 
                 string jsonContent = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
@@ -175,7 +255,10 @@ namespace m_mslc_overlay.services
                 {
                     string translatedText = translations[0].GetProperty("text").GetString() ?? "";
                     if (!string.IsNullOrWhiteSpace(translatedText))
+                    {
+                        RecordSourceContext(meta.Text);
                         OnTranslationCompleted?.Invoke(TranslationResult.From(translatedText, meta));
+                    }
                 }
             }
             catch (OperationCanceledException) { throw; }

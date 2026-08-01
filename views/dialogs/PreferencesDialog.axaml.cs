@@ -45,6 +45,7 @@ namespace m_mslc_overlay.views.dialogs
                 _ => 1
             };
             DeepLApiKeyBox.Text = cfg.DeepLApiKey;
+            DeepLContextWindowSizeBox.Value = cfg.DeepLContextWindowSize;
             OfflineTranslateUrlBox.Text = cfg.OfflineTranslateUrl;
             OfflineServerDirBox.Text = cfg.OfflineServerDir;
             
@@ -90,6 +91,7 @@ namespace m_mslc_overlay.views.dialogs
                 _ => "Cloud AI (Ollama/Gemini)"
             };
             cfg.DeepLApiKey = DeepLApiKeyBox.Text ?? "";
+            cfg.DeepLContextWindowSize = Math.Clamp((int)(DeepLContextWindowSizeBox.Value ?? 3), 0, 10);
             cfg.OfflineTranslateUrl = OfflineTranslateUrlBox.Text ?? "http://127.0.0.1:11435";
             cfg.OfflineServerDir = OfflineServerDirBox.Text ?? "plugins/atom26";
             

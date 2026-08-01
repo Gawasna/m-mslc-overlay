@@ -83,6 +83,10 @@
                                         <TextBlock Text="DeepL API Key" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="DeepLApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="..."/>
                                     </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{DynamicResource Pref_Trans_DeepLContextWindowSize}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <NumericUpDown x:Name="DeepLContextWindowSizeBox" Minimum="0" Maximum="10" Increment="1" FormatString="0" Width="240" HorizontalAlignment="Left"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </TabItem>
                             
