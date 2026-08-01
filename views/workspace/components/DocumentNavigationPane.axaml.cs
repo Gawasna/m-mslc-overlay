@@ -51,5 +51,16 @@ namespace MMslcOverlay.Views.Workspace.Components
                 }
             };
         }
+
+        // P3.5: Open preferences dialog from fallback panel
+        private void OpenPreferencesBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var mainWindow = Avalonia.VisualTree.VisualExtensions.GetVisualRoot(this) as MainWindow;
+            if (mainWindow != null)
+            {
+                var prefs = new m_mslc_overlay.views.dialogs.PreferencesDialog { Owner = mainWindow };
+                prefs.ShowDialog(mainWindow);
+            }
+        }
     }
 }

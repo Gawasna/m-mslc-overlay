@@ -261,6 +261,40 @@ namespace MMslcOverlay.ViewModels.Workspace
             }
         }
 
+        // ─── P3.4: Diarizer Availability State ────────────────────────────
+
+        private bool _isDiarizerAvailable = true;
+        private string _diarizerUnavailableReason = string.Empty;
+
+        /// <summary>
+        /// Indicates whether speaker diarization is currently available.
+        /// Set to false when atom32 plugin is not installed or failed to start.
+        /// </summary>
+        public bool IsDiarizerAvailable
+        {
+            get => _isDiarizerAvailable;
+            private set { _isDiarizerAvailable = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Human-readable reason why diarization is unavailable.
+        /// </summary>
+        public string DiarizerUnavailableReason
+        {
+            get => _diarizerUnavailableReason;
+            private set { _diarizerUnavailableReason = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Mark diarization as unavailable with a specific reason.
+        /// Typically called from MainWindow when atom32 init fails.
+        /// </summary>
+        public void SetDiarizerUnavailable(string reason)
+        {
+            IsDiarizerAvailable = false;
+            DiarizerUnavailableReason = reason;
+        }
+
         // ─── INotifyPropertyChanged ──────────────────────────────────────
 
         public event PropertyChangedEventHandler? PropertyChanged;

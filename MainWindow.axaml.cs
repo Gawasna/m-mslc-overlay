@@ -686,6 +686,7 @@ namespace m_mslc_overlay
             if (!ConfigManager.Current.EnableDiarizer)
             {
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Disabled in config. Enable in Preferences.\n");
+                _workspaceVm.NavPane?.SetDiarizerUnavailable("Feature disabled in Preferences. Enable to use speaker diarization.");
                 return;
             }
             
@@ -707,6 +708,7 @@ namespace m_mslc_overlay
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] atom32 not found in plugins.manifest.json\n");
                 _diarizerManager.Dispose();
                 _diarizerManager = null;
+                _workspaceVm.NavPane?.SetDiarizerUnavailable("Plugin not found in manifest. Check plugins.manifest.json.");
                 return;
             }
 
@@ -720,6 +722,7 @@ namespace m_mslc_overlay
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Install atom32 from Preferences > Utilities > Speaker Diarization.\n");
                 _diarizerManager.Dispose();
                 _diarizerManager = null;
+                _workspaceVm.NavPane?.SetDiarizerUnavailable("Plugin not installed. Open Preferences to download.");
                 return;
             }
 
@@ -740,6 +743,9 @@ namespace m_mslc_overlay
                 await _diarizerManager.StopAsync();
                 _diarizerManager.Dispose();
                 _diarizerManager = null;
+                
+                // P3.4: Clear speakers on shutdown
+                _workspaceVm.NavPane?.Speakers.Clear();
             }
         }
 
