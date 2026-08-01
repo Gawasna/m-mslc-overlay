@@ -31,10 +31,17 @@ namespace m_mslc_overlay.core
         /// True if ShortSentenceBuffer merged a pending prefix into this text.
         public bool WasMerged { get; init; }
 
+        /// Speaker unique identifier from diarization (empty if unavailable).
+        public string SpeakerId { get; init; } = string.Empty;
+
+        /// Speaker display name from diarization (empty if unavailable).
+        public string SpeakerDisplayName { get; init; } = string.Empty;
+
         // Convenience factory
         public static CommitMetadata From(string text, string reason,
             double acousticEndMs = -1, ulong utteranceOffset = 0,
-            bool isDangling = false, bool wasMerged = false)
+            bool isDangling = false, bool wasMerged = false,
+            string speakerId = "", string speakerDisplayName = "")
         {
             int wc = string.IsNullOrWhiteSpace(text) ? 0 :
                 text.Split(new[] { ' ', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries).Length;
@@ -46,7 +53,9 @@ namespace m_mslc_overlay.core
                 UtteranceOffset = utteranceOffset,
                 WordCount = wc,
                 IsDangling = isDangling,
-                WasMerged = wasMerged
+                WasMerged = wasMerged,
+                SpeakerId = speakerId,
+                SpeakerDisplayName = speakerDisplayName
             };
         }
     }

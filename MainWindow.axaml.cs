@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using m_mslc_overlay.views.components;
 using m_mslc_overlay.views.overlay;
 using m_mslc_overlay.services;
@@ -38,6 +39,8 @@ namespace m_mslc_overlay
         private string _contextTopic = "Game/Phim";
         
         private DiarizerProcessManager? _diarizerManager;
+        private string _latestSpeakerUid = string.Empty;
+        private string _latestSpeakerDisplayName = string.Empty;
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -678,6 +681,13 @@ namespace m_mslc_overlay
         private async System.Threading.Tasks.Task InitializeDiarizerAsync()
         {
             if (_diarizerManager != null) return;
+
+            // Check feature flag first
+            if (!ConfigManager.Current.EnableDiarizer)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Disabled in config. Enable in Preferences.\n");
+                return;
+            }
             
             _diarizerManager = new DiarizerProcessManager();
             
@@ -686,24 +696,35 @@ namespace m_mslc_overlay
                 AppendLog($"[DIARIZER] {logMessage}\n");
             };
 
-            _diarizerManager.OnEvent += (evt) =>
-            {
-                // MOCK: Dump event to log
-                // AppendLog($"[DIARIZER_EVT] {evt.GetType().Name}\n");
-            };
+            _diarizerManager.OnEvent += HandleDiarizerEvent;
 
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string pythonExe = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\plugins\atom32\.venv\Scripts\python.exe"));
-            string scriptPath = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\plugins\atom32\cli_diarizer.py"));
+            // Use PluginManifestService for production-safe path resolution
+            var manifest = await PluginManifestService.LoadManifestAsync();
+            var atom32Entry = manifest?.Atoms.FirstOrDefault(a => a.Id == "atom32");
+
+            if (atom32Entry == null)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] atom32 not found in plugins.manifest.json\n");
+                _diarizerManager.Dispose();
+                _diarizerManager = null;
+                return;
+            }
+
+            string installDir = AppPathHelper.GetWritablePath(atom32Entry.InstallDir);
+            string pythonExe = Path.Combine(installDir, ".venv", "Scripts", "python.exe");
+            string scriptPath = Path.Combine(installDir, atom32Entry.EntryScript);
 
             if (!File.Exists(pythonExe) || !File.Exists(scriptPath))
             {
-                AppendLog($"[DIARIZER ERROR] Cannot find python ({pythonExe}) or script ({scriptPath}). Try building or running from correct directory.\n");
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] Cannot find python ({pythonExe}) or script ({scriptPath}).\n");
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Install atom32 from Preferences > Utilities > Speaker Diarization.\n");
+                _diarizerManager.Dispose();
+                _diarizerManager = null;
                 return;
             }
 
             var config = new DiarizerConfig(
-                DeviceIndex: 0,
+                DeviceIndex: ConfigManager.Current.DiarizerDeviceIndex,
                 Debug: true
             );
 
@@ -719,6 +740,50 @@ namespace m_mslc_overlay
                 await _diarizerManager.StopAsync();
                 _diarizerManager.Dispose();
                 _diarizerManager = null;
+            }
+        }
+
+        /// <summary>
+        /// Handle diarization events from atom32 process.
+        /// Updates NavPane speaker list and caches latest speaker for commit injection.
+        /// </summary>
+        private void HandleDiarizerEvent(DiarizerEvent evt)
+        {
+            switch (evt)
+            {
+                case TimelineUpdateEvent tu:
+                    // Update NavPane speaker list on UI thread
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _workspaceVm.NavPane?.SyncSpeakers(tu.Segments);
+                    });
+                    break;
+
+                case RecognitionEvent re:
+                    // Cache latest speaker for next commit
+                    _latestSpeakerUid = re.Uid;
+                    _latestSpeakerDisplayName = re.DisplayName;
+                    break;
+
+                case ReadyEvent:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Engine ready.\n");
+                    break;
+
+                case ErrorEvent err:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] {err.Message}\n");
+                    break;
+
+                case StoppedEvent:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Process stopped.\n");
+                    break;
+
+                case VolLevelEvent vol:
+                    // Optional: could update volume meter UI in future
+                    break;
+
+                case SessionFlushedEvent flush:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Session flushed. Speakers: {flush.UidMap.Count}\n");
+                    break;
             }
         }
 

@@ -26,26 +26,6 @@ namespace m_mslc_overlay.viewmodels.transcript
         public bool HasTranslation => !string.IsNullOrEmpty(TranslatedText);
     }
 
-    /// <summary>
-    /// Speaker annotation entry used by the nav pane Speaker Annotation state.
-    /// </summary>
-    public sealed class SpeakerAnnotation : INotifyPropertyChanged
-    {
-        private string _displayName = string.Empty;
-
-        public string SpeakerKey { get; init; } = string.Empty; // e.g. "SPEAKER 1"
-
-        public string DisplayName
-        {
-            get => _displayName;
-            set { _displayName = value; OnPropertyChanged(); }
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
-
     // ─── ViewModel ────────────────────────────────────────────────────────────
 
     /// <summary>
