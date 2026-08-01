@@ -563,6 +563,47 @@ window.__bridge = {
                 el.style.color = "";
                 el.title = "";
             });
+        } else if (msg.type === "FLUSH_FREEFORM") {
+            // Gap 7: Force flush all dirty freeform blocks immediately
+            if (window.changeTimeout) {
+                clearTimeout(window.changeTimeout);
+                window.changeTimeout = null;
+            }
+            
+            let flushed = new Map();
+            view.state.doc.descendants((node, pos) => {
+                if (node.type.name === "freeform_block" && node.textContent.length > 0) {
+                    const key = node.attrs.blockId || node.attrs.anchorAfter || "__root__";
+                    flushed.set(key, {
+                        blockId: node.attrs.blockId,
+                        anchorAfter: node.attrs.anchorAfter,
+                        content: node.textContent
+                    });
+                }
+            });
+            
+            flushed.forEach(b => {
+                sendToHost({ 
+                    type: "FREEFORM_CHANGED",
+                    blockId: b.blockId,
+                    anchorAfter: b.anchorAfter,
+                    content: b.content
+                });
+            });
+            
+            sendToHost({ type: "FLUSH_COMPLETE" });
+        } else if (msg.type === "AUDIO_UNAVAILABLE") {
+            // Gap 10: Disable speaker icon for segments without audio
+            document.querySelectorAll(".machine-segment").forEach(el => {
+                if (el.dataset.segId === msg.segId) {
+                    const gutter = el.querySelector(".seg-gutter");
+                    if (gutter) {
+                        gutter.style.opacity = "0.3";
+                        gutter.style.cursor = "default";
+                        gutter.title = "Chưa có audio";
+                    }
+                }
+            });
         }
         } catch (e) {
             sendToHost({ type: "JS_ERROR", message: e.toString(), stack: e.stack });

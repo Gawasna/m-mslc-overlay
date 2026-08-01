@@ -14,9 +14,16 @@ public class AudioOffsetIndex
     /// <summary>
     /// Ghi byte offset tuyệt đối trong file WAV tương ứng với SegmentId
     /// 8 bytes cho SegmentId (long), 8 bytes cho ByteOffset (long)
+    /// Gap 10 fix: Ensure directory exists before writing
     /// </summary>
     public void AppendOffset(long segmentId, long byteOffset)
     {
+        var directory = Path.GetDirectoryName(_filePath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+        
         using var fs = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.Read);
         using var bw = new BinaryWriter(fs);
         bw.Write(segmentId);
@@ -25,10 +32,15 @@ public class AudioOffsetIndex
 
     /// <summary>
     /// Tìm byte offset theo SegmentId
+    /// Gap 10 fix: Guard against missing file
     /// </summary>
     public long? GetOffset(long targetSegmentId)
     {
-        if (!File.Exists(_filePath)) return null;
+        if (!File.Exists(_filePath))
+        {
+            System.Diagnostics.Debug.WriteLine($"[AudioOffsetIndex] Offsets file not found: {_filePath}. No recording yet?");
+            return null;
+        }
 
         using var fs = new FileStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var br = new BinaryReader(fs);

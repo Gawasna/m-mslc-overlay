@@ -271,22 +271,49 @@ namespace m_mslc_overlay
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
 
-            this.Closing += (s, e) => {
-                _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
-                _shortSentenceBuffer.Dispose();
-                _aiService.Dispose();           // ATOM81: dispose priority queue and http client
-                _revisionWindow.Dispose();      // ATOM80
-                _hiderService.Dispose();
-                _pipeService.Dispose();
-                _resourceTimer.Stop();
-                _uiUpdateTimer.Stop();
-                _hotkeyManager?.Dispose();
-                _focusKeyController?.Dispose();
-                OfflineTranslationServerManager.StopServer();
-                
-                if (_diarizerManager != null)
+            this.Closing += async (s, e) => {
+                // Gap 7: Flush workspace before closing
+                if (_workspaceVm.IsOpen)
                 {
-                    _diarizerManager.Dispose();
+                    e.Cancel = true; // Temporarily cancel to flush
+                    await FlushAndCloseWorkspace();
+                    // After flush, close for real
+                    _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
+                    _shortSentenceBuffer.Dispose();
+                    _aiService.Dispose();           // ATOM81: dispose priority queue and http client
+                    _revisionWindow.Dispose();      // ATOM80
+                    _hiderService.Dispose();
+                    _pipeService.Dispose();
+                    _resourceTimer.Stop();
+                    _uiUpdateTimer.Stop();
+                    _hotkeyManager?.Dispose();
+                    _focusKeyController?.Dispose();
+                    OfflineTranslationServerManager.StopServer();
+                    
+                    if (_diarizerManager != null)
+                    {
+                        _diarizerManager.Dispose();
+                    }
+                    this.Close(); // Close for real after cleanup
+                }
+                else
+                {
+                    _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
+                    _shortSentenceBuffer.Dispose();
+                    _aiService.Dispose();           // ATOM81: dispose priority queue and http client
+                    _revisionWindow.Dispose();      // ATOM80
+                    _hiderService.Dispose();
+                    _pipeService.Dispose();
+                    _resourceTimer.Stop();
+                    _uiUpdateTimer.Stop();
+                    _hotkeyManager?.Dispose();
+                    _focusKeyController?.Dispose();
+                    OfflineTranslationServerManager.StopServer();
+                    
+                    if (_diarizerManager != null)
+                    {
+                        _diarizerManager.Dispose();
+                    }
                 }
             };
 
@@ -330,19 +357,99 @@ namespace m_mslc_overlay
 
         private void OnNewWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
-            // New Workspace: open in-place trong MainWindow hiện tại
-            var settings = MMslcOverlay.Services.Workspace.WorkspaceSettings.Load();
-            _workspaceVm.OpenOrCreate(settings.ResolveWorkspacePath());
+            // Gap 3 fix: New Workspace — auto-generate path with timestamp
+            string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            string newPath = Path.Combine(
+                documentsPath, "MMslcOverlay", "workspaces",
+                $"session_{DateTime.Now:yyyyMMdd_HHmmss}");
+            
+            _workspaceVm.OpenOrCreate(newPath);
         }
 
-        private void OnOpenWorkspaceMenuClick(object? sender, RoutedEventArgs e)
+        private async void OnOpenWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
-            // Open Workspace: VS Code pattern — close current, open new MainWindow với workspace path
-            var settings = MMslcOverlay.Services.Workspace.WorkspaceSettings.Load();
-            string targetPath = settings.ResolveWorkspacePath();
-            var newWindow = new MainWindow(targetPath);
+            // Gap 3 + Gap 9 fix: Open Workspace with folder picker and validation
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return;
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = "Chọn thư mục workspace",
+                AllowMultiple = false
+            });
+
+            if (folders.Count == 0) return; // user cancel
+
+            string selectedPath = folders[0].Path.LocalPath;
+
+            // Gap 9: Validate folder is a valid workspace
+            var storage = new MMslcOverlay.Core.Workspace.Storage.WorkspaceStorage(selectedPath);
+            if (!storage.IsValidWorkspace())
+            {
+                await ShowErrorMessageAsync("Không phải workspace hợp lệ",
+                    "Thư mục đã chọn không chứa workspace MMslcOverlay hợp lệ.\n" +
+                    "Dùng File > New Workspace để tạo workspace mới.");
+                return;
+            }
+
+            // VS Code pattern: close current, open new MainWindow
+            var newWindow = new MainWindow(selectedPath);
             newWindow.Show();
             this.Close();
+        }
+
+        private async System.Threading.Tasks.Task ShowErrorMessageAsync(string title, string message)
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 400,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                Content = new StackPanel
+                {
+                    Margin = new Avalonia.Thickness(24),
+                    Spacing = 16,
+                    Children =
+                    {
+                        new TextBlock 
+                        { 
+                            Text = message, 
+                            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                            Foreground = Brushes.White
+                        },
+                        new Button 
+                        { 
+                            Content = "OK", 
+                            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right 
+                        }
+                    }
+                }
+            };
+            var btn = ((StackPanel)dialog.Content!).Children[1] as Button;
+            if (btn != null) btn.Click += (s, e) => dialog.Close();
+            await dialog.ShowDialog(this);
+        }
+
+        // Gap 7: Close Workspace menu handler
+        private async void OnCloseWorkspaceMenuClick(object? sender, RoutedEventArgs e)
+        {
+            await FlushAndCloseWorkspace();
+        }
+
+        // Gap 7: Flush freeform changes before closing workspace
+        private async System.Threading.Tasks.Task FlushAndCloseWorkspace()
+        {
+            if (_workspaceVm.Sheet is PaperSheetViewModel vm)
+            {
+                // Send FLUSH_FREEFORM to JS to force immediate debounce flush
+                vm.SendToEditor(new MMslcOverlay.Core.Workspace.Models.BridgeMessage { Type = "FLUSH_FREEFORM" });
+                
+                // Wait for flush to complete (give JS time to emit FREEFORM_CHANGED)
+                await System.Threading.Tasks.Task.Delay(500);
+            }
+            _workspaceVm.CloseWorkspace();
         }
 
         private void AppendLog(string logLine)

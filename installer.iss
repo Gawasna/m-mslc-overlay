@@ -28,7 +28,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 
 ; Output Configuration
-OutputDir=installer_output
+OutputDir=dist
 OutputBaseFilename=m-mslc-overlay-setup-v{#MyAppVersion}
 Compression=lzma2/ultra
 SolidCompression=yes

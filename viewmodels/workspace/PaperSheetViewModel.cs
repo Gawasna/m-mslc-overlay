@@ -24,6 +24,9 @@ public class PaperSheetViewModel : INotifyPropertyChanged
     public MagicCursorViewModel MagicCursor { get; }
     public ScrollModeController ScrollController { get; } = new ScrollModeController();
 
+    // Gap 5: Mock STT toggle flag
+    public bool IsMockSttEnabled { get; set; } = false; // default OFF
+
     // ─── UI State Properties for Chrome ───────────────────────────────
     private int _wordCount;
     public int WordCount
@@ -200,6 +203,7 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     string? segId = msg.SegId;
                     if (segId == null) break;
 
+                    // Parse segId format: "active:42" or "seg_001:10" or just "42"
                     var parts = segId.Split(':');
                     string chunkId = "active";
                     long segmentId = -1;
@@ -215,21 +219,43 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     }
                     if (segmentId == -1) break;
 
+                    // Gap 10 fix: Guard against missing offsets file
                     var offsetsPath = _workspace.Storage.GetSegmentOffsetsPath(chunkId);
-                    if (!System.IO.File.Exists(offsetsPath)) break;
+                    if (!System.IO.File.Exists(offsetsPath))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Offsets file not found at {offsetsPath}. No recording yet?");
+                        SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
+                        break;
+                    }
 
                     var offsetIndex = new MMslcOverlay.Core.Workspace.Storage.AudioOffsetIndex(offsetsPath);
                     long? byteOffset = offsetIndex.GetOffset(segmentId);
-                    if (!byteOffset.HasValue) break;
+                    if (!byteOffset.HasValue)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Offset not found for segment {segmentId}");
+                        SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
+                        break;
+                    }
 
                     var all = _workspace.SegmentRepo?.GetMergedSegments();
                     var seg = all?.FirstOrDefault(s => s.BaseSegment.Id == segmentId);
-                    if (seg == null) break;
+                    if (seg == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Segment {segmentId} not found in repository");
+                        break;
+                    }
 
                     long durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
                     if (durationMs <= 0) break;
 
+                    // Gap 10 fix: Guard against missing WAV file
                     string wavPath = System.IO.Path.Combine(_workspace.Storage.MslcDir, "segments", $"{chunkId}.audio.wav");
+                    if (!System.IO.File.Exists(wavPath))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: WAV not found at {wavPath}. No recording yet?");
+                        SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
+                        break;
+                    }
 
                     _audioPlayer?.PlaySegment(segId, wavPath, byteOffset.Value, durationMs);
                     break;
@@ -325,10 +351,15 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         }
 
         SendToEditor(msg);
-        StartMockLiveSTTInjection();
+        
+        // Gap 5 fix: Only start mock STT if enabled
+        if (IsMockSttEnabled)
+        {
+            StartMockLiveSTTInjection();
+        }
     }
 
-    private void StartMockLiveSTTInjection()
+    public void StartMockLiveSTTInjection()
     {
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         long mockSegId = 200;

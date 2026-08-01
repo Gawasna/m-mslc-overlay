@@ -411,3 +411,4 @@ GEMINI.md
 /.vscode
 assets/workspace/editor.js
 /.agents
+/dist/

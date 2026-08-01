@@ -24,6 +24,14 @@ public class WorkspaceStorage
         _workspaceRoot = workspaceRoot;
     }
     
+    /// <summary>
+    /// Gap 9: Check if folder is a valid workspace (has .mslc/session_meta.json)
+    /// </summary>
+    public bool IsValidWorkspace()
+    {
+        return File.Exists(SessionMetaPath);
+    }
+    
     public void Initialize()
     {
         Directory.CreateDirectory(_workspaceRoot);

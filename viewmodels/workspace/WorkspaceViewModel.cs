@@ -135,6 +135,49 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    // Gap 7: Close workspace with cleanup
+    public void CloseWorkspace()
+    {
+        _service?.Dispose();
+        _service = null;
+        Sheet = null;
+        IsOpen = false;
+        State = WorkspaceState.Idle;
+        WorkspaceName = "Untitled";
+    }
+
+    // Gap 8: Start recording (auto-creates workspace if needed)
+    private bool _isRecording;
+    public bool IsRecording
+    {
+        get => _isRecording;
+        private set
+        {
+            if (_isRecording != value)
+            {
+                _isRecording = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public void StartRecording()
+    {
+        if (_service?.AudioService == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[WorkspaceViewModel] Cannot start recording: AudioService not initialized.");
+            return;
+        }
+        _service.AudioService.StartRecording();
+        IsRecording = true;
+    }
+
+    public void StopRecording()
+    {
+        _service?.AudioService?.StopRecording();
+        IsRecording = false;
+    }
+
     public void Dispose()
     {
         _service?.Dispose();
