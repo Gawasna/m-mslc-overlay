@@ -480,7 +480,7 @@ namespace m_mslc_overlay
 
         private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()
         {
-            // Check dirty trước khi đóng workspace hiện tại
+            // Dirty-check trước khi đóng workspace hiện tại
             if (_workspaceVm.IsOpen && _workspaceVm.IsDirty)
             {
                 var choice = await ShowUnsavedChangesDialogAsync();
@@ -491,48 +491,198 @@ namespace m_mslc_overlay
             var topLevel = TopLevel.GetTopLevel(this);
             if (topLevel == null) return;
 
-            // User mở FolderPicker, tạo folder mới ngay trong dialog (hoặc chọn folder rỗng).
-            // workspace_name = session_name = tên của folder được chọn — không hỏi thêm.
-            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
-                new Avalonia.Platform.Storage.FolderPickerOpenOptions
-                {
-                    Title = "Tạo hoặc chọn thư mục workspace mới",
-                    AllowMultiple = false
-                });
+            // Custom dialog: tên + path preview + nút "Đổi..." để chọn parent
+            // Tránh yêu cầu user tạo folder trong Windows Explorer (bad UX)
+            string defaultParent = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "MMslcOverlay", "workspaces");
 
-            if (folders.Count == 0) return;
-
-            string selectedPath = folders[0].Path.LocalPath;
-
-            // Guard: nếu folder đã là workspace hợp lệ → nhắc dùng Open thay vì New
-            var storage = new MMslcOverlay.Core.Workspace.Storage.WorkspaceStorage(selectedPath);
-            if (storage.IsValidWorkspace())
-            {
-                await ShowErrorMessageAsync(
-                    "Workspace đã tồn tại",
-                    $"Thư mục đã chứa workspace MMslcOverlay.\nDùng File > Open Workspace để mở.");
-                return;
-            }
-
-            // Guard: nếu folder không rỗng và không phải workspace → cảnh báo
-            if (Directory.Exists(selectedPath) &&
-                Directory.EnumerateFileSystemEntries(selectedPath).Any())
-            {
-                await ShowErrorMessageAsync(
-                    "Thư mục không rỗng",
-                    $"Thư mục đã chứa nội dung khác.\nVui lòng tạo folder mới trong dialog để dùng làm workspace.");
-                return;
-            }
+            string? newPath = await ShowNewWorkspaceDialogAsync(topLevel, defaultParent);
+            if (newPath == null) return;
 
             try
             {
-                // workspace_name tự động = tên folder, không cần hỏi thêm
-                _workspaceVm.OpenOrCreate(selectedPath);
+                _workspaceVm.OpenOrCreate(newPath);
             }
             catch (Exception ex)
             {
                 await ShowErrorMessageAsync("Lỗi tạo workspace", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Dialog tạo workspace mới: nhập tên + xem preview path + chọn thư mục lưu.
+        /// Trả về full path đã được validate, hoặc null nếu user cancel.
+        /// </summary>
+        private async System.Threading.Tasks.Task<string?> ShowNewWorkspaceDialogAsync(
+            TopLevel topLevel, string defaultParent)
+        {
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<string?>();
+            string parentDir = defaultParent;
+
+            // — Controls —
+            var nameBox = new TextBox
+            {
+                Watermark = "Tên phiên làm việc",
+                Margin = new Avalonia.Thickness(0, 0, 0, 4)
+            };
+
+            var pathPreview = new TextBlock
+            {
+                FontSize = 11,
+                Foreground = this.FindResource("TextSecondaryBrush") as IBrush ?? Brushes.Gray,
+                TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
+                Text = Path.Combine(defaultParent, "…")
+            };
+
+            var errorLabel = new TextBlock
+            {
+                FontSize = 11,
+                Foreground = Brushes.OrangeRed,
+                IsVisible = false
+            };
+
+            var changeBtn = new Button
+            {
+                Content = "Đổi thư mục…",
+                Padding = new Avalonia.Thickness(10, 4),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+
+            var createBtn = new Button
+            {
+                Content = "Tạo workspace",
+                IsDefault = true,
+                Padding = new Avalonia.Thickness(16, 6),
+                IsEnabled = false
+            };
+
+            var cancelBtn = new Button
+            {
+                Content = "Hủy",
+                IsCancel = true,
+                Padding = new Avalonia.Thickness(16, 6)
+            };
+
+            // — Live path preview khi user gõ tên —
+            string GetCurrentPath()
+            {
+                var raw = nameBox.Text?.Trim() ?? string.Empty;
+                foreach (var c in Path.GetInvalidFileNameChars())
+                    raw = raw.Replace(c, '_');
+                return string.IsNullOrEmpty(raw)
+                    ? Path.Combine(parentDir, "…")
+                    : Path.Combine(parentDir, raw);
+            }
+
+            void RefreshPreview()
+            {
+                var p = GetCurrentPath();
+                pathPreview.Text = $"Sẽ tạo: {p}";
+
+                var name = nameBox.Text?.Trim() ?? string.Empty;
+                createBtn.IsEnabled = !string.IsNullOrEmpty(name);
+
+                // Cảnh báo nếu đã tồn tại
+                if (!string.IsNullOrEmpty(name) && Directory.Exists(p))
+                {
+                    var ws = new MMslcOverlay.Core.Workspace.Storage.WorkspaceStorage(p);
+                    if (ws.IsValidWorkspace())
+                    {
+                        errorLabel.Text = "Workspace này đã tồn tại. Dùng File > Open Workspace để mở.";
+                        errorLabel.IsVisible = true;
+                        createBtn.IsEnabled = false;
+                    }
+                    else
+                    {
+                        errorLabel.Text = "Thư mục đã tồn tại (không phải workspace) — sẽ dùng làm workspace.";
+                        errorLabel.Foreground = Brushes.Orange;
+                        errorLabel.IsVisible = true;
+                        // Cho phép tạo nếu folder rỗng
+                        createBtn.IsEnabled = !Directory.EnumerateFileSystemEntries(p).Any();
+                    }
+                }
+                else
+                {
+                    errorLabel.IsVisible = false;
+                    errorLabel.Foreground = Brushes.OrangeRed;
+                }
+            }
+
+            nameBox.TextChanged += (_, _) => RefreshPreview();
+
+            // — "Đổi thư mục…" mở FolderPicker chọn parent —
+            changeBtn.Click += async (_, _) =>
+            {
+                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
+                    new Avalonia.Platform.Storage.FolderPickerOpenOptions
+                    {
+                        Title = "Chọn thư mục lưu workspace",
+                        AllowMultiple = false
+                    });
+                if (folders.Count > 0)
+                {
+                    parentDir = folders[0].Path.LocalPath;
+                    RefreshPreview();
+                }
+            };
+
+            // — Layout —
+            var dialog = new Window
+            {
+                Title = "Phiên làm việc mới",
+                Width = 460,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                Content = new Border
+                {
+                    Padding = new Avalonia.Thickness(24),
+                    Child = new StackPanel
+                    {
+                        Spacing = 10,
+                        Children =
+                        {
+                            new TextBlock { Text = "Tên phiên làm việc:", Foreground = Brushes.White, FontWeight = Avalonia.Media.FontWeight.SemiBold },
+                            nameBox,
+                            new StackPanel
+                            {
+                                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                                Spacing = 8,
+                                Children =
+                                {
+                                    pathPreview,
+                                    changeBtn
+                                }
+                            },
+                            errorLabel,
+                            new Separator { Margin = new Avalonia.Thickness(0, 4) },
+                            new StackPanel
+                            {
+                                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                                Spacing = 8,
+                                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                                Children = { createBtn, cancelBtn }
+                            }
+                        }
+                    }
+                }
+            };
+
+            createBtn.Click += (_, _) =>
+            {
+                tcs.TrySetResult(GetCurrentPath());
+                dialog.Close();
+            };
+            cancelBtn.Click += (_, _) =>
+            {
+                tcs.TrySetResult(null);
+                dialog.Close();
+            };
+            dialog.Closed += (_, _) => tcs.TrySetResult(null);
+
+            await dialog.ShowDialog(this);
+            return await tcs.Task;
         }
 
 

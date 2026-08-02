@@ -68,7 +68,20 @@ namespace m_mslc_overlay.services
 
         public static string GetPluginsDirectory() => GetWritablePath("plugins");
 
-        public static string GetExtractorDirectory() => GetWritablePath("extractor");
+        public static string GetExtractorDirectory()
+        {
+            if (IsDevMode)
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string path = Path.Combine(localAppData, "m-mslc-overlay-dev", "extractor");
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+                return path;
+            }
+            return GetWritablePath("extractor");
+        }
 
         /// <summary>
         /// Resolves path for plugins.manifest.json.
