@@ -4,6 +4,7 @@
         x:Class="m_mslc_overlay.views.overlay.FloatingTextOverlay"
         x:Name="RootWindow"
         Title="{DynamicResource Title_FloatingTextOverlay}"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
         Width="600" Height="255"
         Background="Transparent"
         TransparencyLevelHint="Transparent"

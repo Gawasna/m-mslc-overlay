@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.views.dialogs.MessageDialog"
         Title="Thông báo"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
         Width="380" Height="160"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

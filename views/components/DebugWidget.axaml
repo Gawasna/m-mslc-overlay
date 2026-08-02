@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.views.components.DebugWidget"
-        Title="DebugWidget">
+        Title="DebugWidget"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico">
     <StackPanel>
         <Button x:Name="InterruptBtn" Click="InterruptBtn_Click" Content="Interrupt Render"/>
         <TextBox x:Name="JsonInput"/>

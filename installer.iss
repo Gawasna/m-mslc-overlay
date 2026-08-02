@@ -43,6 +43,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 ; Icon & Display Settings
+SetupIconFile=assets\icons\app-icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]

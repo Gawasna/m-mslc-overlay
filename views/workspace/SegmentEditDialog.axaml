@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="MMslcOverlay.Views.Workspace.SegmentEditDialog"
         Title="Edit Segment"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
         SizeToContent="Height"
         Width="520"
         WindowStartupLocation="CenterOwner"

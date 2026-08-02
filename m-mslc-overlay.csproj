@@ -24,6 +24,9 @@
     <Authors>MSLC Team</Authors>
     <Copyright>Copyright © 2026 Gawasna</Copyright>
     <Description>MSLC Overlay Application</Description>
+
+    <!-- Application Icon Configuration -->
+    <ApplicationIcon>assets\icons\app-icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
