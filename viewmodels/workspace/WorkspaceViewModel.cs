@@ -1,13 +1,29 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using MMslcOverlay.Core.Workspace.Export;
+using MMslcOverlay.Core.Workspace.Models;
+using MMslcOverlay.Core.Workspace.Storage;
 using MMslcOverlay.Services.Workspace;
 
 namespace MMslcOverlay.ViewModels.Workspace;
 
 public enum WorkspaceState { Idle, Active }
+
+/// <summary>
+/// File entry shown in the Sidebar's Session Files list.
+/// </summary>
+public sealed class WorkspaceFileItem
+{
+    public string FileName { get; set; } = string.Empty;
+    public string FullPath { get; set; } = string.Empty;
+    public string Icon { get; set; } = "FileDocumentOutline"; // MaterialIcon kind name
+}
 
 /// <summary>
 /// Root ViewModel cho một workspace session.
@@ -18,10 +34,16 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     private WorkspaceService? _service;
     public WorkspaceService? Service => _service;
     private bool _isOpen;
+    private bool _isDirty;
     private PaperSheetViewModel? _sheet;
     private string _workspaceName = "Untitled";
+    private string _workspacePath = string.Empty;
+    private string _lastModifiedDisplay = string.Empty;
 
     public NavPaneViewModel NavPane { get; } = new NavPaneViewModel();
+
+    /// <summary>Danh sách file trong workspace root và exports/ hiển thị trên Sidebar.</summary>
+    public ObservableCollection<WorkspaceFileItem> SessionFiles { get; } = new();
 
     private string _selectedAiModel = "Gemini 1.5 Pro";
     public string SelectedAiModel
@@ -54,7 +76,6 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
             {
                 _isOpen = value;
                 OnPropertyChanged();
-                // We need to re-evaluate CanExecute for export commands when IsOpen changes
                 ((RelayCommand)ExportSrtCommand).RaiseCanExecuteChanged();
                 ((RelayCommand)ExportTxtCommand).RaiseCanExecuteChanged();
                 ((RelayCommand)ExportMdCommand).RaiseCanExecuteChanged();
@@ -62,6 +83,24 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+
+    /// <summary>Dirty flag: true khi user có thay đổi chưa flush xuống SQLite.</summary>
+    public bool IsDirty
+    {
+        get => _isDirty;
+        private set
+        {
+            if (_isDirty != value)
+            {
+                _isDirty = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
+    public void MarkDirty() => IsDirty = true;
+    public void ClearDirty() => IsDirty = false;
 
     public string WorkspaceName
     {
@@ -71,6 +110,36 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
             if (_workspaceName != value)
             {
                 _workspaceName = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
+    /// <summary>Tên hiển thị kèm dấu * khi có thay đổi chưa lưu.</summary>
+    public string DisplayName => IsDirty ? $"{WorkspaceName} *" : WorkspaceName;
+
+    public string WorkspacePath
+    {
+        get => _workspacePath;
+        private set
+        {
+            if (_workspacePath != value)
+            {
+                _workspacePath = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string LastModifiedDisplay
+    {
+        get => _lastModifiedDisplay;
+        private set
+        {
+            if (_lastModifiedDisplay != value)
+            {
+                _lastModifiedDisplay = value;
                 OnPropertyChanged();
             }
         }
@@ -89,25 +158,24 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    // Commands
-    public ICommand NewWorkspaceCommand { get; }
-    public ICommand OpenWorkspaceCommand { get; }
+    // Export commands (File > Export menu, SubToolbar)
     public ICommand ExportSrtCommand { get; }
     public ICommand ExportTxtCommand { get; }
     public ICommand ExportMdCommand { get; }
     public ICommand ExportPdfCommand { get; }
 
+    /// <summary>UI hook: gọi SaveFileDialog và trả path, null nếu cancel.</summary>
+    public Func<string, string, string, Task<string?>>? RequestSavePathAction { get; set; }
+
+    /// <summary>UI hook: mở file từ sidebar bằng default OS app.</summary>
+    public Action<string>? OpenFileExternallyAction { get; set; }
+
     public WorkspaceViewModel()
     {
-        var settings = WorkspaceSettings.Load();
-        
-        NewWorkspaceCommand = new RelayCommand(() => OpenOrCreate(settings.ResolveWorkspacePath()));
-        OpenWorkspaceCommand = new RelayCommand(() => OpenOrCreate(settings.ResolveWorkspacePath()));
-        
-        ExportSrtCommand = new RelayCommand(() => { /* stub */ }, () => IsOpen);
-        ExportTxtCommand = new RelayCommand(() => { /* stub */ }, () => IsOpen);
-        ExportMdCommand = new RelayCommand(() => { /* stub */ }, () => IsOpen);
-        ExportPdfCommand = new RelayCommand(() => { /* stub */ }, () => IsOpen);
+        ExportSrtCommand  = new RelayCommand(() => _ = ExportAsync(new SrtExporter(),      "srt",  "Subtitle (.srt)"),  () => IsOpen);
+        ExportTxtCommand  = new RelayCommand(() => _ = ExportAsync(new TxtExporter(),      "txt",  "Text (.txt)"),      () => IsOpen);
+        ExportMdCommand   = new RelayCommand(() => _ = ExportAsync(new MarkdownExporter(), "md",   "Markdown (.md)"),   () => IsOpen);
+        ExportPdfCommand  = new RelayCommand(() => _ = ExportAsync(new PdfExporter(),      "pdf",  "PDF (.pdf)"),       () => IsOpen);
     }
 
     public void OpenOrCreate(string workspaceRoot)
@@ -117,13 +185,17 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
             _service?.Dispose();
             _service = new WorkspaceService(workspaceRoot);
             _service.OpenOrCreate();
-            
-            WorkspaceName = Path.GetFileName(workspaceRoot);
-            Sheet = new PaperSheetViewModel(_service);
+
+            WorkspaceName = Path.GetFileName(workspaceRoot.TrimEnd(Path.DirectorySeparatorChar));
+            WorkspacePath = workspaceRoot;
+            Sheet = new PaperSheetViewModel(_service, this);
             IsOpen = true;
             State = WorkspaceState.Active;
+            ClearDirty();
 
-            // Save settings
+            RefreshSessionFiles();
+            UpdateLastModified(workspaceRoot);
+
             var settings = WorkspaceSettings.Load();
             settings.LastWorkspacePath = workspaceRoot;
             settings.Save();
@@ -131,8 +203,242 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to open workspace: {ex.Message}");
-            // Handle error, e.g., show a dialog in a real app
+            throw;
         }
+    }
+
+    /// <summary>Đóng workspace và release resources.</summary>
+    public void CloseWorkspace()
+    {
+        _service?.Dispose();
+        _service = null;
+        Sheet = null;
+        IsOpen = false;
+        State = WorkspaceState.Idle;
+        WorkspaceName = "Untitled";
+        WorkspacePath = string.Empty;
+        LastModifiedDisplay = string.Empty;
+        SessionFiles.Clear();
+        ClearDirty();
+    }
+
+    /// <summary>Flush freeform pending edits thông qua Sheet VM rồi chờ ack.</summary>
+    public async Task FlushPendingAsync(int timeoutMs = 2000)
+    {
+        if (Sheet is { } sheet)
+        {
+            sheet.RequestFlushFreeform();
+            var tcs = new TaskCompletionSource<bool>();
+            sheet.FreeformFlushed += OnFlushed;
+            void OnFlushed()
+            {
+                sheet.FreeformFlushed -= OnFlushed;
+                tcs.TrySetResult(true);
+            }
+            var delay = Task.Delay(timeoutMs);
+            await Task.WhenAny(tcs.Task, delay);
+            ClearDirty();
+        }
+    }
+
+    // ─── Recording ──────────────────────────────────────────────────────
+    private bool _isRecording;
+
+    public bool IsRecording
+    {
+        get => _isRecording;
+        private set
+        {
+            if (_isRecording != value)
+            {
+                _isRecording = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public void ToggleRecording()
+    {
+        if (IsRecording) StopRecording();
+        else StartRecording();
+    }
+
+    public void StartRecording()
+    {
+        if (!IsOpen) return;
+        if (_service?.AudioService == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[WorkspaceViewModel] Cannot start recording: AudioService not initialized.");
+            return;
+        }
+        _service.AudioService.StartRecording();
+        IsRecording = true;
+    }
+
+    public void StopRecording()
+    {
+        _service?.AudioService?.StopRecording();
+        IsRecording = false;
+        if (!string.IsNullOrEmpty(WorkspacePath)) RefreshSessionFiles();
+    }
+
+    // ─── Export / Import / Files ────────────────────────────────────────
+    private async Task ExportAsync(IExporter exporter, string ext, string label)
+    {
+        if (_service?.SegmentRepo == null) return;
+        if (RequestSavePathAction == null)
+        {
+            System.Diagnostics.Debug.WriteLine("[Export] No RequestSavePathAction wired.");
+            return;
+        }
+
+        // Flush trước khi export để đảm bảo nội dung mới nhất
+        await FlushPendingAsync();
+
+        var suggestedName = $"{WorkspaceName}.{ext}";
+        var destPath = await RequestSavePathAction(label, ext, suggestedName);
+        if (string.IsNullOrEmpty(destPath)) return;
+
+        try
+        {
+            var engine = new ExportEngine(_service.SegmentRepo);
+            string content = engine.RunExport(exporter);
+
+            if (ext.Equals("pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                // PDF exporter returns a temp file path
+                if (File.Exists(content))
+                {
+                    File.Copy(content, destPath, true);
+                    File.Delete(content);
+                }
+            }
+            else
+            {
+                await File.WriteAllTextAsync(destPath, content, System.Text.Encoding.UTF8);
+            }
+            RefreshSessionFiles();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Export] failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Import script (txt/md) vào freeform_blocks anchored at document top.</summary>
+    public async Task ImportScriptAsync(string filePath)
+    {
+        if (_service?.UserDataRepo == null) return;
+        try
+        {
+            string content = await File.ReadAllTextAsync(filePath);
+            if (string.IsNullOrWhiteSpace(content)) return;
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var block = new FreeformBlock
+            {
+                AnchorAfter = null,
+                Content = content,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            long id = _service.UserDataRepo.InsertFreeformBlock(block);
+            MarkDirty();
+
+            // Reload toàn bộ document để JS render block mới
+            Sheet?.SendToEditor(new BridgeMessage
+            {
+                Type = "FREEFORM_PERSISTED",
+                AnchorAfter = null,
+                BlockId = id.ToString(),
+                Content = content
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ImportScript] failed: {ex.Message}");
+        }
+    }
+
+    public void RefreshSessionFiles()
+    {
+        SessionFiles.Clear();
+        if (string.IsNullOrEmpty(WorkspacePath) || _service == null) return;
+
+        try
+        {
+            // WAV files của active/sealed chunks
+            var segDir = _service.Storage.SegmentsDir;
+            if (Directory.Exists(segDir))
+            {
+                foreach (var wav in Directory.EnumerateFiles(segDir, "*.audio.wav"))
+                {
+                    SessionFiles.Add(new WorkspaceFileItem
+                    {
+                        FileName = Path.GetFileName(wav),
+                        FullPath = wav,
+                        Icon = "MusicNote"
+                    });
+                }
+            }
+
+            // Exported artifacts
+            var expDir = _service.Storage.ExportsDir;
+            if (Directory.Exists(expDir))
+            {
+                foreach (var f in Directory.EnumerateFiles(expDir, "*.*"))
+                {
+                    var ext = Path.GetExtension(f).ToLowerInvariant();
+                    SessionFiles.Add(new WorkspaceFileItem
+                    {
+                        FileName = Path.GetFileName(f),
+                        FullPath = f,
+                        Icon = ext switch
+                        {
+                            ".srt" => "SubtitlesOutline",
+                            ".txt" => "FileDocumentOutline",
+                            ".md"  => "LanguageMarkdown",
+                            ".pdf" => "FilePdfBox",
+                            _      => "FileOutline"
+                        }
+                    });
+                }
+            }
+
+            // notes.md hoặc user-saved docs tại root workspace
+            foreach (var f in Directory.EnumerateFiles(WorkspacePath, "*.md").Union(Directory.EnumerateFiles(WorkspacePath, "*.txt")))
+            {
+                SessionFiles.Add(new WorkspaceFileItem
+                {
+                    FileName = Path.GetFileName(f),
+                    FullPath = f,
+                    Icon = "NotebookOutline"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SessionFiles] scan failed: {ex.Message}");
+        }
+    }
+
+    private void UpdateLastModified(string workspaceRoot)
+    {
+        try
+        {
+            var meta = _service?.Storage.SessionMetaPath;
+            DateTime modified = meta != null && File.Exists(meta)
+                ? File.GetLastWriteTime(meta)
+                : File.GetLastWriteTime(workspaceRoot);
+            LastModifiedDisplay = $"Last Modified: {modified:yyyy-MM-dd HH:mm}";
+        }
+        catch { LastModifiedDisplay = string.Empty; }
+    }
+
+    public void OpenSessionFile(WorkspaceFileItem? item)
+    {
+        if (item == null || string.IsNullOrEmpty(item.FullPath)) return;
+        OpenFileExternallyAction?.Invoke(item.FullPath);
     }
 
     public void Dispose()
@@ -144,19 +450,19 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    // ─── UI Actions ────────────────────────────────────────────────────────
+    // ─── Legacy convenience entry points (used by toolbar buttons) ─────
     public void ExportSrt()
     {
-        if (ExportSrtCommand.CanExecute(null))
-        {
-            ExportSrtCommand.Execute(null);
-        }
+        if (ExportSrtCommand.CanExecute(null)) ExportSrtCommand.Execute(null);
     }
 
     public void ImportScript()
     {
-        // Stub for importing script in workspace
+        // Alias for toolbar; actual file picker wired in MainWindow.
+        ImportScriptRequested?.Invoke();
     }
+
+    public event Action? ImportScriptRequested;
 }
 
 public class RelayCommand : ICommand

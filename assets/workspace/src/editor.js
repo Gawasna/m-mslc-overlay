@@ -149,7 +149,34 @@ class FreeformBlockView {
         }
         this.contentDOM = this.dom;
     }
+
+    update(node) {
+        if (node.type.name !== "freeform_block") return false;
+        if (node.attrs.blockId) {
+            this.dom.setAttribute("data-block-id", node.attrs.blockId);
+        } else {
+            this.dom.removeAttribute("data-block-id");
+        }
+        if (node.attrs.anchorAfter) {
+            this.dom.setAttribute("data-anchor", node.attrs.anchorAfter);
+        } else {
+            this.dom.removeAttribute("data-anchor");
+        }
+        return true;
+    }
 }
+
+const ICONS = {
+    "FREE_INPUT": `<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" /></svg>`,
+    "WATCH_MAGIC": `<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M16 13H13V16H11V13H8V11H11V8H13V11H16V13M12 2C17.5 2 22 6.5 22 12C22 17.5 17.5 22 12 22C6.5 22 2 17.5 2 12C2 6.5 6.5 2 12 2M12 4C7.58 4 4 7.58 4 12C4 16.42 7.58 20 12 20C16.42 20 20 16.42 20 12C20 7.58 16.42 4 12 4Z" /></svg>`,
+    "DONOTHING": `<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 2C17.5 2 22 6.5 22 12C22 17.5 17.5 22 12 22C6.5 22 2 17.5 2 12C2 6.5 6.5 2 12 2M12 4C7.58 4 4 7.58 4 12C4 16.42 7.58 20 12 20C16.42 20 20 16.42 20 12C20 7.58 16.42 4 12 4M11 16V18H13V16H11M12 6C9.79 6 8 7.79 8 10H10C10 8.9 10.9 8 12 8C13.1 8 14 8.9 14 10C14 11.5 11 11.25 11 14H13C13 12.25 16 12 16 10C16 7.79 14.21 6 12 6Z" /></svg>`
+};
+
+const TOOLTIPS = {
+    "FREE_INPUT": "Free Input Mode (Auto-scroll Off)",
+    "WATCH_MAGIC": "Watch Magic Mode (Auto-scroll On)",
+    "DONOTHING": "Read Mode (Locked)"
+};
 
 // 2. Plugins
 const magicCursorPluginKey = new PluginKey("magicCursor");
@@ -159,12 +186,25 @@ const magicCursorPlugin = new Plugin({
   key: magicCursorPluginKey,
   state: {
     init: () => DecorationSet.empty,
-    apply(tr, oldSet) {
-      const meta = tr.getMeta(magicCursorPluginKey);
-      if (meta !== undefined) return meta;
-      // Map decorations across changes
-      return oldSet.map(tr.mapping, tr.doc);
-    }
+      apply(tr, oldSet) {
+        const meta = tr.getMeta(magicCursorPluginKey);
+        if (meta && meta.newPos !== undefined) {
+            magicCursorPos = meta.newPos;
+            return meta.deco || oldSet;
+        }
+        
+        if (tr.docChanged && magicCursorPos !== null) {
+            magicCursorPos = tr.mapping.map(magicCursorPos);
+        }
+        
+        if (meta && meta.deco !== undefined) return meta.deco;
+        
+        // Fallback for old meta format if any
+        if (meta !== undefined && !meta.newPos && !meta.deco) return meta;
+
+        // Map decorations across changes
+        return oldSet.map(tr.mapping, tr.doc);
+      }
   },
   props: {
     decorations(state) {
@@ -178,52 +218,93 @@ const scrollModePlugin = new Plugin({
   key: scrollModePluginKey,
   state: {
     init: () => ({ mode: "FREE_INPUT" }),
-    apply(tr, prev) {
-      const meta = tr.getMeta(scrollModePluginKey);
-      return meta ? meta : prev;
-    }
+      apply(tr, prev) {
+        if (tr.docChanged && !tr.getMeta(magicCursorPluginKey) && !tr.getMeta(scrollModePluginKey)) {
+          if (prev.mode === "WATCH_MAGIC") {
+            sendToHost({ type: "SCROLL_MODE_CHANGED", mode: "FREE_INPUT" });
+            return { mode: "FREE_INPUT" };
+          }
+        }
+        const meta = tr.getMeta(scrollModePluginKey);
+        return meta ? meta : prev;
+      }
   },
   view(editorView) {
     return {
       update(view, prevState) {
         const { mode } = scrollModePluginKey.getState(view.state);
-        if (mode === "WATCH_MAGIC" && magicCursorPos !== null) {
-          // Scroll to magic cursor
+        const prevMode = scrollModePluginKey.getState(prevState).mode;
+        
+        if (mode !== prevMode) {
+            let indicator = document.getElementById("scroll-indicator");
+            if (indicator) {
+                indicator.innerHTML = ICONS[mode] || ICONS["FREE_INPUT"];
+                indicator.title = TOOLTIPS[mode] || TOOLTIPS["FREE_INPUT"];
+            }
+        }
+        
+        let modeSwitchedToWatch = mode === "WATCH_MAGIC" && prevMode !== "WATCH_MAGIC";
+        if (mode === "WATCH_MAGIC" && magicCursorPos !== null && (window.forceScrollMagic || modeSwitchedToWatch)) {
           const coords = view.coordsAtPos(magicCursorPos);
           window.scrollTo({ top: coords.top + window.scrollY - 200, behavior: "smooth" });
+          window.forceScrollMagic = false;
         }
       }
     };
   }
 });
 
-// Notify host of changes in freeform blocks and caret position
+const trackChangesPluginKey = new PluginKey("trackChanges");
 const trackChangesPlugin = new Plugin({
+    key: trackChangesPluginKey,
+    state: {
+        init() { return { dirtyPositions: [] }; },
+          apply(tr, prev) {
+              if (!tr.docChanged) return prev;
+              let dirty = [];
+              for (let i = 0; i < tr.steps.length; i++) {
+                  let stepMap = tr.steps[i].getMap();
+                  let mapped = tr.mapping.slice(i + 1);
+                  stepMap.forEach((oldStart, oldEnd, newStart, newEnd) => {
+                      dirty.push(mapped.map(newStart));
+                  });
+              }
+              return { dirtyPositions: dirty };
+          }
+    },
     view(editorView) {
         return {
             update(view, prevState) {
-                if (!view.state.selection.eq(prevState.selection)) {
-                    sendToHost({ 
-                        type: "JS_DEBUG", 
-                        message: "Caret pos: " + view.state.selection.from + ", Magic cursor pos: " + magicCursorPos 
-                    });
-                }
-                
                 if (view.state.doc.eq(prevState.doc)) return;
                 
-                // Diff and find changed freeform blocks
-                // For simplicity, we just send all freeform blocks that have text content
                 if (window.changeTimeout) clearTimeout(window.changeTimeout);
                 window.changeTimeout = setTimeout(() => {
-                    view.state.doc.descendants((node, pos) => {
-                        if (node.type.name === "freeform_block") {
-                            sendToHost({ 
-                                type: "FREEFORM_CHANGED",
-                                blockId: node.attrs.blockId,
-                                anchorAfter: node.attrs.anchorAfter,
-                                content: node.textContent
-                            });
-                        }
+                    const state = trackChangesPluginKey.getState(view.state);
+                    if (!state || state.dirtyPositions.length === 0) return;
+                    
+                    let dirtyBlocks = new Map();
+                    state.dirtyPositions.forEach(pos => {
+                        let actualPos = Math.min(pos, view.state.doc.content.size);
+                        view.state.doc.nodesBetween(actualPos, actualPos, (node, nPos) => {
+                            if (node.type.name === "freeform_block") {
+                                const key = node.attrs.blockId || node.attrs.anchorAfter || '__root__';
+                                dirtyBlocks.set(key, {
+                                    blockId: node.attrs.blockId,
+                                    anchorAfter: node.attrs.anchorAfter,
+                                    content: node.textContent
+                                });
+                            }
+                            return false;
+                        });
+                    });
+                    
+                    dirtyBlocks.forEach(b => {
+                        sendToHost({ 
+                            type: "FREEFORM_CHANGED",
+                            blockId: b.blockId,
+                            anchorAfter: b.anchorAfter,
+                            content: b.content
+                        });
                     });
                 }, 1000);
             }
@@ -244,6 +325,22 @@ const insertBreak = (state, dispatch) => {
 };
 
 function initEditor() {
+    let scrollIndicator = document.createElement("div");
+    scrollIndicator.id = "scroll-indicator";
+    scrollIndicator.innerHTML = ICONS["FREE_INPUT"];
+    scrollIndicator.title = TOOLTIPS["FREE_INPUT"];
+    document.body.appendChild(scrollIndicator);
+    
+    scrollIndicator.addEventListener("click", () => {
+        let current = scrollModePluginKey.getState(view.state).mode;
+        let next = "FREE_INPUT";
+        if (current === "FREE_INPUT") next = "WATCH_MAGIC";
+        else if (current === "WATCH_MAGIC") next = "DONOTHING";
+        
+        sendToHost({ type: "SCROLL_MODE_CHANGED", mode: next });
+        view.dispatch(view.state.tr.setMeta(scrollModePluginKey, { mode: next }));
+    });
+
     view = new EditorView(document.getElementById("editor"), {
         state: EditorState.create({
             schema,
@@ -263,10 +360,37 @@ function initEditor() {
         }
     });
 
+    document.getElementById("editor").addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const coords = { left: e.clientX, top: e.clientY };
+        const pos = view.posAtCoords(coords);
+        if (pos) {
+            let targetId = null;
+            let menuType = "Unknown";
+            const $pos = view.state.doc.resolve(pos.pos);
+            for (let d = $pos.depth; d > 0; d--) {
+                const node = $pos.node(d);
+                if (node.type.name === "machine_segment") {
+                    menuType = "MachineSegment";
+                    targetId = node.attrs.segId;
+                    break;
+                } else if (node.type.name === "freeform_block") {
+                    menuType = "FreeformBlock";
+                    targetId = node.attrs.blockId || node.attrs.anchorAfter;
+                    break;
+                }
+            }
+            sendToHost({
+                type: "SHOW_CONTEXT_MENU",
+                menuType: menuType,
+                targetId: targetId
+            });
+        }
+    });
+
     if (window.chrome && window.chrome.webview) {
         window.chrome.webview.addEventListener('message', event => {
             try {
-                sendToHost({ type: "JS_ERROR", message: "DEBUG JS RECEIVED: " + typeof event.data });
                 if (window.__bridge && window.__bridge.receive) {
                     let msg = event.data;
                     if (typeof msg === 'string') {
@@ -290,51 +414,45 @@ window.__bridge = {
         
         try {
             if (msg.type === "LOAD_DOCUMENT") {
-                // Build doc
                 const nodes = [];
             
-            // Helper to get freeform content for an anchor
-            const getFreeform = (anchorId) => {
-                if (!msg.freeformBlocks) return null;
-                return msg.freeformBlocks.find(b => b.anchorAfter === anchorId);
-            };
+                const getFreeform = (anchorId) => {
+                    if (!msg.freeformBlocks) return null;
+                    return msg.freeformBlocks.find(b => b.anchorAfter === anchorId);
+                };
 
-            const createFreeformNode = (anchorId) => {
-                const b = getFreeform(anchorId);
-                const attrs = { anchorAfter: anchorId, blockId: b ? b.blockId : null };
-                const contentNodes = b && b.content ? [schema.text(b.content)] : [];
-                return schema.nodes.freeform_block.create(attrs, contentNodes);
-            };
-            
-            if (!msg.segments || msg.segments.length === 0) {
-                nodes.push(createFreeformNode(null));
-            } else {
-                nodes.push(createFreeformNode(null)); // Always add the first freeform block!
-                for (const seg of msg.segments) {
-                    const textNode = schema.nodes.seg_text.create({}, schema.text(seg.textSrc));
-                    const segNode = schema.nodes.machine_segment.create(
-                        { segId: seg.segId, tsStartMs: seg.tsStartMs, tsEndMs: seg.tsEndMs, speakerId: seg.speakerId },
-                        textNode
-                    );
-                    nodes.push(segNode);
-                    
-                    // Add freeform block after each segment
-                    nodes.push(createFreeformNode(seg.segId));
+                const createFreeformNode = (anchorId) => {
+                    const b = getFreeform(anchorId);
+                    const attrs = { anchorAfter: anchorId, blockId: b ? b.blockId : null };
+                    const contentNodes = b && b.content ? [schema.text(b.content)] : [];
+                    return schema.nodes.freeform_block.create(attrs, contentNodes);
+                };
+                
+                if (!msg.segments || msg.segments.length === 0) {
+                    nodes.push(createFreeformNode(null));
+                } else {
+                    nodes.push(createFreeformNode(null));
+                    for (const seg of msg.segments) {
+                        const textNode = schema.nodes.seg_text.create({}, schema.text(seg.textSrc));
+                        const segNode = schema.nodes.machine_segment.create(
+                            { segId: seg.segId, tsStartMs: seg.tsStartMs, tsEndMs: seg.tsEndMs, speakerId: seg.speakerId },
+                            textNode
+                        );
+                        nodes.push(segNode);
+                        nodes.push(createFreeformNode(seg.segId));
+                    }
                 }
-            }
-            
-            const doc = schema.nodes.doc.create({}, nodes);
-            const state = EditorState.create({
-                doc,
-                plugins: view.state.plugins
-            });
-            view.updateState(state);
-            
+                
+                const doc = schema.nodes.doc.create({}, nodes);
+                const state = EditorState.create({
+                    doc,
+                    plugins: view.state.plugins
+                });
+                view.updateState(state);
+                
         } else if (msg.type === "INSERT_MACHINE_SEGMENT") {
             const { segId, tsStartMs, tsEndMs, speakerId, textSrc, textTrs } = msg;
             
-            // Build node
-            // Build node
             const textNode = schema.nodes.seg_text.create({}, schema.text(textSrc));
             let contentNodes = [textNode];
             if (textTrs) {
@@ -346,60 +464,147 @@ window.__bridge = {
                 contentNodes
             );
             
-            // Also append a freeform block right after it
             const freeform = schema.nodes.freeform_block.create({ anchorAfter: segId });
             
             let insertPos = magicCursorPos !== null ? magicCursorPos : view.state.doc.content.size;
             
             const tr = view.state.tr.insert(insertPos, [node, freeform]);
             
-            // Advance cursor
-            magicCursorPos = insertPos + node.nodeSize + freeform.nodeSize;
+            let newMagicCursorPos = insertPos + node.nodeSize + freeform.nodeSize;
             
-            // Update decoration
             const deco = DecorationSet.create(tr.doc, [
-                Decoration.widget(magicCursorPos, () => {
+                Decoration.widget(newMagicCursorPos, () => {
                     const el = document.createElement("span");
                     el.className = "magic-cursor-indicator";
                     return el;
                 }, { side: -1 })
             ]);
-            tr.setMeta(magicCursorPluginKey, deco);
+            tr.setMeta(magicCursorPluginKey, { deco: deco, newPos: newMagicCursorPos });
             
+            window.forceScrollMagic = true;
             view.dispatch(tr);
             
         } else if (msg.type === "SET_MAGIC_CURSOR") {
-            magicCursorPos = msg.pos;
             const deco = DecorationSet.create(view.state.doc, [
-                Decoration.widget(magicCursorPos, () => {
+                Decoration.widget(msg.pos, () => {
                     const el = document.createElement("span");
                     el.className = "magic-cursor-indicator";
                     return el;
                 }, { side: -1 })
             ]);
-            view.dispatch(view.state.tr.setMeta(magicCursorPluginKey, deco));
+            window.forceScrollMagic = true;
+            view.dispatch(view.state.tr.setMeta(magicCursorPluginKey, { deco: deco, newPos: msg.pos }));
             
         } else if (msg.type === "SET_SCROLL_MODE") {
             view.dispatch(view.state.tr.setMeta(scrollModePluginKey, { mode: msg.mode }));
             
         } else if (msg.type === "APPLY_PATCH") {
-            // Find node by segId
             let pos = -1;
+            let existingNode = null;
             view.state.doc.descendants((node, p) => {
                 if (node.type.name === "machine_segment" && node.attrs.segId === msg.segId) {
                     pos = p;
+                    existingNode = node;
                     return false;
                 }
             });
-            if (pos !== -1) {
-                const node = view.state.doc.nodeAt(pos);
-                // Simple replacement of the segment text
-                const textNode = schema.nodes.seg_text.create({}, schema.text(msg.newValue));
-                const newNode = schema.nodes.machine_segment.create(node.attrs, textNode);
-                
-                view.dispatch(view.state.tr.replaceWith(pos, pos + node.nodeSize, newNode));
+            if (pos !== -1 && existingNode) {
+                let contentNodes = [];
+                let existingTextSrcNode = existingNode.child(0);
+                let existingTextTrsNode = existingNode.childCount > 1 ? existingNode.child(1) : null;
+
+                if (msg.field === "TextSrc") {
+                    contentNodes.push(schema.nodes.seg_text.create({}, schema.text(msg.newValue)));
+                    if (existingTextTrsNode) {
+                        contentNodes.push(existingTextTrsNode);
+                    }
+                } else if (msg.field === "TextTrs") {
+                    contentNodes.push(existingTextSrcNode);
+                    if (msg.newValue) {
+                        contentNodes.push(schema.nodes.seg_trs.create({}, schema.text(msg.newValue)));
+                    }
+                } else {
+                    return;
+                }
+
+                const newNode = schema.nodes.machine_segment.create(existingNode.attrs, contentNodes);
+                view.dispatch(view.state.tr.replaceWith(pos, pos + existingNode.nodeSize, newNode));
             }
+        } else if (msg.type === "FREEFORM_PERSISTED") {
+            const { anchorAfter, blockId } = msg;
+            let found = false;
+
+            view.state.doc.descendants((node, pos) => {
+                if (found) return false;
+                if (node.type.name === "freeform_block" && node.attrs.anchorAfter === anchorAfter) {
+                    view.dispatch(
+                        view.state.tr.setNodeMarkup(pos, null, {
+                            ...node.attrs,
+                            blockId: blockId
+                        })
+                    );
+                    found = true;
+                    return false;
+                }
+            });
+        } else if (msg.type === "AUDIO_PLAY_START") {
+            document.querySelectorAll(".seg-gutter").forEach(el => {
+                const segEl = el.closest(".machine-segment");
+                if (segEl && segEl.dataset.segId === msg.segId) {
+                    el.style.color = "#00E5FF";
+                    el.title = "Đang phát...";
+                } else {
+                    el.style.color = "";
+                    el.title = "";
+                }
+            });
+        } else if (msg.type === "AUDIO_PLAY_END") {
+            document.querySelectorAll(".seg-gutter").forEach(el => {
+                el.style.color = "";
+                el.title = "";
+            });
+        } else if (msg.type === "FLUSH_FREEFORM") {
+            // Gap 7: Force flush all dirty freeform blocks immediately
+            if (window.changeTimeout) {
+                clearTimeout(window.changeTimeout);
+                window.changeTimeout = null;
             }
+            
+            let flushed = new Map();
+            view.state.doc.descendants((node, pos) => {
+                if (node.type.name === "freeform_block" && node.textContent.length > 0) {
+                    const key = node.attrs.blockId || node.attrs.anchorAfter || "__root__";
+                    flushed.set(key, {
+                        blockId: node.attrs.blockId,
+                        anchorAfter: node.attrs.anchorAfter,
+                        content: node.textContent
+                    });
+                }
+            });
+            
+            flushed.forEach(b => {
+                sendToHost({ 
+                    type: "FREEFORM_CHANGED",
+                    blockId: b.blockId,
+                    anchorAfter: b.anchorAfter,
+                    content: b.content
+                });
+            });
+            
+            sendToHost({ type: "FLUSH_COMPLETE" });
+        } else if (msg.type === "AUDIO_UNAVAILABLE") {
+            // Gap 10: Disable speaker icon for segments without audio
+            document.querySelectorAll(".machine-segment").forEach(el => {
+                if (el.dataset.segId === msg.segId) {
+                    const gutter = el.querySelector(".seg-gutter");
+                    if (gutter) {
+                        gutter.style.opacity = "0.3";
+                        gutter.style.cursor = "default";
+                        gutter.title = "Chưa có audio";
+                    }
+                }
+            });
+        }
         } catch (e) {
             sendToHost({ type: "JS_ERROR", message: e.toString(), stack: e.stack });
         }

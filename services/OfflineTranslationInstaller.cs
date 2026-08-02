@@ -87,7 +87,7 @@ namespace m_mslc_overlay.services
                     }
                     else
                     {
-                        targetDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                        targetDir = AppPathHelper.GetWritablePath(configuredPath);
                     }
                 }
 
@@ -379,7 +379,7 @@ namespace m_mslc_overlay.services
                 string configuredPath = ConfigManager.Current.OfflineServerDir;
                 targetDir = Path.IsPathRooted(configuredPath) 
                     ? configuredPath 
-                    : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                    : AppPathHelper.GetWritablePath(configuredPath);
             }
 
             string venvPython = Path.Combine(targetDir, "venv", "Scripts", "python.exe");

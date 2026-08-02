@@ -98,6 +98,7 @@
   "Pref_General_Language": "Ngôn ngữ giao diện",
   "Pref_General_CheckUpdates": "Tự động kiểm tra phiên bản mới",
   "Pref_Trans_Engine": "Engine Dịch",
+  "Pref_Trans_DeepLContextWindowSize": "Kích thước cửa sổ bối cảnh DeepL",
   "Pref_Trans_CloudAI": "AI Dịch",
   "Pref_Trans_LocalAI": "Local AI",
   "Pref_AI_Model": "Mô hình AI",

@@ -410,3 +410,6 @@ GEMINI.md
 /plugins.lock.json
 /.vscode
 assets/workspace/editor.js
+/.agents
+/dist/
+/scratch

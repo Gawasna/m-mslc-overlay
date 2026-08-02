@@ -60,6 +60,15 @@ public class BridgeMessage
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Mode { get; set; }
 
+    // SHOW_CONTEXT_MENU
+    [JsonPropertyName("menuType")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MenuType { get; set; }
+
+    [JsonPropertyName("targetId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TargetId { get; set; }
+
     // FREEFORM_CHANGED
     [JsonPropertyName("blockId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

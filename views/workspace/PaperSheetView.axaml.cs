@@ -20,8 +20,22 @@ public partial class PaperSheetView : UserControl
         {
             try 
             {
+                // Gap 4 fix: Reset _isWebReady before navigation
+                _isWebReady = false;
                 editor.NavigateToString(BuildSelfContainedHtml());
                 editor.WebMessageReceived += OnWebMessageReceived;
+                
+                // Gap 2 fix: Add timeout fallback for DOCUMENT_READY
+                _documentReadyTimeout = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                _documentReadyTimeout.Tick += (s, e) =>
+                {
+                    _documentReadyTimeout?.Stop();
+                    if (!_isWebReady)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[PaperSheetView] WARNING: DOCUMENT_READY not received after 3s. JS may have failed to init.");
+                    }
+                };
+                _documentReadyTimeout.Start();
             } 
             catch (Exception ex) 
             {
@@ -33,14 +47,12 @@ public partial class PaperSheetView : UserControl
     }
 
     private bool _isWebReady = false;
+    private Avalonia.Threading.DispatcherTimer? _documentReadyTimeout;
 
     private void OnDataContextChangedHandler(object? sender, EventArgs e)
     {
         UpdateViewModelWiring();
-        if (_isWebReady && DataContext is WorkspaceViewModel workspaceVm && workspaceVm.Sheet is PaperSheetViewModel vm)
-        {
-            vm.HandleWebMessage("{\"type\":\"DOCUMENT_READY\"}");
-        }
+        // REMOVED: Synthetic DOCUMENT_READY call — only JS can trigger it
     }
 
     private WorkspaceViewModel? _boundVm;
@@ -67,10 +79,7 @@ public partial class PaperSheetView : UserControl
         if (e.PropertyName == nameof(WorkspaceViewModel.Sheet))
         {
             WireSheet();
-            if (_isWebReady && _boundVm?.Sheet is PaperSheetViewModel vm)
-            {
-                vm.HandleWebMessage("{\"type\":\"DOCUMENT_READY\"}");
-            }
+            // REMOVED: Synthetic DOCUMENT_READY call — only JS can trigger it
         }
     }
 
@@ -78,16 +87,83 @@ public partial class PaperSheetView : UserControl
     {
         if (_boundVm?.Sheet is PaperSheetViewModel vm)
         {
+            // Gap 4 fix: Guard SendToEditor with _isWebReady check
             vm.SendToEditorAction = (msg) => 
             {
-                if (Editor != null) 
+                if (!_isWebReady)
                 {
-                    string json = System.Text.Json.JsonSerializer.Serialize(msg);
-                    Console.WriteLine($"[PaperSheetView] sending message: {json}");
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetView] Dropped message {msg.Type} — WebView2 not ready");
+                    return;
+                }
+                if (Editor == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetView] Dropped message {msg.Type} — Editor is null");
+                    return;
+                }
+                
+                string json = System.Text.Json.JsonSerializer.Serialize(msg);
+                Console.WriteLine($"[PaperSheetView] sending message: {json}");
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
                     Editor.PostWebMessage(json);
+                });
+            };
+            
+            vm.ShowContextMenuAction = (menuType, targetId) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    ShowEditorContextMenu(menuType, targetId);
+                });
+            };
+
+            vm.OpenEditDialogAction = async (segment) =>
+            {
+                var dialog = new SegmentEditDialog(segment);
+                if (this.VisualRoot is Window window)
+                {
+                    await dialog.ShowDialog(window);
+                    if (dialog.Confirmed)
+                    {
+                        vm.CommitSegmentEdit(segment, dialog.ResultTextSrc, dialog.ResultTextTrs);
+                    }
                 }
             };
         }
+    }
+
+    private void ShowEditorContextMenu(string menuType, string targetId)
+    {
+        var menu = this.FindControl<ContextMenu>("EditorContextMenu");
+        if (menu == null || Editor == null) return;
+        
+        if (menuType == "MachineSegment")
+        {
+            menu.ItemsSource = new[]
+            {
+                new MenuItem { Header = $"Phát lại đoạn âm thanh ({targetId})" },
+                new MenuItem { Header = "Ẩn phân đoạn này" },
+                new MenuItem { Header = "Chuyển thành văn bản tự do" }
+            };
+        }
+        else if (menuType == "FreeformBlock")
+        {
+            menu.ItemsSource = new[]
+            {
+                new MenuItem { Header = "Định dạng lại đoạn văn bản" },
+                new MenuItem { Header = $"Xóa khối văn bản tự do ({targetId})" }
+            };
+        }
+        else 
+        {
+            menu.ItemsSource = new[]
+            {
+                new MenuItem { Header = "Sao chép" },
+                new MenuItem { Header = "Dán" }
+            };
+        }
+        
+        menu.Open(Editor);
     }
 
     private void OnWebMessageReceived(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
@@ -98,13 +174,17 @@ public partial class PaperSheetView : UserControl
             Console.WriteLine($"[PaperSheetView] received message: {json}");
             System.Diagnostics.Debug.WriteLine($"[PaperSheetView] received message: {json}");
             
+            // Gap 2 fix: DOCUMENT_READY sets _isWebReady flag first
+            if (json.Contains("\"DOCUMENT_READY\""))
+            {
+                _isWebReady = true;
+                _documentReadyTimeout?.Stop(); // Cancel timeout — JS init succeeded
+                System.Diagnostics.Debug.WriteLine("[PaperSheetView] DOCUMENT_READY received, WebView2 is ready");
+            }
+            
             if (DataContext is WorkspaceViewModel workspaceVm && workspaceVm.Sheet is PaperSheetViewModel vm)
             {
                 vm.HandleWebMessage(json);
-            }
-            else if (json.Contains("\"DOCUMENT_READY\""))
-            {
-                _isWebReady = true;
             }
         } 
         catch (Exception ex) 

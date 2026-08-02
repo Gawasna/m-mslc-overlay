@@ -52,7 +52,15 @@ namespace m_mslc_overlay.services
             }
             else
             {
-                targetPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configuredPath));
+                targetPath = AppPathHelper.GetWritablePath(configuredPath);
+                if (!IsValidServerDirectory(targetPath))
+                {
+                    string baseDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredPath));
+                    if (IsValidServerDirectory(baseDir))
+                    {
+                        targetPath = baseDir;
+                    }
+                }
             }
 
             // Log chỉ khi path thay đổi — tránh spam từ polling loop gọi liên tục

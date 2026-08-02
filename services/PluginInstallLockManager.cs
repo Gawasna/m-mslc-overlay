@@ -36,8 +36,7 @@ namespace m_mslc_overlay.services
     /// </summary>
     public static class PluginInstallLockManager
     {
-        private static readonly string LockFilePath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "plugins.lock.json");
+        private static readonly string LockFilePath = AppPathHelper.GetLockFilePath();
 
         private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {

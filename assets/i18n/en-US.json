@@ -98,6 +98,7 @@
   "Pref_General_Language": "UI Language",
   "Pref_General_CheckUpdates": "Check for updates on startup",
   "Pref_Trans_Engine": "Translation Engine",
+  "Pref_Trans_DeepLContextWindowSize": "DeepL Context Window Size",
   "Pref_Trans_CloudAI": "Cloud AI",
   "Pref_Trans_LocalAI": "Local AI",
   "Pref_AI_Model": "AI Model",

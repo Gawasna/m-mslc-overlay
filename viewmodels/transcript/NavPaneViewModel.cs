@@ -3,6 +3,28 @@ using System.Runtime.CompilerServices;
 
 namespace m_mslc_overlay.viewmodels.transcript
 {
+    // ─── Speaker Annotation ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Speaker annotation entry used by the nav pane Speaker Annotation state.
+    /// </summary>
+    public sealed class SpeakerAnnotation : INotifyPropertyChanged
+    {
+        private string _displayName = string.Empty;
+
+        public string SpeakerKey { get; init; } = string.Empty; // e.g. UID from atom32
+
+        public string DisplayName
+        {
+            get => _displayName;
+            set { _displayName = value; OnPropertyChanged(); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
     // ─── Nav pane state enum ──────────────────────────────────────────────────
 
     /// <summary>
@@ -202,6 +224,41 @@ namespace m_mslc_overlay.viewmodels.transcript
         public void AddGlossaryEntry(string term, string definition)
         {
             GlossaryEntries.Add(new GlossaryEntry { Term = term, Definition = definition });
+        }
+
+        /// <summary>
+        /// Add or update a speaker in the Speakers collection.
+        /// Used by diarization pipeline to sync speaker identities.
+        /// </summary>
+        public void AddOrUpdateSpeaker(string speakerKey, string displayName)
+        {
+            foreach (var s in Speakers)
+            {
+                if (s.SpeakerKey == speakerKey)
+                {
+                    s.DisplayName = displayName;
+                    return;
+                }
+            }
+            Speakers.Add(new SpeakerAnnotation
+            {
+                SpeakerKey = speakerKey,
+                DisplayName = displayName
+            });
+        }
+
+        /// <summary>
+        /// Sync speakers from diarization timeline segments.
+        /// Extracts unique speaker UIDs and updates the Speakers collection.
+        /// </summary>
+        public void SyncSpeakers(System.Collections.Generic.List<MMslcOverlay.Services.SegmentInfo> segments)
+        {
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (var seg in segments)
+            {
+                if (seen.Add(seg.Uid))
+                    AddOrUpdateSpeaker(seg.Uid, seg.Identity);
+            }
         }
 
         // ─── INotifyPropertyChanged ──────────────────────────────────────

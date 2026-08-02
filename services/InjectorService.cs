@@ -11,18 +11,24 @@ namespace m_mslc_overlay.services
         {
             try
             {
-                // Ưu tiên dò tìm vị trí thực thi của thư viện Host.exe trong thư mục extractor
-                string hostPath = Path.Combine(AppContext.BaseDirectory, "extractor", "Host.exe");
+                // Ưu tiên dò tìm vị trí thực thi của thư viện Host.exe trong thư mục extractor (AppPathHelper)
+                string hostPath = Path.Combine(AppPathHelper.GetExtractorDirectory(), "Host.exe");
                 
                 if (!File.Exists(hostPath))
                 {
-                    // Fallback 1: Thư mục BaseDirectory trực tiếp
+                    // Fallback 1: Thư mục BaseDirectory/extractor
+                    hostPath = Path.Combine(AppContext.BaseDirectory, "extractor", "Host.exe");
+                }
+
+                if (!File.Exists(hostPath))
+                {
+                    // Fallback 2: Thư mục BaseDirectory trực tiếp
                     hostPath = Path.Combine(AppContext.BaseDirectory, "Host.exe");
                 }
 
                 if (!File.Exists(hostPath))
                 {
-                    // Fallback 2: Thư mục cha (phát triển cục bộ)
+                    // Fallback 3: Thư mục cha (phát triển cục bộ)
                     string rootDir = Directory.GetParent(AppContext.BaseDirectory)?.Parent?.Parent?.Parent?.FullName ?? AppContext.BaseDirectory;
                     hostPath = Path.Combine(rootDir, "Host.exe");
                 }

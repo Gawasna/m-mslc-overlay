@@ -114,8 +114,22 @@
                                    Foreground="{StaticResource TextPrimaryBrush}" />
                     </Border>
 
-                    <!-- Speaker list -->
+                    <!-- P3.5: Fallback panel when diarizer unavailable -->
+                    <StackPanel IsVisible="{Binding !IsDiarizerAvailable}" Margin="10,12" Spacing="6">
+                        <TextBlock Text="Speaker Diarization không khả dụng."
+                                   FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding DiarizerUnavailableReason}"
+                                   FontSize="10" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextTertiaryBrush}" />
+                        <Button Content="Mở Preferences để cài đặt"
+                                Click="OpenPreferencesBtn_Click"
+                                Classes="LinkBtn" FontSize="11" 
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <!-- Speaker list (visible when diarizer available) -->
                     <ItemsControl ItemsSource="{Binding Speakers}"
+                                  IsVisible="{Binding IsDiarizerAvailable}"
                                   Padding="0">
                         <ItemsControl.DataTemplates>
                             <DataTemplate x:DataType="vm:SpeakerAnnotation">
@@ -147,6 +161,7 @@
 
                     <!-- Hint when empty -->
                     <TextBlock Text="Speakers will appear here as segments arrive."
+                               IsVisible="{Binding IsDiarizerAvailable}"
                                FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap" Margin="10,12" />
 

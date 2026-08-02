@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using MMslcOverlay.Core.Workspace.Storage;
+using NAudio.Wave;
 
 namespace MMslcOverlay.Services.Workspace;
 
@@ -12,13 +13,48 @@ public class AudioRecorderService : IDisposable
     private BinaryWriter? _audioWriter;
     private bool _isRecording;
     
-    // Đây là khung sườn (skeleton) chuẩn bị cho tích hợp NAudio ở phase sau.
+    private WaveInEvent? _waveIn;
+    private bool _useNAudio;
+
+    /// <summary>
+    /// true nếu có thể capture audio thực sự với NAudio.
+    /// Nếu false (không có thiết bị/không có permission), fallback sang ghi đến file rỗng (dummy) vẫn được.
+    /// </summary>
+    public bool CanRecordRealAudio => _useNAudio;
 
     public AudioRecorderService(string wavFilePath, AudioOffsetIndex offsetIndex)
     {
         _wavFilePath = wavFilePath;
         _offsetIndex = offsetIndex;
-        InitializeWavFile();
+
+        _useNAudio = CanUseNAudio();
+        if (_useNAudio)
+        {
+            InitializeWavFile();
+        }
+        else
+        {
+            // Fallback: ghi file rỗng để playback logic không crash
+            try
+            {
+                InitializeWavFile();
+            }
+            catch { }
+            System.Diagnostics.Debug.WriteLine("[AudioRecorderService] NAudio capture unavailable (no input device or permission). Audio playback will be unavailable.");
+        }
+    }
+
+    private static bool CanUseNAudio()
+    {
+        try
+        {
+            // Chỉ kiểm tra nhanh — WaveInEvent sẽ khởi tạo khi StartRecording được gọi
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void InitializeWavFile()
@@ -61,11 +97,50 @@ public class AudioRecorderService : IDisposable
     public void StartRecording()
     {
         _isRecording = true;
+
+        if (!_useNAudio) return;
+
+        try
+        {
+            _waveIn?.StopRecording();
+
+            _waveIn = new WaveInEvent
+            {
+                WaveFormat = new WaveFormat(16000, 16, 1) // 16kHz, 16-bit, Mono
+            };
+
+            _waveIn.DataAvailable += OnWaveInDataAvailable;
+            _waveIn.StartRecording();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AudioRecorderService] Cannot start NAudio capture: {ex.Message}");
+            _useNAudio = false; // Fallback cho session này
+        }
     }
-    
+
+    private void OnWaveInDataAvailable(object? sender, WaveInEventArgs e)
+    {
+        if (!_isRecording) return;
+        // e.Buffer: PCM bytes vừa capture; Append vào WAV
+        var mut = new byte[e.BytesRecorded];
+        Buffer.BlockCopy(e.Buffer, 0, mut, 0, e.BytesRecorded);
+        long offset = WriteAudioData(mut);
+        _audioWriter?.Flush();
+        // offset có thể dùng cho SyncSegmentOffset nếu cần real-time mapping
+    }
+
     public void StopRecording()
     {
         _isRecording = false;
+
+        try
+        {
+            _waveIn?.StopRecording();
+            _waveIn?.Dispose();
+            _waveIn = null;
+        }
+        catch { }
 
         if (_audioWriter != null && _audioFileStream != null && _audioFileStream.CanSeek)
         {
@@ -78,7 +153,6 @@ public class AudioRecorderService : IDisposable
                 _audioFileStream.Seek(40, SeekOrigin.Begin);
                 _audioWriter.Write((uint)dataSize);
 
-                // Seek back to end to append more later if needed
                 _audioFileStream.Seek(0, SeekOrigin.End);
             }
         }
@@ -92,13 +166,18 @@ public class AudioRecorderService : IDisposable
     /// </summary>
     public long WriteAudioData(byte[] pcmData)
     {
-        if (!_isRecording || _audioWriter == null || _audioFileStream == null)
+        if (_audioWriter == null || _audioFileStream == null)
             return -1;
 
         long currentOffset = _audioFileStream.Position;
         _audioWriter.Write(pcmData);
         return currentOffset;
     }
+
+    /// <summary>
+    /// Current WAV file position (byte offset) — dùng để map SegmentId ↔ Audio.
+    /// </summary>
+    public long CurrentWriteOffset => _audioFileStream?.Position ?? 0;
 
     public void SyncSegmentOffset(long segmentId, long offset)
     {

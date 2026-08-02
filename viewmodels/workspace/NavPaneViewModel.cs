@@ -226,6 +226,75 @@ namespace MMslcOverlay.ViewModels.Workspace
             GlossaryEntries.Add(new GlossaryEntry { Term = term, Definition = definition });
         }
 
+        /// <summary>
+        /// Add or update a speaker in the Speakers collection.
+        /// Used by diarization pipeline to sync speaker identities.
+        /// </summary>
+        public void AddOrUpdateSpeaker(string speakerKey, string displayName)
+        {
+            foreach (var s in Speakers)
+            {
+                if (s.SpeakerKey == speakerKey)
+                {
+                    s.DisplayName = displayName;
+                    return;
+                }
+            }
+            Speakers.Add(new SpeakerAnnotation
+            {
+                SpeakerKey = speakerKey,
+                DisplayName = displayName
+            });
+        }
+
+        /// <summary>
+        /// Sync speakers from diarization timeline segments.
+        /// Extracts unique speaker UIDs and updates the Speakers collection.
+        /// </summary>
+        public void SyncSpeakers(System.Collections.Generic.List<MMslcOverlay.Services.SegmentInfo> segments)
+        {
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (var seg in segments)
+            {
+                if (seen.Add(seg.Uid))
+                    AddOrUpdateSpeaker(seg.Uid, seg.Identity);
+            }
+        }
+
+        // ─── P3.4: Diarizer Availability State ────────────────────────────
+
+        private bool _isDiarizerAvailable = true;
+        private string _diarizerUnavailableReason = string.Empty;
+
+        /// <summary>
+        /// Indicates whether speaker diarization is currently available.
+        /// Set to false when atom32 plugin is not installed or failed to start.
+        /// </summary>
+        public bool IsDiarizerAvailable
+        {
+            get => _isDiarizerAvailable;
+            private set { _isDiarizerAvailable = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Human-readable reason why diarization is unavailable.
+        /// </summary>
+        public string DiarizerUnavailableReason
+        {
+            get => _diarizerUnavailableReason;
+            private set { _diarizerUnavailableReason = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Mark diarization as unavailable with a specific reason.
+        /// Typically called from MainWindow when atom32 init fails.
+        /// </summary>
+        public void SetDiarizerUnavailable(string reason)
+        {
+            IsDiarizerAvailable = false;
+            DiarizerUnavailableReason = reason;
+        }
+
         // ─── INotifyPropertyChanged ──────────────────────────────────────
 
         public event PropertyChangedEventHandler? PropertyChanged;
