@@ -25,7 +25,7 @@ public class PaperSheetViewModel : INotifyPropertyChanged
     /// <summary>Fired khi JS ack hoàn tất 1 flush đợt freeform (cho FlushPendingAsync).</summary>
     public event Action? FreeformFlushed;
 
-    private int _pendingFreeformWrites;
+    private bool _isFlushPending;
 
     public MagicCursorViewModel MagicCursor { get; }
     public ScrollModeController ScrollController { get; } = new ScrollModeController();
@@ -204,8 +204,12 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                         _workspace.UserDataRepo.UpdateFreeformBlock(block);
                     }
 
-                    _pendingFreeformWrites = 0;
-                    FreeformFlushed?.Invoke();
+                    // Only ack flush if one was explicitly requested via RequestFlushFreeform()
+                    if (_isFlushPending)
+                    {
+                        _isFlushPending = false;
+                        FreeformFlushed?.Invoke();
+                    }
                     break;
                 }
                 case "PLAY_AUDIO":
@@ -320,6 +324,9 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         };
 
 #if DEBUG_F18_MOCK
+        // CAUTION: DEBUG_F18_MOCK is intentionally NOT defined in .csproj (neither Debug nor Release).
+        // Activate ONLY by passing /p:DefineConstants=DEBUG_F18_MOCK from CLI for isolated manual UI testing.
+        // Never add this symbol to the project's <DefineConstants> or Build Configuration properties.
         if (allSegments == null || allSegments.Count == 0)
         {
             allSegments = new List<MMslcOverlay.Core.Workspace.Models.MergedSegment>
@@ -420,7 +427,7 @@ public class PaperSheetViewModel : INotifyPropertyChanged
     // ─── UI Actions ────────────────────────────────────────────────────────
     public void RequestFlushFreeform()
     {
-        _pendingFreeformWrites = 1;
+        _isFlushPending = true;
         SendToEditor(new BridgeMessage { Type = "FLUSH_FREEFORM" });
     }
 

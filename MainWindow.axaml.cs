@@ -83,6 +83,10 @@ namespace m_mslc_overlay
             _workspaceVm.OpenFileExternallyAction = OpenFileInDefaultApp;
             _workspaceVm.ImportScriptRequested += OnImportScriptRequested;
 
+            // R1 fix: reflect session file list changes in real-time (after recording stop, export, etc.)
+            _workspaceVm.SessionFiles.CollectionChanged += (_, _) =>
+                Avalonia.Threading.Dispatcher.UIThread.Post(RefreshSessionFilesList);
+
             _workspaceVm.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(WorkspaceViewModel.IsOpen))
