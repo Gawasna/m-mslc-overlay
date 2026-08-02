@@ -20,7 +20,7 @@ public class SegmentIngestionService
     /// <summary>
     /// Nhận DTO từ hệ thống STT và lưu vào active.db
     /// </summary>
-    public void IngestSttPayload(long tsStartMs, long tsEndMs, string textSrc, string? textTrs = null, string? speakerId = null, string commitType = "HARD")
+    public long IngestSttPayload(long tsStartMs, long tsEndMs, string textSrc, string? textTrs = null, string? speakerId = null, string commitType = "HARD")
     {
         var segment = new Segment
         {
@@ -39,5 +39,6 @@ public class SegmentIngestionService
 
         // Bắn sự kiện ra ngoài cho UI (Ví dụ: PaperSheetViewModel) update
         SegmentAdded?.Invoke(segment);
+        return id;
     }
 }

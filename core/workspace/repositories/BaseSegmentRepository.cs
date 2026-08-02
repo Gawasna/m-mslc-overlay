@@ -123,4 +123,25 @@ public class BaseSegmentRepository
 
         return segments;
     }
+
+    /// <summary>
+    /// Cập nhật bản dịch máy (text_trs) cho segment theo ID
+    /// </summary>
+    public void UpdateSegmentTranslation(long id, string textTrs)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE segments 
+            SET text_trs = @text_trs 
+            WHERE id = @id;
+        ";
+
+        command.Parameters.AddWithValue("@text_trs", textTrs ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@id", id);
+
+        command.ExecuteNonQuery();
+    }
 }

@@ -13,6 +13,7 @@ using m_mslc_overlay.services;
 using m_mslc_overlay.core;
 using MMslcOverlay.Services;
 using MMslcOverlay.ViewModels.Workspace;
+using MMslcOverlay.Core.Workspace.Models;
 
 namespace m_mslc_overlay
 {
@@ -41,6 +42,7 @@ namespace m_mslc_overlay
         private DiarizerProcessManager? _diarizerManager;
         private string _latestSpeakerUid = string.Empty;
         private string _latestSpeakerDisplayName = string.Empty;
+        private readonly System.Collections.Generic.Dictionary<Guid, long> _segmentIdMap = new();
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -175,6 +177,27 @@ namespace m_mslc_overlay
                     // ATOM79: track segment lifecycle
                     var segment = _segmentTracker.TrackCommit(meta);
 
+                    // Ingest into workspace if open
+                    if (_workspaceVm.IsOpen && _workspaceVm.Service?.IngestionService != null)
+                    {
+                        long tsEndMs = (long)meta.AcousticEndMs;
+                        if (tsEndMs <= 0)
+                        {
+                            tsEndMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                        }
+                        long tsStartMs = tsEndMs - 2000; // Estimated 2s duration
+                        
+                        long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
+                            tsStartMs: tsStartMs,
+                            tsEndMs: tsEndMs,
+                            textSrc: meta.Text,
+                            textTrs: null,
+                            speakerId: !string.IsNullOrEmpty(meta.SpeakerId) ? meta.SpeakerId : "UNK",
+                            commitType: meta.Reason == "HardCommit" ? "HARD" : "SOFT"
+                        );
+                        _segmentIdMap[segment.Id] = dbId;
+                    }
+
                     // ATOM50: route through ShortSentenceBuffer — translation fires
                     // only when OnFlush is triggered (either by merge or timeout).
                     _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
@@ -213,6 +236,28 @@ namespace m_mslc_overlay
 
                         // ATOM79: link translation back to originating segment
                         var linkedSeg = _segmentTracker.LinkTranslation(result);
+
+                        // Cập nhật bản dịch vào Workspace database và gửi sang WebView2 PaperSheet
+                        if (linkedSeg != null && _workspaceVm.IsOpen && _workspaceVm.Service?.ActiveSegmentRepo != null)
+                        {
+                            if (_segmentIdMap.TryGetValue(linkedSeg.Id, out long dbId))
+                            {
+                                // 1. Lưu vào SQLite database
+                                _workspaceVm.Service.ActiveSegmentRepo.UpdateSegmentTranslation(dbId, fullSentence);
+
+                                // 2. Đẩy sang WebView2 PaperSheet UI
+                                if (_workspaceVm.Sheet is PaperSheetViewModel paperSheetVm)
+                                {
+                                    paperSheetVm.SendToEditor(new BridgeMessage
+                                    {
+                                        Type = "APPLY_PATCH",
+                                        SegId = dbId.ToString(),
+                                        Field = "TextTrs",
+                                        NewValue = fullSentence
+                                    });
+                                }
+                            }
+                        }
 
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
@@ -263,6 +308,7 @@ namespace m_mslc_overlay
                     _shortSentenceBuffer.Reset();
                     _segmentTracker.Reset();  // ATOM79: clear stale segments on reconnect
                     _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
+                    _segmentIdMap.Clear();
                 }
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
