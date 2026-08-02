@@ -34,7 +34,26 @@ namespace m_mslc_overlay
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                desktop.MainWindow = new MainWindow();
+                // FL1: Check if first run
+                bool isFirstRun = !m_mslc_overlay.services.ConfigManager.Current.HasCompletedFirstRun;
+                
+                if (isFirstRun && !m_mslc_overlay.services.AppPathHelper.IsDevMode)
+                {
+                    // Production mode first run - show wizard
+                    var wizardWindow = new m_mslc_overlay.views.dialogs.FirstRunWizardWindow();
+                    desktop.MainWindow = wizardWindow;
+                    
+                    // When wizard closes, open main window
+                    wizardWindow.Closed += (s, e) => {
+                        desktop.MainWindow = new MainWindow();
+                        desktop.MainWindow.Show();
+                    };
+                }
+                else
+                {
+                    // Dev mode or already completed first run - go straight to main window
+                    desktop.MainWindow = new MainWindow();
+                }
             }
 
             base.OnFrameworkInitializationCompleted();

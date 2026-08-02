@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.dialogs.FirstRunWizardWindow"
+        Title="Chào mừng đến với m-mslc-overlay"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
+        Width="650" Height="550"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="#F9FAFB">
+    
+    <Grid RowDefinitions="Auto, *, Auto" Margin="0">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource PrimaryBrush}" Padding="24,20">
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="HeaderTitle" Text="Chào mừng!" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                <TextBlock x:Name="HeaderSubtitle" Text="Hãy cùng thiết lập ứng dụng trong vài bước đơn giản" FontSize="13" Foreground="#E5E7EB"/>
+            </StackPanel>
+        </Border>
+        
+        <!-- Content Area (Multi-step pages) -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="ContentPanel" Margin="32,24"/>
+        </ScrollViewer>
+        
+        <!-- Footer Navigation -->
+        <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="24,16">
+            <Grid ColumnDefinitions="*, Auto">
+                <!-- Progress indicator -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock x:Name="StepIndicator" Text="Bước 1 / 6" FontSize="12" Foreground="#6B7280"/>
+                </StackPanel>
+                
+                <!-- Action buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="BackBtn" Content="◀ Quay lại" Width="110" IsEnabled="False" Click="BackBtn_Click"/>
+                    <Button x:Name="NextBtn" Content="Tiếp theo ▶" Width="110" Click="NextBtn_Click" Classes="accent"/>
+                    <Button x:Name="FinishBtn" Content="Hoàn tất" Width="110" IsVisible="False" Click="FinishBtn_Click" Classes="accent"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+    </Grid>
+</Window>
