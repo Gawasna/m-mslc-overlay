@@ -491,41 +491,51 @@ namespace m_mslc_overlay
             var topLevel = TopLevel.GetTopLevel(this);
             if (topLevel == null) return;
 
-            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
-            {
-                Title = "Chọn thư mục cha để tạo workspace mới",
-                AllowMultiple = false
-            });
+            // User mở FolderPicker, tạo folder mới ngay trong dialog (hoặc chọn folder rỗng).
+            // workspace_name = session_name = tên của folder được chọn — không hỏi thêm.
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
+                new Avalonia.Platform.Storage.FolderPickerOpenOptions
+                {
+                    Title = "Tạo hoặc chọn thư mục workspace mới",
+                    AllowMultiple = false
+                });
 
             if (folders.Count == 0) return;
 
-            string parentPath = folders[0].Path.LocalPath;
+            string selectedPath = folders[0].Path.LocalPath;
 
-            // Hiển thị dialog đặt tên workspace
-            string? workspaceName = await ShowInputDialogAsync("Tên workspace", "Nhập tên cho phiên làm việc mới:");
-            if (string.IsNullOrWhiteSpace(workspaceName)) return;
-
-            // Sanitize: bỏ ký tự không hợp lệ trong tên folder
-            foreach (var c in Path.GetInvalidFileNameChars())
-                workspaceName = workspaceName.Replace(c, '_');
-
-            string newPath = Path.Combine(parentPath, workspaceName);
-            if (Directory.Exists(newPath) && Directory.EnumerateFileSystemEntries(newPath).Any())
+            // Guard: nếu folder đã là workspace hợp lệ → nhắc dùng Open thay vì New
+            var storage = new MMslcOverlay.Core.Workspace.Storage.WorkspaceStorage(selectedPath);
+            if (storage.IsValidWorkspace())
             {
-                await ShowErrorMessageAsync("Thư mục đã tồn tại",
-                    $"Thư mục '{workspaceName}' đã tồn tại và không rỗng.\nVui lòng chọn tên khác hoặc thư mục khác.");
+                await ShowErrorMessageAsync(
+                    "Workspace đã tồn tại",
+                    $"Thư mục đã chứa workspace MMslcOverlay.\nDùng File > Open Workspace để mở.");
+                return;
+            }
+
+            // Guard: nếu folder không rỗng và không phải workspace → cảnh báo
+            if (Directory.Exists(selectedPath) &&
+                Directory.EnumerateFileSystemEntries(selectedPath).Any())
+            {
+                await ShowErrorMessageAsync(
+                    "Thư mục không rỗng",
+                    $"Thư mục đã chứa nội dung khác.\nVui lòng tạo folder mới trong dialog để dùng làm workspace.");
                 return;
             }
 
             try
             {
-                _workspaceVm.OpenOrCreate(newPath);
+                // workspace_name tự động = tên folder, không cần hỏi thêm
+                _workspaceVm.OpenOrCreate(selectedPath);
             }
             catch (Exception ex)
             {
                 await ShowErrorMessageAsync("Lỗi tạo workspace", ex.Message);
             }
         }
+
+
 
         private async System.Threading.Tasks.Task<string?> ShowInputDialogAsync(string title, string prompt)
         {
