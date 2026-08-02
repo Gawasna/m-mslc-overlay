@@ -1,14 +1,17 @@
-<Window xmlns="https://github.com/avaloniaui"
+    <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:transcript="using:m_mslc_overlay.views.content.transcript"
         xmlns:views="clr-namespace:MMslcOverlay.Views.Workspace"
+        xmlns:vm="using:MMslcOverlay.ViewModels.Workspace"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.MainWindow"
+        x:Name="MainWindowRoot"
         Title="{DynamicResource Title_ControlCenter}"
         Background="{StaticResource BgWindowBrush}"
         MinWidth="960" MinHeight="300"
         Width="1200" Height="768"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        x:CompileBindings="False">
 
     <Window.Styles>
         <Style Selector="Border.SidebarItem">
@@ -92,11 +95,11 @@
                     <MenuItem Header="_Open Workspace..." Click="OnOpenWorkspaceMenuClick" />
                     <MenuItem Header="_Close Workspace" Click="OnCloseWorkspaceMenuClick" IsEnabled="{Binding IsOpen}" x:CompileBindings="False" />
                     <Separator />
-                    <MenuItem Header="_Export" IsEnabled="False">
-                        <MenuItem Header="SRT..." />
-                        <MenuItem Header="TXT..." />
-                        <MenuItem Header="Markdown..." />
-                        <MenuItem Header="PDF..." />
+                    <MenuItem Header="_Export" IsEnabled="{Binding IsOpen}" x:CompileBindings="False">
+                        <MenuItem Header="SRT..."  Command="{Binding ExportSrtCommand}"  x:CompileBindings="False" />
+                        <MenuItem Header="TXT..."  Command="{Binding ExportTxtCommand}"  x:CompileBindings="False" />
+                        <MenuItem Header="Markdown..." Command="{Binding ExportMdCommand}" x:CompileBindings="False" />
+                        <MenuItem Header="PDF..."  Command="{Binding ExportPdfCommand}"  x:CompileBindings="False" />
                     </MenuItem>
                     <Separator />
                     <MenuItem Header="{DynamicResource Menu_InjectTargetDll}">
@@ -108,6 +111,8 @@
                     <MenuItem Header="{DynamicResource Menu_Exit}" InputGesture="Alt+F4" />
                 </MenuItem>
                 <MenuItem Header="{DynamicResource Menu_Edit}">
+                    <MenuItem Header="{DynamicResource Menu_ImportScript}" Click="OnImportScriptMenuClick" IsEnabled="{Binding IsOpen}" x:CompileBindings="False" />
+                    <Separator />
                     <MenuItem Header="{DynamicResource Menu_CopySelectedLog}" InputGesture="Ctrl+C" />
                     <MenuItem Header="{DynamicResource Menu_ClearHistoryLog}" InputGesture="Ctrl+L" />
                     <Separator />
@@ -243,13 +248,14 @@
                                                FontWeight="SemiBold" 
                                                FontSize="12" 
                                                Foreground="{StaticResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="Interview with Tech Lead" 
+                                    <TextBlock x:Name="SessionNameText"
                                                FontWeight="Bold" 
                                                FontSize="13" 
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 
-                                <TextBlock Text="Last Modified: 2026-07-19 14:30" 
+                                <TextBlock x:Name="LastModifiedText" 
                                            FontSize="11" 
                                            Foreground="{StaticResource TextSecondaryBrush}"/>
                                            
@@ -263,7 +269,7 @@
                                             CornerRadius="0" 
                                             Padding="8,4" 
                                             Margin="0,0,8,0">
-                                        <TextBlock Text="C:\Workspaces\TechLead_2026..." 
+                                        <TextBlock x:Name="WorkspacePathText"
                                                    FontSize="11" 
                                                    Foreground="{StaticResource TextSecondaryBrush}" 
                                                    VerticalAlignment="Center"
@@ -284,7 +290,9 @@
                                         </Button>
                                         
                                         <!-- Copy button -->
-                                        <Button Classes="SecondaryBtn CopyPathBtn"
+                                        <Button x:Name="CopyPathBtn"
+                                                Click="CopyPathBtn_Click"
+                                                Classes="SecondaryBtn CopyPathBtn"
                                                 Padding="6,4"
                                                 Height="24"
                                                 CornerRadius="0"
@@ -296,7 +304,7 @@
                             </StackPanel>
                         </Border>
                         
-                        <!-- Session Files list -->
+                        <!-- Session Files list — dynamic bind from WorkspaceViewModel.SessionFiles -->
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                             <Border Background="Transparent"
                                     BorderBrush="{StaticResource BorderLightBrush}"
@@ -304,60 +312,9 @@
                                     CornerRadius="0"
                                     Margin="0"
                                     Padding="4">
-                                <StackPanel Spacing="2">
-                                    <!-- File 1: transcript.srt (Active) -->
-                                    <Border Classes="SidebarItem Active">
-                                        <Grid ColumnDefinitions="Auto, *">
-                                            <!-- File icon -->
-                                            <materialIcons:MaterialIcon Grid.Column="0" 
-                                                                        Kind="FileDocumentOutline" 
-                                                                        Width="14" 
-                                                                        Height="14" 
-                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
-                                            <!-- File name -->
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="transcript.srt" 
-                                                       FontSize="12" 
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                       VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- File 2: audio_source.wav (Inactive) -->
-                                    <Border Classes="SidebarItem">
-                                        <Grid ColumnDefinitions="Auto, *">
-                                            <!-- File icon -->
-                                            <materialIcons:MaterialIcon Grid.Column="0" 
-                                                                        Kind="MusicNote" 
-                                                                        Width="14" 
-                                                                        Height="14" 
-                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
-                                            <!-- File name -->
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="audio_source.wav" 
-                                                       FontSize="12" 
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                       VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- File 3: notes.txt (Inactive) -->
-                                    <Border Classes="SidebarItem">
-                                        <Grid ColumnDefinitions="Auto, *">
-                                            <!-- File icon -->
-                                            <materialIcons:MaterialIcon Grid.Column="0" 
-                                                                        Kind="NotebookOutline" 
-                                                                        Width="14" 
-                                                                        Height="14" 
-                                                                        Foreground="{StaticResource TextSecondaryBrush}"/>
-                                            <!-- File name -->
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="notes.txt" 
-                                                       FontSize="12" 
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                       VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
+                                <StackPanel x:Name="SessionFilesPanel" Spacing="2">
+                                    <TextBlock FontSize="11" Text="Session files appear after recording or exporting."
+                                               Foreground="{StaticResource TextTertiaryBrush}" FontStyle="Italic" />
                                 </StackPanel>
                             </Border>
                         </ScrollViewer>

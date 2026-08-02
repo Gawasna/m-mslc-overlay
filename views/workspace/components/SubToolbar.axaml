@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMslcOverlay.ViewModels.Workspace"
+             xmlns:mi="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="MMslcOverlay.Views.Workspace.Components.SubToolbar"
              x:DataType="vm:WorkspaceViewModel">
 
@@ -34,6 +35,22 @@
             <!-- Separator -->
             <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
 
+            <!-- Record button — click gọi StartRecording/StopRecording -->
+            <Button x:Name="RecordBtn"
+                    Classes="SubToolbarPill"
+                    ToolTip.Tip="Toggle audio recording"
+                    IsEnabled="{Binding IsOpen}">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <mi:MaterialIcon x:Name="RecordIcon" Kind="Microphone" Width="12" Height="12"
+                                            Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock x:Name="RecordLabel" FontSize="10" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Text="Record" />
+                </StackPanel>
+            </Button>
+
+            <!-- Separator -->
+            <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
+
             <!-- Export SRT button -->
             <Button x:Name="ExportSrtBtn"
                     Content="Export .SRT"
@@ -57,11 +74,7 @@
             <!-- Separator -->
             <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
 
-            <!--
-                Auto-Scroll pill toggle — ToggleButton replaces the CheckBox+Border
-                approach entirely. Checked state drives the orange-tint pill styling.
-                Uses SubToolbarPill style defined in Controls.axaml.
-            -->
+            <!-- Auto-Scroll pill toggle -->
             <ToggleButton x:Name="AutoScrollToggle"
                           IsChecked="{Binding Sheet.AutoScroll}"
                           Classes="SubToolbarPill"
@@ -77,7 +90,7 @@
                           ToolTip.Tip="Toggle focus mode (hides navigation pane)">
                 <TextBlock Text="Focus Mode" FontSize="10"
                            VerticalAlignment="Center" />
-            </ToggleButton>
+                </ToggleButton>
 
         </StackPanel>
     </Border>

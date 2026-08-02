@@ -77,6 +77,12 @@ namespace m_mslc_overlay
 
             // MainWindow IS the workspace container — set DataContext ngay sau InitializeComponent
             DataContext = _workspaceVm;
+
+            // Wire export picker callback cho WorkspaceViewModel
+            _workspaceVm.RequestSavePathAction = ShowSaveFileDialogAsync;
+            _workspaceVm.OpenFileExternallyAction = OpenFileInDefaultApp;
+            _workspaceVm.ImportScriptRequested += OnImportScriptRequested;
+
             _workspaceVm.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(WorkspaceViewModel.IsOpen))
@@ -91,6 +97,12 @@ namespace m_mslc_overlay
                         // Vì PaperSheetView giờ đây là Composite Root bao gồm cả Toolbars (cần WorkspaceViewModel)
                         if (_workspaceVm.IsOpen) paperSheet.DataContext = _workspaceVm;
                     }
+                }
+                else if (e.PropertyName == nameof(WorkspaceViewModel.DisplayName) ||
+                         e.PropertyName == nameof(WorkspaceViewModel.WorkspacePath) ||
+                         e.PropertyName == nameof(WorkspaceViewModel.LastModifiedDisplay))
+                {
+                    UpdateSessionDisplay();
                 }
             };
 
@@ -321,48 +333,31 @@ namespace m_mslc_overlay
             };
 
             this.Closing += async (s, e) => {
-                // Gap 7: Flush workspace before closing
-                if (_workspaceVm.IsOpen)
+                // Đóng khi có workspace: flush pending + confirm nếu dirty
+                if (_workspaceVm.IsOpen || _workspaceVm.IsDirty)
                 {
-                    e.Cancel = true; // Temporarily cancel to flush
-                    await FlushAndCloseWorkspace();
-                    // After flush, close for real
-                    _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
-                    _shortSentenceBuffer.Dispose();
-                    _aiService.Dispose();           // ATOM81: dispose priority queue and http client
-                    _revisionWindow.Dispose();      // ATOM80
-                    _hiderService.Dispose();
-                    _pipeService.Dispose();
-                    _resourceTimer.Stop();
-                    _uiUpdateTimer.Stop();
-                    _hotkeyManager?.Dispose();
-                    _focusKeyController?.Dispose();
-                    OfflineTranslationServerManager.StopServer();
-                    
-                    if (_diarizerManager != null)
+                    e.Cancel = true; // Cancel để xử lý async
+
+                    if (_workspaceVm.IsDirty)
                     {
-                        _diarizerManager.Dispose();
+                        var choice = await ShowUnsavedChangesDialogAsync();
+                        if (choice == UnsavedChoice.Cancel) return; // Stay open
+                        if (choice == UnsavedChoice.Save)
+                            await FlushPendingEditsAsync();
                     }
-                    this.Close(); // Close for real after cleanup
+
+                    if (_workspaceVm.IsRecording) _workspaceVm.StopRecording();
+
+                    // Sau flush, thực hiện cleanup rồi close
+                    if (_workspaceVm.IsOpen)
+                        _workspaceVm.CloseWorkspace();
+
+                    CleanupServices();
+                    this.Close(); // Close thực sự sau khi xử lý xong
                 }
                 else
                 {
-                    _shortSentenceBuffer.Flush();   // ATOM50: flush any pending before shutdown
-                    _shortSentenceBuffer.Dispose();
-                    _aiService.Dispose();           // ATOM81: dispose priority queue and http client
-                    _revisionWindow.Dispose();      // ATOM80
-                    _hiderService.Dispose();
-                    _pipeService.Dispose();
-                    _resourceTimer.Stop();
-                    _uiUpdateTimer.Stop();
-                    _hotkeyManager?.Dispose();
-                    _focusKeyController?.Dispose();
-                    OfflineTranslationServerManager.StopServer();
-                    
-                    if (_diarizerManager != null)
-                    {
-                        _diarizerManager.Dispose();
-                    }
+                    CleanupServices();
                 }
             };
 
@@ -404,20 +399,198 @@ namespace m_mslc_overlay
             _workspaceVm.OpenOrCreate(workspacePath);
         }
 
+        /// <summary>
+        /// Kết quả dialog Unsaved Changes.
+        /// </summary>
+        private enum UnsavedChoice { Save, DontSave, Cancel }
+
+        /// <summary>
+        /// Hiển thị dialog Save / Don't Save / Cancel.
+        /// </summary>
+        private async System.Threading.Tasks.Task<UnsavedChoice> ShowUnsavedChangesDialogAsync()
+        {
+            if (!_workspaceVm.IsDirty) return UnsavedChoice.Save;
+
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<UnsavedChoice>();
+            var dialog = new Window
+            {
+                Title = "Unsaved Changes",
+                Width = 440,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                Content = new Border
+                {
+                    Padding = new Avalonia.Thickness(24),
+                    Child = new StackPanel
+                    {
+                        Spacing = 16,
+                        Children =
+                        {
+                            new TextBlock
+                            {
+                                Text = $"Workspace '{_workspaceVm.WorkspaceName}' có thay đổi chưa được lưu.\nBạn muốn làm gì trước khi tiếp tục?",
+                                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                                Foreground = Brushes.White
+                            },
+                            new StackPanel
+                            {
+                                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                                Spacing = 8,
+                                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                                Children =
+                                {
+                                    new Button { Content = "Lưu", Tag = UnsavedChoice.Save, Width = 90 },
+                                    new Button { Content = "Không lưu", Tag = UnsavedChoice.DontSave, Width = 90 },
+                                    new Button { Content = "Hủy", Tag = UnsavedChoice.Cancel, Width = 90 }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            foreach (var child in ((StackPanel)((Border)dialog.Content!).Child!).Children)
+            {
+                if (child is StackPanel btnRow)
+                {
+                    foreach (var btn in btnRow.Children.OfType<Button>())
+                    {
+                        btn.Click += (_, _) =>
+                        {
+                            tcs.TrySetResult((UnsavedChoice)btn.Tag!);
+                            dialog.Close();
+                        };
+                    }
+                }
+            }
+
+            await dialog.ShowDialog(this);
+            return await tcs.Task;
+        }
+
         private void OnNewWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
-            // Gap 3 fix: New Workspace — auto-generate path with timestamp
-            string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string newPath = Path.Combine(
-                documentsPath, "MMslcOverlay", "workspaces",
-                $"session_{DateTime.Now:yyyyMMdd_HHmmss}");
-            
-            _workspaceVm.OpenOrCreate(newPath);
+            _ = NewWorkspaceFlowAsync();
+        }
+
+        private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()
+        {
+            // Check dirty trước khi đóng workspace hiện tại
+            if (_workspaceVm.IsOpen && _workspaceVm.IsDirty)
+            {
+                var choice = await ShowUnsavedChangesDialogAsync();
+                if (choice == UnsavedChoice.Cancel) return;
+                if (choice == UnsavedChoice.Save) await _workspaceVm.FlushPendingAsync();
+            }
+
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return;
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = "Chọn thư mục cha để tạo workspace mới",
+                AllowMultiple = false
+            });
+
+            if (folders.Count == 0) return;
+
+            string parentPath = folders[0].Path.LocalPath;
+
+            // Hiển thị dialog đặt tên workspace
+            string? workspaceName = await ShowInputDialogAsync("Tên workspace", "Nhập tên cho phiên làm việc mới:");
+            if (string.IsNullOrWhiteSpace(workspaceName)) return;
+
+            // Sanitize: bỏ ký tự không hợp lệ trong tên folder
+            foreach (var c in Path.GetInvalidFileNameChars())
+                workspaceName = workspaceName.Replace(c, '_');
+
+            string newPath = Path.Combine(parentPath, workspaceName);
+            if (Directory.Exists(newPath) && Directory.EnumerateFileSystemEntries(newPath).Any())
+            {
+                await ShowErrorMessageAsync("Thư mục đã tồn tại",
+                    $"Thư mục '{workspaceName}' đã tồn tại và không rỗng.\nVui lòng chọn tên khác hoặc thư mục khác.");
+                return;
+            }
+
+            try
+            {
+                _workspaceVm.OpenOrCreate(newPath);
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync("Lỗi tạo workspace", ex.Message);
+            }
+        }
+
+        private async System.Threading.Tasks.Task<string?> ShowInputDialogAsync(string title, string prompt)
+        {
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<string?>();
+            var input = new TextBox { Watermark = "Session name" };
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 400,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                Content = new Border
+                {
+                    Padding = new Avalonia.Thickness(24),
+                    Child = new StackPanel
+                    {
+                        Spacing = 12,
+                        Children =
+                        {
+                            new TextBlock { Text = prompt, Foreground = Brushes.White, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                            input,
+                            new StackPanel
+                            {
+                                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                                Spacing = 8,
+                                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                                Children =
+                                {
+                                    new Button { Content = "OK", Width = 80, IsDefault = true },
+                                    new Button { Content = "Hủy", Width = 80, IsCancel = true }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var btnPanel = (StackPanel)((StackPanel)((Border)dialog.Content!).Child!).Children[2];
+            var okBtn = (Button)btnPanel.Children[0];
+            var cancelBtn = (Button)btnPanel.Children[1];
+
+            okBtn.Click += (_, _) =>
+            {
+                tcs.TrySetResult(string.IsNullOrWhiteSpace(input.Text)
+                    ? $"session_{DateTime.Now:yyyyMMdd_HHmmss}"
+                    : input.Text.Trim());
+                dialog.Close();
+            };
+            cancelBtn.Click += (_, _) =>
+            {
+                tcs.TrySetResult(null);
+                dialog.Close();
+            };
+
+            await dialog.ShowDialog(this);
+            return await tcs.Task;
         }
 
         private async void OnOpenWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
-            // Gap 3 + Gap 9 fix: Open Workspace with folder picker and validation
+            // Dirty-check trước khi switch workspace
+            if (_workspaceVm.IsOpen && _workspaceVm.IsDirty)
+            {
+                var choice = await ShowUnsavedChangesDialogAsync();
+                if (choice == UnsavedChoice.Cancel) return;
+                if (choice == UnsavedChoice.Save) await _workspaceVm.FlushPendingAsync();
+            }
+
             var topLevel = TopLevel.GetTopLevel(this);
             if (topLevel == null) return;
 
@@ -427,11 +600,10 @@ namespace m_mslc_overlay
                 AllowMultiple = false
             });
 
-            if (folders.Count == 0) return; // user cancel
+            if (folders.Count == 0) return;
 
             string selectedPath = folders[0].Path.LocalPath;
 
-            // Gap 9: Validate folder is a valid workspace
             var storage = new MMslcOverlay.Core.Workspace.Storage.WorkspaceStorage(selectedPath);
             if (!storage.IsValidWorkspace())
             {
@@ -441,10 +613,15 @@ namespace m_mslc_overlay
                 return;
             }
 
-            // VS Code pattern: close current, open new MainWindow
-            var newWindow = new MainWindow(selectedPath);
-            newWindow.Show();
-            this.Close();
+            // Mở trong cùng window (không tạo window mới) → tránh leak VM
+            try
+            {
+                _workspaceVm.OpenOrCreate(selectedPath);
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync("Lỗi mở workspace", ex.Message);
+            }
         }
 
         private async System.Threading.Tasks.Task ShowErrorMessageAsync(string title, string message)
@@ -481,24 +658,220 @@ namespace m_mslc_overlay
             await dialog.ShowDialog(this);
         }
 
-        // Gap 7: Close Workspace menu handler
+        // Gap 7: Close Workspace menu handler — với dirty check
         private async void OnCloseWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
-            await FlushAndCloseWorkspace();
+            if (_workspaceVm.IsDirty)
+            {
+                var choice = await ShowUnsavedChangesDialogAsync();
+                if (choice == UnsavedChoice.Cancel) return;
+                if (choice == UnsavedChoice.Save)
+                    await _workspaceVm.FlushPendingAsync();
+            }
+
+            if (_workspaceVm.IsRecording) _workspaceVm.StopRecording();
+            _workspaceVm.CloseWorkspace();
         }
 
-        // Gap 7: Flush freeform changes before closing workspace
-        private async System.Threading.Tasks.Task FlushAndCloseWorkspace()
+        /// <summary>
+        /// Flush pending freeform edits only (không đóng workspace).
+        /// Dùng cho application Closing.
+        /// </summary>
+        private async System.Threading.Tasks.Task FlushPendingEditsAsync()
         {
-            if (_workspaceVm.Sheet is PaperSheetViewModel vm)
+            await _workspaceVm.FlushPendingAsync();
+        }
+
+        /// <summary>
+        /// Dọn dẹp các service dùng chung trước khi tắt window.
+        /// </summary>
+        private void CleanupServices()
+        {
+            _shortSentenceBuffer.Flush();   // ATOM50
+            _shortSentenceBuffer.Dispose();
+            _aiService.Dispose();           // ATOM81
+            _revisionWindow.Dispose();      // ATOM80
+            _hiderService.Dispose();
+            _pipeService.Dispose();
+            _resourceTimer.Stop();
+            _uiUpdateTimer.Stop();
+            _hotkeyManager?.Dispose();
+            _focusKeyController?.Dispose();
+            OfflineTranslationServerManager.StopServer();
+            _diarizerManager?.Dispose();
+        }
+
+        /// <summary>
+        /// Hiển thị SaveFileDialog cho export. Trả về path, hoặc null nếu cancel.
+        /// </summary>
+        private async System.Threading.Tasks.Task<string?> ShowSaveFileDialogAsync(string label, string defaultExt, string suggestedName)
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return null;
+
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
             {
-                // Send FLUSH_FREEFORM to JS to force immediate debounce flush
-                vm.SendToEditor(new MMslcOverlay.Core.Workspace.Models.BridgeMessage { Type = "FLUSH_FREEFORM" });
-                
-                // Wait for flush to complete (give JS time to emit FREEFORM_CHANGED)
-                await System.Threading.Tasks.Task.Delay(500);
+                Title = $"Export {label}",
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType(label)
+                    {
+                        Patterns = new[] { $"*.{defaultExt}" }
+                    }
+                },
+                DefaultExtension = defaultExt
+            });
+
+            return file?.Path.LocalPath;
+        }
+
+        /// <summary>Mở file bằng app mặc định của OS (Explore note/srt/pdf).</summary>
+        private void OpenFileInDefaultApp(string fullPath)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = fullPath,
+                    UseShellExecute = true
+                });
             }
-            _workspaceVm.CloseWorkspace();
+            catch (Exception ex)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Cannot open file: {ex.Message}\n");
+            }
+        }
+
+        /// <summary>Copy workspace path vào clipboard.</summary>
+        private async void CopyPathBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_workspaceVm.WorkspacePath) && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(_workspaceVm.WorkspacePath);
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Copied workspace path to clipboard.\n");
+            }
+        }
+
+        /// <summary>Sidebar session file item clicked → mở bằng default app.</summary>
+        private void SessionFileItem_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is MMslcOverlay.ViewModels.Workspace.WorkspaceFileItem item)
+            {
+                _workspaceVm.OpenSessionFile(item);
+            }
+        }
+
+        /// <summary>Import Script (txt/md) vào workspace hiện tại.</summary>
+        private async void OnImportScriptRequested()
+        {
+            if (!_workspaceVm.IsOpen)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [WARNING] No workspace open. Open a workspace first.\n");
+                return;
+            }
+
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return;
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = "Import Script",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("Script files") { Patterns = new[] { "*.txt", "*.md" } }
+                }
+            });
+
+            if (files.Count == 0) return;
+            await _workspaceVm.ImportScriptAsync(files[0].Path.LocalPath);
+            AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Imported script: {Path.GetFileName(files[0].Path.LocalPath)}\n");
+        }
+
+        /// <summary>
+        /// Cập nhật session name, path, last modified trên sidebar.
+        /// Dùng FindControl trực tiếp vì compiled bindings bị conflict khi Window x:DataType != set.
+        /// </summary>
+        private void UpdateSessionDisplay()
+        {
+            var nameText = this.FindControl<TextBlock>("SessionNameText");
+            var pathText = this.FindControl<TextBlock>("WorkspacePathText");
+            var lastModText = this.FindControl<TextBlock>("LastModifiedText");
+
+            if (nameText != null) nameText.Text = _workspaceVm.DisplayName;
+            if (pathText != null) pathText.Text = _workspaceVm.WorkspacePath;
+            if (lastModText != null) lastModText.Text = _workspaceVm.LastModifiedDisplay;
+
+            RefreshSessionFilesList();
+        }
+
+        /// <summary>
+        /// Cập nhật danh sách file sidebar.
+        /// </summary>
+        private void RefreshSessionFilesList()
+        {
+            var listPanel = this.FindControl<StackPanel>("SessionFilesPanel");
+            if (listPanel == null) return;
+
+            listPanel.Children.Clear();
+
+            if (!_workspaceVm.IsOpen || _workspaceVm.SessionFiles.Count == 0)
+            {
+                listPanel.Children.Add(new TextBlock
+                {
+                    Text = "Session files appear after recording or exporting.",
+                    FontSize = 11,
+                    Foreground = this.FindResource("TextTertiaryBrush") as IBrush,
+                    FontStyle = Avalonia.Media.FontStyle.Italic
+                });
+                return;
+            }
+
+            foreach (var item in _workspaceVm.SessionFiles)
+            {
+                var iconKind = item.Icon;
+                var kindEnum = Enum.TryParse<Material.Icons.MaterialIconKind>(iconKind, out var k) ? k : Material.Icons.MaterialIconKind.FileDocumentOutline;
+
+                var icon = new Material.Icons.Avalonia.MaterialIcon
+                {
+                    Kind = kindEnum,
+                    Width = 14,
+                    Height = 14,
+                    Foreground = this.FindResource("TextSecondaryBrush") as IBrush
+                };
+
+                var text = new TextBlock
+                {
+                    Text = item.FileName,
+                    FontSize = 12,
+                    Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                    TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis
+                };
+
+                var grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+                grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+                grid.Children.Add(icon);
+                Grid.SetColumn(text, 1);
+                grid.Children.Add(text);
+
+                var border = new Border
+                {
+                    Classes = { "SidebarItem" },
+                    Child = grid,
+                    Tag = item
+                };
+
+                border.PointerPressed += (s, e) =>
+                {
+                    if (border.Tag is MMslcOverlay.ViewModels.Workspace.WorkspaceFileItem fileItem)
+                        _workspaceVm.OpenSessionFile(fileItem);
+                };
+
+                listPanel.Children.Add(border);
+            }
         }
 
         private void AppendLog(string logLine)
@@ -882,6 +1255,11 @@ namespace m_mslc_overlay
         }
 
         private DebugWidget? _debugWidget;
+
+        private void OnImportScriptMenuClick(object? sender, RoutedEventArgs e)
+        {
+            OnImportScriptRequested();
+        }
 
         private void OpenDebugWidgetBtn_Click(object sender, RoutedEventArgs e)
         {

@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.views.overlay.FloatingTextOverlay"
         x:Name="RootWindow"
         Title="{DynamicResource Title_FloatingTextOverlay}"
@@ -29,8 +30,8 @@
         <Style Selector="Button.IconBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#333333"/>
         </Style>
-        <Style Selector="Button.IconBtn:pointerover Path">
-            <Setter Property="Stroke" Value="#EAEAEA"/>
+        <Style Selector="Button.IconBtn:pointerover materialIcons|MaterialIcon">
+            <Setter Property="Foreground" Value="#EAEAEA"/>
         </Style>
         <!-- Style cho MenuFlyout (Primary Menu) -->
         <Style Selector="MenuFlyoutPresenter">
@@ -127,13 +128,13 @@
                         <MenuFlyout Placement="BottomEdgeAlignedLeft">
                             <MenuItem Header="{DynamicResource Menu_Position}">
                                 <MenuItem.Icon>
-                                    <Path Data="{StaticResource IconMove}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    <materialIcons:MaterialIcon Kind="ArrowAll" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </MenuItem.Icon>
                                 <MenuItem Header="{DynamicResource Menu_ResetPosition}" Click="ResetPosition_Click"/>
                             </MenuItem>
                             <MenuItem Header="{DynamicResource Menu_TargetLanguage}">
                                 <MenuItem.Icon>
-                                    <Path Data="{StaticResource IconGlobe}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    <materialIcons:MaterialIcon Kind="Earth" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </MenuItem.Icon>
                                 <MenuItem Header="{DynamicResource Menu_LangVietnamese}" Click="SetLanguage_Vietnamese_Click"/>
                                 <MenuItem Header="{DynamicResource Menu_LangJapanese}" Click="SetLanguage_Japanese_Click"/>
@@ -142,7 +143,7 @@
                             </MenuItem>
                             <MenuItem Header="{DynamicResource Menu_FontSize}">
                                 <MenuItem.Icon>
-                                    <Path Data="{StaticResource IconType}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    <materialIcons:MaterialIcon Kind="FormatSize" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </MenuItem.Icon>
                                 <MenuItem Header="{DynamicResource Menu_FontSizeSmall}" Click="SetFontSize_Small_Click"/>
                                 <MenuItem Header="{DynamicResource Menu_FontSizeMedium}" Click="SetFontSize_Medium_Click"/>
@@ -151,14 +152,14 @@
                             </MenuItem>
                             <MenuItem Header="{DynamicResource Menu_TextEffect}">
                                 <MenuItem.Icon>
-                                    <Path Data="{StaticResource IconSliders}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    <materialIcons:MaterialIcon Kind="Tune" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </MenuItem.Icon>
                                 <MenuItem Header="{DynamicResource Menu_EffectTypewriter}" Click="SetEffect_Typewriter_Click"/>
                                 <MenuItem Header="{DynamicResource Menu_EffectInstant}" Click="SetEffect_Instant_Click"/>
                             </MenuItem>
                             <MenuItem Header="{DynamicResource Menu_BgOpacity}">
                                 <MenuItem.Icon>
-                                    <Path Data="{StaticResource IconSetting}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    <materialIcons:MaterialIcon Kind="Settings" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </MenuItem.Icon>
                                 <MenuItem Header="{DynamicResource Menu_BgOpacity100}" Click="SetBgOpacity_100_Click"/>
                                 <MenuItem Header="{DynamicResource Menu_BgOpacity80}" Click="SetBgOpacity_80_Click"/>
@@ -167,22 +168,22 @@
                             </MenuItem>
                             <MenuItem Header="{DynamicResource Menu_TestSample}" Click="TestTypewriter_Click">
                                 <MenuItem.Icon>
-                                    <Path Data="{StaticResource IconReplay}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    <materialIcons:MaterialIcon Kind="Replay" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator Background="#1AFFFFFF" Height="1" Margin="0,4"/>
                             <MenuItem Header="{DynamicResource Menu_HelpInfo}" Click="Help_Click">
                                 <MenuItem.Icon>
-                                    <Path Data="{StaticResource IconHelp}" Stroke="#CCCCCC" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform"/>
+                                    <materialIcons:MaterialIcon Kind="HelpCircle" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </MenuItem.Icon>
                             </MenuItem>
                         </MenuFlyout>
                     </Button.Flyout>
-                    <Path Data="{StaticResource IconSetting}" Stroke="#A0A0A0" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Width="18" Height="18" Stretch="Uniform"/>
+                    <materialIcons:MaterialIcon Kind="Settings" Width="18" Height="18" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </Button>
                 
                 <Button Classes="IconBtn" ToolTip.Tip="{DynamicResource Button_Close}" Click="Close_Click">
-                    <Path Data="{StaticResource IconClose}" Stroke="#A0A0A0" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Width="18" Height="18" Stretch="Uniform"/>
+                    <materialIcons:MaterialIcon Kind="Close" Width="18" Height="18" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </Button>
                 
             </StackPanel>

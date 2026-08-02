@@ -12,6 +12,7 @@ namespace MMslcOverlay.ViewModels.Workspace;
 public class PaperSheetViewModel : INotifyPropertyChanged
 {
     private readonly WorkspaceService _workspace;
+    private readonly WorkspaceViewModel _owner;
     private AudioPlayerService? _audioPlayer;
 
     public Action<MMslcOverlay.Core.Workspace.Models.MergedSegment>? OpenEditDialogAction { get; set; }
@@ -20,6 +21,11 @@ public class PaperSheetViewModel : INotifyPropertyChanged
     public Action<BridgeMessage>? SendToEditorAction { get; set; }
 
     public Action<string?, string?>? ShowContextMenuAction { get; set; }
+
+    /// <summary>Fired khi JS ack hoàn tất 1 flush đợt freeform (cho FlushPendingAsync).</summary>
+    public event Action? FreeformFlushed;
+
+    private int _pendingFreeformWrites;
 
     public MagicCursorViewModel MagicCursor { get; }
     public ScrollModeController ScrollController { get; } = new ScrollModeController();
@@ -70,9 +76,10 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         set { if (_pageNumber != value) { _pageNumber = value; OnPropertyChanged(); } }
     }
 
-    public PaperSheetViewModel(WorkspaceService workspace)
+    public PaperSheetViewModel(WorkspaceService workspace, WorkspaceViewModel owner)
     {
         _workspace = workspace;
+        _owner = owner;
         // Magic cursor offset is now managed entirely in the web view, but we can keep the ViewModel if needed
         MagicCursor = new MagicCursorViewModel(() => 0);
 
@@ -115,6 +122,7 @@ public class PaperSheetViewModel : INotifyPropertyChanged
 
         var session = new SegmentEditSession(original, _workspace.UserDataRepo);
         session.CommitEdit(newTextSrc, newTextTrs);
+        _owner?.MarkDirty();
 
         if (original.TextSrc != newTextSrc)
         {
@@ -195,6 +203,9 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                         };
                         _workspace.UserDataRepo.UpdateFreeformBlock(block);
                     }
+
+                    _pendingFreeformWrites = 0;
+                    FreeformFlushed?.Invoke();
                     break;
                 }
                 case "PLAY_AUDIO":
@@ -308,9 +319,9 @@ public class PaperSheetViewModel : INotifyPropertyChanged
             Segments = new List<BridgeSegment>()
         };
 
+#if DEBUG_F18_MOCK
         if (allSegments == null || allSegments.Count == 0)
         {
-            // MOCK DATA for F18 testing Phase D
             allSegments = new List<MMslcOverlay.Core.Workspace.Models.MergedSegment>
             {
                 new MMslcOverlay.Core.Workspace.Models.MergedSegment(new Segment { Id = 101, TsStartMs = 0, TsEndMs = 5000, SpeakerId = "SPK_1", TextSrc = "Welcome to the m-mslc-overlay test." }),
@@ -318,6 +329,8 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                 new MMslcOverlay.Core.Workspace.Models.MergedSegment(new Segment { Id = 103, TsStartMs = 8200, TsEndMs = 12000, SpeakerId = "SPK_1", TextSrc = "It helps verify the F18 specification for ProseMirror." })
             };
         }
+#endif
+        // Production: empty workspace renders an empty document ready for real-time STT ingestion.
 
         if (allSegments != null)
         {
@@ -351,12 +364,13 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         }
 
         SendToEditor(msg);
-        
-        // Gap 5 fix: Only start mock STT if enabled
+
+#if DEBUG_F18_MOCK
         if (IsMockSttEnabled)
         {
             StartMockLiveSTTInjection();
         }
+#endif
     }
 
     public void StartMockLiveSTTInjection()
@@ -404,6 +418,12 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
     // ─── UI Actions ────────────────────────────────────────────────────────
+    public void RequestFlushFreeform()
+    {
+        _pendingFreeformWrites = 1;
+        SendToEditor(new BridgeMessage { Type = "FLUSH_FREEFORM" });
+    }
+
     public void ZoomIn()
     {
         if (ZoomPercent < 300) ZoomPercent += 10;
