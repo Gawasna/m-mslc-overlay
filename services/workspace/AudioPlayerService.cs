@@ -21,9 +21,16 @@ public class AudioPlayerService : IDisposable
     /// </summary>
     public void PlaySegmentByTime(string segId, string sessionDir, long offsetMs, long durationMs)
     {
+        System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] PlaySegmentByTime called:");
+        System.Diagnostics.Debug.WriteLine($"  segId: {segId}");
+        System.Diagnostics.Debug.WriteLine($"  sessionDir: {sessionDir}");
+        System.Diagnostics.Debug.WriteLine($"  offsetMs: {offsetMs}");
+        System.Diagnostics.Debug.WriteLine($"  durationMs: {durationMs}");
+        
         if (!Directory.Exists(sessionDir))
         {
             System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Session directory not found: {sessionDir}");
+            PlaybackEnded?.Invoke(segId);
             return;
         }
 
@@ -33,15 +40,24 @@ public class AudioPlayerService : IDisposable
 
             try
             {
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Loading VirtualWavReader from {sessionDir}");
+                
                 // Load virtual WAV reader from session chunks
                 var reader = VirtualWavReader.FromSessionDir(sessionDir);
+                
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Reader loaded. WaveFormat: {reader.WaveFormat}");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Reader length: {reader.Length} bytes");
                 
                 // Seek to offset
                 reader.SeekToMilliseconds(offsetMs);
                 
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Seeked to {offsetMs}ms (position: {reader.Position})");
+                
                 // Calculate byte count for duration
                 long bytesPerMs = reader.WaveFormat.AverageBytesPerSecond / 1000;
                 long byteCount = bytesPerMs * durationMs;
+                
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Will play {byteCount} bytes ({durationMs}ms)");
                 
                 // Wrap in limiter to play only duration
                 var limiter = new LimitedWaveStream(reader, byteCount);
@@ -50,6 +66,7 @@ public class AudioPlayerService : IDisposable
                 _waveOut.Init(limiter);
                 _waveOut.PlaybackStopped += (s, e) =>
                 {
+                    System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback stopped for {segId}");
                     reader.Dispose();
                     limiter.Dispose();
                     PlaybackEnded?.Invoke(segId);
@@ -58,11 +75,12 @@ public class AudioPlayerService : IDisposable
                 PlaybackStarted?.Invoke(segId);
                 _waveOut.Play();
                 
-                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playing segment {segId} from {sessionDir} at {offsetMs}ms for {durationMs}ms");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playing segment {segId}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] ❌ Playback error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Stack trace: {ex.StackTrace}");
                 PlaybackEnded?.Invoke(segId);
             }
         }

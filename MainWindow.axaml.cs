@@ -51,6 +51,12 @@ namespace m_mslc_overlay
         
         // CRITICAL-TEXT-001: Track previous segment end time for continuous timeline
         private long _lastSegmentEndMs = 0;
+        
+        // FIX V4: Translation context accumulator - sliding window of recent deltas
+        // Translation needs FULL CONTEXT, not individual deltas. This window accumulates
+        // the last N commits to provide context for translation.
+        private readonly System.Collections.Generic.List<string> _translationContext = new();
+        private const int MaxTranslationContextSegments = 8;  // Keep last 8 deltas (~1-2 sentences)
 
         private readonly object _logLock = new object();
         private readonly System.Collections.Generic.List<string> _rawLogs = new System.Collections.Generic.List<string>();
@@ -125,15 +131,47 @@ namespace m_mslc_overlay
             // long sentence before forwarding to translation, avoiding wasteful API calls
             // for isolated tokens like "but", "So", "Because", "I".
             // FIX V3: Now receives full CommitMetadata to preserve UtteranceOffset for correct linking.
+            // FIX V4: Use accumulated context for translation instead of just merged deltas.
             _shortSentenceBuffer.OnFlush += (mergedMeta) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     if (IsTranslationEnabled)
                     {
+                        // FIX V4: Build full context from sliding window
+                        string fullContext;
+                        bool isHardCommit = mergedMeta.Reason == "HardCommit";
+                        
                         lock (_translationLock) {
                             _translationBuffer = "";
+                            // Combine all accumulated deltas into full context
+                            fullContext = string.Join(" ", _translationContext);
+                            
+                            // FIX V4: Clear context AFTER hard commit translation is sent
+                            // This ensures the hard commit gets full context, then we start fresh
+                            if (isHardCommit)
+                            {
+                                _translationContext.Clear();
+                                System.Diagnostics.Debug.WriteLine("[V4] Context cleared after HardCommit");
+                            }
                         }
-                        // FIX V3: Pass full CommitMetadata instead of bare string
-                        _aiService.EnqueueTranslation(mergedMeta);
+                        
+                        // Create new metadata with FULL CONTEXT but preserve original UtteranceOffset
+                        var contextMeta = CommitMetadata.From(
+                            text: fullContext,                    // FIX V4: Full accumulated text
+                            reason: mergedMeta.Reason,
+                            acousticEndMs: mergedMeta.AcousticEndMs,
+                            utteranceOffset: mergedMeta.UtteranceOffset,  // Preserve for linking
+                            isDangling: mergedMeta.IsDangling,
+                            wasMerged: true,  // Mark as context-enriched
+                            speakerId: mergedMeta.SpeakerId,
+                            speakerDisplayName: mergedMeta.SpeakerDisplayName
+                        );
+                        
+                        // FIX V4: Pass context-enriched metadata to translation
+                        _aiService.EnqueueTranslation(contextMeta);
+                        
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[V4] Translation with context ({_translationContext.Count} segments): " +
+                            $"'{fullContext.Substring(0, Math.Min(80, fullContext.Length))}{(fullContext.Length > 80 ? "..." : "")}'");
                     }
                     else
                     {
@@ -259,6 +297,27 @@ namespace m_mslc_overlay
                             commitReason: meta.Reason
                         );
                         _segmentIdMap[segment.Id] = dbId;
+                    }
+
+                    // FIX V4: Accumulate translation context (sliding window)
+                    // Translation needs FULL CONTEXT, not individual deltas. Accumulate recent commits.
+                    lock (_translationLock)
+                    {
+                        // Add current delta to context window
+                        _translationContext.Add(meta.Text);
+                        
+                        // Trim window if too large
+                        while (_translationContext.Count > MaxTranslationContextSegments)
+                        {
+                            _translationContext.RemoveAt(0);
+                        }
+                        
+                        // Clear context on Hard Commit (sentence boundary)
+                        if (meta.Reason == "HardCommit")
+                        {
+                            // Flush accumulated context, then clear for next sentence
+                            // Note: We keep the hard commit in context for final translation
+                        }
                     }
 
                     // ATOM50: route through ShortSentenceBuffer — translation fires
@@ -389,6 +448,12 @@ namespace m_mslc_overlay
                     _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
                     _segmentIdMap.Clear();
                     _lastSegmentEndMs = 0;  // CRITICAL-TEXT-001: Reset timing state on reconnect
+                    
+                    // FIX V4: Clear translation context on reconnect
+                    lock (_translationLock)
+                    {
+                        _translationContext.Clear();
+                    }
                 }
                 
                 // ✅ AUTO-STOP RECORDING: Stop recording when STT disconnects
