@@ -69,9 +69,14 @@ namespace m_mslc_overlay.core
         /// Falls back to the most recently committed unlinked segment if offset is 0 or not found.
         public SegmentRecord? LinkTranslation(TranslationResult result)
         {
-            if (result.Source == null) return null;
+            if (result.Source == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[SegmentTracker] LinkTranslation failed: Source is null");
+                return null;
+            }
 
             SegmentRecord? target = null;
+            string matchMethod = "none";
 
             lock (_lock)
             {
@@ -83,15 +88,32 @@ namespace m_mslc_overlay.core
                     target = bucket.LastOrDefault(r =>
                         r.State == SegmentState.Committed &&
                         r.Commit.Text == result.Source.Text);
+                    
+                    if (target != null) matchMethod = "exact_match";
 
                     // Fallback: any committed segment in same utterance
                     target ??= bucket.LastOrDefault(r => r.State == SegmentState.Committed);
+                    if (target != null && matchMethod == "none") matchMethod = "utterance_fallback";
                 }
 
                 // Final fallback: most recently committed segment overall
                 target ??= _history.LastOrDefault(r => r.State == SegmentState.Committed);
+                if (target != null && matchMethod == "none") matchMethod = "recent_fallback";
 
                 target?.SetTranslation(result);
+            }
+
+            if (target == null)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[SegmentTracker] ⚠️ LinkTranslation FAILED for '{result.Source.Text}' " +
+                    $"(offset={result.Source.UtteranceOffset})");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[SegmentTracker] LinkTranslation SUCCESS: '{result.Source.Text}' → " +
+                    $"segment {target.Id} via {matchMethod}");
             }
 
             if (target != null)

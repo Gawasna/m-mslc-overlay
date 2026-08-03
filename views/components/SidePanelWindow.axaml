@@ -3,6 +3,7 @@
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.views.components.SidePanelWindow"
         Title="MSLC Side Panel - Live Controller"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
         Background="{StaticResource BgWindowBrush}"
         MinWidth="400" MinHeight="600"
         Width="480" Height="800"

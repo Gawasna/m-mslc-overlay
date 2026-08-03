@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="m_mslc_overlay.views.dialogs.InstallationDialog"
         Title="Cài đặt Offline Translation Plugin"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
         Width="500" Height="430"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

@@ -5,7 +5,7 @@ using NAudio.Wave;
 namespace MMslcOverlay.Services.Workspace;
 
 /// <summary>
-/// Phát một đoạn audio cụ thể từ file WAV dựa theo byte offset và duration.
+/// Phát một đoạn audio cụ thể từ file WAV hoặc session-based PCM chunks.
 /// Thread-safe: cancel playback hiện tại trước khi phát mới.
 /// </summary>
 public class AudioPlayerService : IDisposable
@@ -16,6 +16,61 @@ public class AudioPlayerService : IDisposable
     public event Action<string>? PlaybackEnded; // segId
     public event Action<string>? PlaybackStarted; // segId
 
+    /// <summary>
+    /// Play segment from session-based PCM chunks (NEW API for Phase 2)
+    /// </summary>
+    public void PlaySegmentByTime(string segId, string sessionDir, long offsetMs, long durationMs)
+    {
+        if (!Directory.Exists(sessionDir))
+        {
+            System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Session directory not found: {sessionDir}");
+            return;
+        }
+
+        lock (_lock)
+        {
+            StopCurrent();
+
+            try
+            {
+                // Load virtual WAV reader from session chunks
+                var reader = VirtualWavReader.FromSessionDir(sessionDir);
+                
+                // Seek to offset
+                reader.SeekToMilliseconds(offsetMs);
+                
+                // Calculate byte count for duration
+                long bytesPerMs = reader.WaveFormat.AverageBytesPerSecond / 1000;
+                long byteCount = bytesPerMs * durationMs;
+                
+                // Wrap in limiter to play only duration
+                var limiter = new LimitedWaveStream(reader, byteCount);
+                
+                _waveOut = new WaveOutEvent();
+                _waveOut.Init(limiter);
+                _waveOut.PlaybackStopped += (s, e) =>
+                {
+                    reader.Dispose();
+                    limiter.Dispose();
+                    PlaybackEnded?.Invoke(segId);
+                };
+                
+                PlaybackStarted?.Invoke(segId);
+                _waveOut.Play();
+                
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playing segment {segId} from {sessionDir} at {offsetMs}ms for {durationMs}ms");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback error: {ex.Message}");
+                PlaybackEnded?.Invoke(segId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Legacy API: Play segment from single WAV file with byte offset
+    /// </summary>
     public void PlaySegment(string segId, string wavFilePath, long byteOffset, long durationMs)
     {
         if (!File.Exists(wavFilePath))

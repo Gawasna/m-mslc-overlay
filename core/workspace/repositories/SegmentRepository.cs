@@ -65,13 +65,17 @@ public class SegmentRepository
     {
         switch (field)
         {
+            // Support both PascalCase (from ViewModel) and snake_case (from tests/legacy)
             case "text_src":
+            case "TextSrc":
                 segment.TextSrc = value;
                 break;
             case "text_trs":
+            case "TextTrs":
                 segment.TextTrs = value;
                 break;
             case "speaker_id":
+            case "SpeakerId":
                 segment.SpeakerId = value;
                 break;
         }

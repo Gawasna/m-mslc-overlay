@@ -105,6 +105,18 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                 SendToEditor(new BridgeMessage { Type = "AUDIO_PLAY_END", SegId = segId });
             });
         };
+
+        if (_owner?.NavPane?.FindReplace != null)
+        {
+            _owner.NavPane.FindReplace.FindNextAction = (query) =>
+            {
+                SendToEditor(new BridgeMessage { Type = "FIND_NEXT", Query = query });
+            };
+            _owner.NavPane.FindReplace.ClearFindAction = () =>
+            {
+                SendToEditor(new BridgeMessage { Type = "CLEAR_FIND" });
+            };
+        }
     }
 
     private void OnScrollModeChanged(ScrollMode mode)
@@ -220,12 +232,10 @@ public class PaperSheetViewModel : INotifyPropertyChanged
 
                     // Parse segId format: "active:42" or "seg_001:10" or just "42"
                     var parts = segId.Split(':');
-                    string chunkId = "active";
                     long segmentId = -1;
 
                     if (parts.Length == 2)
                     {
-                        chunkId = parts[0];
                         long.TryParse(parts[1], out segmentId);
                     }
                     else if (parts.Length == 1)
@@ -234,45 +244,82 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     }
                     if (segmentId == -1) break;
 
-                    // Gap 10 fix: Guard against missing offsets file
-                    var offsetsPath = _workspace.Storage.GetSegmentOffsetsPath(chunkId);
-                    if (!System.IO.File.Exists(offsetsPath))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Offsets file not found at {offsetsPath}. No recording yet?");
-                        SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
-                        break;
-                    }
-
-                    var offsetIndex = new MMslcOverlay.Core.Workspace.Storage.AudioOffsetIndex(offsetsPath);
-                    long? byteOffset = offsetIndex.GetOffset(segmentId);
-                    if (!byteOffset.HasValue)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Offset not found for segment {segmentId}");
-                        SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
-                        break;
-                    }
-
+                    // Query segment to get audio references
                     var all = _workspace.SegmentRepo?.GetMergedSegments();
                     var seg = all?.FirstOrDefault(s => s.BaseSegment.Id == segmentId);
                     if (seg == null)
                     {
                         System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Segment {segmentId} not found in repository");
-                        break;
-                    }
-
-                    long durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
-                    if (durationMs <= 0) break;
-
-                    // Gap 10 fix: Guard against missing WAV file
-                    string wavPath = System.IO.Path.Combine(_workspace.Storage.MslcDir, "segments", $"{chunkId}.audio.wav");
-                    if (!System.IO.File.Exists(wavPath))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: WAV not found at {wavPath}. No recording yet?");
                         SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
                         break;
                     }
 
-                    _audioPlayer?.PlaySegment(segId, wavPath, byteOffset.Value, durationMs);
+                    // Check if segment has audio references (Phase 2 session-based)
+                    if (!string.IsNullOrEmpty(seg.BaseSegment.AudioSessionId) && 
+                        seg.BaseSegment.AudioOffsetMs.HasValue)
+                    {
+                        // Phase 2: Session-based playback
+                        string sessionDir = System.IO.Path.Combine(
+                            _workspace.Storage.MslcDir, 
+                            "audio", 
+                            seg.BaseSegment.AudioSessionId);
+                        
+                        if (!System.IO.Directory.Exists(sessionDir))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Session directory not found: {sessionDir}");
+                            SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
+                            break;
+                        }
+
+                        long durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
+                        if (durationMs <= 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Invalid duration {durationMs}ms");
+                            break;
+                        }
+
+                        _audioPlayer?.PlaySegmentByTime(
+                            segId, 
+                            sessionDir, 
+                            seg.BaseSegment.AudioOffsetMs.Value, 
+                            durationMs);
+                    }
+                    else
+                    {
+                        // Fallback: Legacy playback (single WAV file with byte offsets)
+                        System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Segment has no audio_session_id, trying legacy playback");
+                        
+                        string chunkId = "active";
+                        var offsetsPath = _workspace.Storage.GetSegmentOffsetsPath(chunkId);
+                        if (!System.IO.File.Exists(offsetsPath))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: No audio available for this segment");
+                            SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
+                            break;
+                        }
+
+                        var offsetIndex = new MMslcOverlay.Core.Workspace.Storage.AudioOffsetIndex(offsetsPath);
+                        long? byteOffset = offsetIndex.GetOffset(segmentId);
+                        if (!byteOffset.HasValue)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Offset not found for segment {segmentId}");
+                            SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
+                            break;
+                        }
+
+                        long durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
+                        if (durationMs <= 0) break;
+
+                        string wavPath = System.IO.Path.Combine(_workspace.Storage.MslcDir, "segments", $"{chunkId}.audio.wav");
+                        if (!System.IO.File.Exists(wavPath))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: WAV not found at {wavPath}");
+                            SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
+                            break;
+                        }
+
+                        _audioPlayer?.PlaySegment(segId, wavPath, byteOffset.Value, durationMs);
+                    }
                     break;
                 }
                 case "OPEN_EDIT_FIELD":
@@ -305,6 +352,16 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                 case "JS_DEBUG":
                     Console.WriteLine($"[JS_DEBUG] {json}");
                     System.Diagnostics.Debug.WriteLine($"[JS_DEBUG] {json}");
+                    break;
+                case "FIND_RESULT":
+                    if (_owner?.NavPane?.FindReplace != null)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            _owner.NavPane.FindReplace.MatchCount = msg.MatchCount ?? 0;
+                            _owner.NavPane.FindReplace.ActiveMatchIndex = msg.ActiveMatchIndex ?? 0;
+                        });
+                    }
                     break;
             }
         }

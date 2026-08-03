@@ -3,6 +3,7 @@
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="m_mslc_overlay.views.dialogs.EnvironmentCheckDialog"
         Title="Chẩn Đoán Môi Trường Hệ Thống"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
         Width="640" Height="560"
         WindowStartupLocation="CenterOwner"
         CanResize="False"

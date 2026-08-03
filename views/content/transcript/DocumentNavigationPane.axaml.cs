@@ -50,6 +50,24 @@ namespace m_mslc_overlay.views.content.transcript
                     if (defBox  != null) defBox.Text  = string.Empty;
                 }
             };
+
+            var findBtn = this.Find<Button>("FindNextBtn");
+            if (findBtn != null)
+            {
+                findBtn.Click += (_, _) => Vm()?.FindReplace.ExecuteFindNext();
+            }
+            var findBox = this.Find<TextBox>("FindTextBox");
+            if (findBox != null)
+            {
+                findBox.KeyDown += (_, e) =>
+                {
+                    if (e.Key == Avalonia.Input.Key.Enter)
+                    {
+                        Vm()?.FindReplace.ExecuteFindNext();
+                        e.Handled = true;
+                    }
+                };
+            }
         }
     }
 }

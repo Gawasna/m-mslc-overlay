@@ -13,6 +13,10 @@ public class Segment
     // Timecode kết thúc
     public long TsEndMs { get; set; }
     
+    // Audio reference (session-based chunked PCM)
+    public string? AudioSessionId { get; set; }  // "session_20260802_143022"
+    public long? AudioOffsetMs { get; set; }     // Global offset trong session (ms)
+    
     // "SPK_1", "SPK_2", ...
     public string? SpeakerId { get; set; }
     
@@ -33,4 +37,38 @@ public class Segment
     
     // Unix timestamp ms
     public long CreatedAt { get; set; }
+    
+    // ────────────────────────────────────────────────────────────────────
+    // CRITICAL-TEXT-001: Acoustic metadata from AdaptiveCommitEngine
+    // ────────────────────────────────────────────────────────────────────
+    
+    /// <summary>
+    /// Acoustic end timestamp from SDK (in milliseconds).
+    /// More precise than TsEndMs which may be wall-clock based.
+    /// </summary>
+    public double? AcousticEndMs { get; set; }
+    
+    /// <summary>
+    /// SDK utterance offset (in 100ns ticks).
+    /// Used for translation linking and debugging.
+    /// </summary>
+    public ulong? UtteranceOffset { get; set; }
+    
+    /// <summary>
+    /// ATOM77: Flag indicating last word is dangling (incomplete phrase).
+    /// Example: "how much" without complement.
+    /// </summary>
+    public bool IsDangling { get; set; }
+    
+    /// <summary>
+    /// Average speech speed at commit time (ms per word).
+    /// Used for pacing analysis and debugging.
+    /// </summary>
+    public int? AvgSpeechSpeedMs { get; set; }
+    
+    /// <summary>
+    /// Commit reason from AdaptiveCommitEngine.
+    /// Values: "HardCommit", "SoftCommit", "DebounceCommit", "OffsetChange"
+    /// </summary>
+    public string CommitReason { get; set; } = "UNKNOWN";
 }

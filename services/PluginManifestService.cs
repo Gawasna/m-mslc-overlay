@@ -181,6 +181,23 @@ namespace m_mslc_overlay.services
             // Resolve install dir (relative to BaseDir or repo root)
             string installDir = ResolveInstallDir(atom.InstallDir);
 
+            // In DevMode, if the plugin is already present in the repository with its script and python executable,
+            // we treat it as installed to avoid overwriting dev code or downloading.
+            string venvDirName = atomId == "atom32" ? ".venv" : "venv";
+            string devPythonExe = Path.Combine(installDir, venvDirName, "Scripts", "python.exe");
+            string devScriptPath = Path.Combine(installDir, atom.EntryScript);
+            if (AppPathHelper.IsDevMode && File.Exists(devScriptPath) && File.Exists(devPythonExe))
+            {
+                onLog($"[PluginManifestService] [DEV] {atom.Name} detected in repository root with venv. Skipping setup.");
+                PluginInstallLockManager.RecordInstallation(
+                    atomId,
+                    atom.Version,
+                    installDir,
+                    atom.SourceUrl,
+                    sha256Verified: false);
+                return true;
+            }
+
             // Check already installed at correct version
             if (PluginInstallLockManager.IsInstalled(atomId, atom.Version))
             {
@@ -255,9 +272,17 @@ namespace m_mslc_overlay.services
         /// <summary>
         /// Resolves install_dir relative to app BaseDirectory or repo root.
         /// </summary>
-        private static string ResolveInstallDir(string installDir)
+        public static string ResolveInstallDir(string installDir)
         {
             if (Path.IsPathRooted(installDir)) return installDir;
+
+            // Try repo root (dev mode) first to allow persistent venv execution
+            if (AppPathHelper.IsDevMode && !string.IsNullOrEmpty(ManifestDevPath))
+            {
+                string repoRoot = Path.GetDirectoryName(ManifestDevPath)!;
+                string fromRepo = Path.GetFullPath(Path.Combine(repoRoot, installDir));
+                if (Directory.Exists(fromRepo)) return fromRepo;
+            }
 
             // Try writable path first (%LOCALAPPDATA% or BaseDir in DevMode)
             string targetPath = AppPathHelper.GetWritablePath(installDir);
@@ -266,14 +291,6 @@ namespace m_mslc_overlay.services
             // Try BaseDirectory (production bundled read-only plugins)
             string fromBase = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, installDir));
             if (Directory.Exists(fromBase)) return fromBase;
-
-            // Try repo root (dev mode)
-            if (!string.IsNullOrEmpty(ManifestDevPath))
-            {
-                string repoRoot = Path.GetDirectoryName(ManifestDevPath)!;
-                string fromRepo = Path.GetFullPath(Path.Combine(repoRoot, installDir));
-                if (Directory.Exists(fromRepo)) return fromRepo;
-            }
 
             return targetPath;
         }

@@ -47,12 +47,21 @@ namespace MMslcOverlay.ViewModels.Workspace
         private string _findText = string.Empty;
         private string _replaceText = string.Empty;
         private int _matchCount;
-        private string _resultMessage = string.Empty;
+        private int _activeMatchIndex;
+        private bool _hasSearched;
 
         public string FindText
         {
             get => _findText;
-            set { _findText = value; OnPropertyChanged(); }
+            set
+            {
+                _findText = value;
+                OnPropertyChanged();
+                if (string.IsNullOrWhiteSpace(_findText))
+                {
+                    ExecuteClearFind();
+                }
+            }
         }
 
         public string ReplaceText
@@ -67,7 +76,54 @@ namespace MMslcOverlay.ViewModels.Workspace
             set { _matchCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResultMessage)); }
         }
 
-        public string ResultMessage => _matchCount > 0 ? $"Found {_matchCount} occurrences." : string.Empty;
+        public int ActiveMatchIndex
+        {
+            get => _activeMatchIndex;
+            set { _activeMatchIndex = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResultMessage)); }
+        }
+
+        public bool HasSearched
+        {
+            get => _hasSearched;
+            set { _hasSearched = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResultMessage)); }
+        }
+
+        public string ResultMessage
+        {
+            get
+            {
+                if (!_hasSearched || string.IsNullOrWhiteSpace(FindText)) return string.Empty;
+                if (_matchCount == 0) return "No occurrences found.";
+                if (_activeMatchIndex > 0) return $"Match {_activeMatchIndex} of {_matchCount}";
+                return $"Found {_matchCount} occurrences.";
+            }
+        }
+
+        public System.Action<string>? FindNextAction { get; set; }
+        public System.Action? ClearFindAction { get; set; }
+
+        public void ExecuteFindNext()
+        {
+            if (string.IsNullOrWhiteSpace(FindText))
+            {
+                ExecuteClearFind();
+                return;
+            }
+            HasSearched = true;
+            FindNextAction?.Invoke(FindText);
+        }
+
+        public void ExecuteClearFind()
+        {
+            _hasSearched = false;
+            _matchCount = 0;
+            _activeMatchIndex = 0;
+            OnPropertyChanged(nameof(HasSearched));
+            OnPropertyChanged(nameof(MatchCount));
+            OnPropertyChanged(nameof(ActiveMatchIndex));
+            OnPropertyChanged(nameof(ResultMessage));
+            ClearFindAction?.Invoke();
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? n = null)
@@ -181,6 +237,10 @@ namespace MMslcOverlay.ViewModels.Workspace
             get => _activeState;
             set
             {
+                if (_activeState == NavPaneState.FindReplace && value != NavPaneState.FindReplace)
+                {
+                    FindReplace.ExecuteClearFind();
+                }
                 _activeState = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ShowSpeakerAnnotation));
@@ -203,7 +263,16 @@ namespace MMslcOverlay.ViewModels.Workspace
         public bool IsVisible
         {
             get => _isVisible;
-            set { _isVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowSplitter)); }
+            set
+            {
+                if (_isVisible && !value && _activeState == NavPaneState.FindReplace)
+                {
+                    FindReplace.ExecuteClearFind();
+                }
+                _isVisible = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowSplitter));
+            }
         }
 
         public bool IsCompact

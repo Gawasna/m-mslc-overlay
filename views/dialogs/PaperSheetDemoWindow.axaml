@@ -3,6 +3,7 @@
         xmlns:avedit="https://github.com/avaloniaui/avaloniaedit"
         x:Class="m_mslc_overlay.views.dialogs.PaperSheetDemoWindow"
         Title="PaperSheet Concept Demo (AvaloniaEdit)"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
         Width="1024" Height="768"
         WindowStartupLocation="CenterOwner"
         Background="#F3F3F3">

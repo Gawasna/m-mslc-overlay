@@ -183,7 +183,7 @@
                         <StackPanel Spacing="3">
                             <TextBlock Text="Find" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
                             <TextBox x:Name="FindTextBox"
-                                     Text="{Binding FindReplace.FindText}"
+                                     Text="{Binding FindReplace.FindText, UpdateSourceTrigger=PropertyChanged}"
                                      FontSize="11" Height="28"
                                      Watermark="Search in transcript..." />
                         </StackPanel>
@@ -216,8 +216,7 @@
                         <!-- Result message -->
                         <TextBlock Text="{Binding FindReplace.ResultMessage}"
                                    FontSize="10" Foreground="{StaticResource PrimaryBrush}"
-                                   IsVisible="{Binding FindReplace.MatchCount,
-                                               Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                   IsVisible="{Binding FindReplace.HasSearched}" />
 
                     </StackPanel>
                 </StackPanel>

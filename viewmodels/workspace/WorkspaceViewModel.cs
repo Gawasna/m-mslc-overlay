@@ -266,20 +266,27 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     public void StartRecording()
     {
         if (!IsOpen) return;
-        if (_service?.AudioService == null)
+        
+        // Use NEW StreamingPcmRecorder for Phase 2
+        if (_service?.AudioRecorder == null)
         {
-            System.Diagnostics.Debug.WriteLine("[WorkspaceViewModel] Cannot start recording: AudioService not initialized.");
+            System.Diagnostics.Debug.WriteLine("[WorkspaceViewModel] Cannot start recording: AudioRecorder not initialized.");
             return;
         }
-        _service.AudioService.StartRecording();
+        
+        _service.AudioRecorder.StartRecording();
         IsRecording = true;
+        System.Diagnostics.Debug.WriteLine($"[WorkspaceViewModel] Recording started: {_service.AudioRecorder.SessionId}");
     }
 
     public void StopRecording()
     {
-        _service?.AudioService?.StopRecording();
+        // Use NEW StreamingPcmRecorder for Phase 2
+        _service?.AudioRecorder?.StopRecording();
         IsRecording = false;
+        
         if (!string.IsNullOrEmpty(WorkspacePath)) RefreshSessionFiles();
+        System.Diagnostics.Debug.WriteLine("[WorkspaceViewModel] Recording stopped");
     }
 
     // ─── Export / Import / Files ────────────────────────────────────────
