@@ -9,6 +9,8 @@ namespace m_mslc_overlay.views.dialogs
 {
     public partial class PreferencesDialog : Window
     {
+        private bool _isUpdatingToggle = false;
+
         public PreferencesDialog()
         {
             InitializeComponent();
@@ -38,12 +40,12 @@ namespace m_mslc_overlay.views.dialogs
             
             LanguageCombo.SelectedIndex = cfg.Language == "vi-VN" ? 0 : 1;
             
-            TranslationEngineCombo.SelectedIndex = cfg.TranslationEngine switch {
-                "DeepL API" => 0,
-                "Cloud AI (Ollama/Gemini)" => 1,
-                "Offline CTranslate2" => 2,
-                _ => 1
-            };
+            if (cfg.TranslationEngine == "DeepL API")
+                if (EngineDeepLRadio != null) EngineDeepLRadio.IsChecked = true;
+            else if (cfg.TranslationEngine == "Offline CTranslate2")
+                if (EngineOfflineRadio != null) EngineOfflineRadio.IsChecked = true;
+            else
+                if (EngineCloudAIRadio != null) EngineCloudAIRadio.IsChecked = true;
             DeepLApiKeyBox.Text = cfg.DeepLApiKey;
             DeepLContextWindowSizeBox.Value = cfg.DeepLContextWindowSize;
             OfflineTranslateUrlBox.Text = cfg.OfflineTranslateUrl;
@@ -70,6 +72,8 @@ namespace m_mslc_overlay.views.dialogs
                 if (UseNllbRadio != null) UseNllbRadio.IsChecked = true;
             }
 
+            if (UtilAtom32Toggle != null) UtilAtom32Toggle.IsChecked = cfg.EnableDiarizer;
+
             UpdateServerStateUI(OfflineTranslationServerManager.State);
         }
 
@@ -84,12 +88,9 @@ namespace m_mslc_overlay.views.dialogs
             
             cfg.Language = LanguageCombo.SelectedIndex == 0 ? "vi-VN" : "en-US";
             
-            cfg.TranslationEngine = TranslationEngineCombo.SelectedIndex switch {
-                0 => "DeepL API",
-                1 => "Cloud AI (Ollama/Gemini)",
-                2 => "Offline CTranslate2",
-                _ => "Cloud AI (Ollama/Gemini)"
-            };
+            cfg.TranslationEngine = (EngineOfflineRadio?.IsChecked == true) ? "Offline CTranslate2" :
+                                    (EngineDeepLRadio?.IsChecked == true) ? "DeepL API" : 
+                                    "Cloud AI (Ollama/Gemini)";
             cfg.DeepLApiKey = DeepLApiKeyBox.Text ?? "";
             cfg.DeepLContextWindowSize = Math.Clamp((int)(DeepLContextWindowSizeBox.Value ?? 3), 0, 10);
             cfg.OfflineTranslateUrl = OfflineTranslateUrlBox.Text ?? "http://127.0.0.1:11435";
@@ -106,6 +107,7 @@ namespace m_mslc_overlay.views.dialogs
             cfg.PipeName = PipeNameBox.Text ?? "MSLCCaptionPipe";
             cfg.VerboseLogging = VerboseLogCheck.IsChecked ?? false;
             cfg.EnableGlobalHotkeys = EnableHotkeysCheck.IsChecked ?? true;
+            cfg.EnableDiarizer = UtilAtom32Toggle?.IsChecked ?? false;
             
             ConfigManager.Save();
 
@@ -232,59 +234,90 @@ namespace m_mslc_overlay.views.dialogs
 
         private void UpdateServerStateUI(OfflineServerState state)
         {
-            if (OfflineServerStateText == null) return;
-
-            switch (state)
+            _isUpdatingToggle = true;
+            try
             {
-                case OfflineServerState.Stopped:
-                    OfflineServerStateText.Text = "Đã dừng";
-                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Gray;
-                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
-                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = false;
-                    break;
-                case OfflineServerState.Starting:
-                    OfflineServerStateText.Text = "Đang khởi động...";
-                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Orange;
-                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
-                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
-                    break;
-                case OfflineServerState.Ready:
-                    OfflineServerStateText.Text = "Sẵn sàng (Đang chạy)";
-                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Green;
-                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = false;
-                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
-                    break;
-                case OfflineServerState.ModelMissing:
-                    OfflineServerStateText.Text = "Thiếu mô hình (Model Missing)";
-                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
-                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
-                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
-                    break;
-                case OfflineServerState.Failed:
-                    OfflineServerStateText.Text = $"Lỗi: {OfflineTranslationServerManager.LastErrorMessage}";
-                    OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
-                    if (StartOfflineServerBtn != null) StartOfflineServerBtn.IsEnabled = true;
-                    if (StopOfflineServerBtn != null) StopOfflineServerBtn.IsEnabled = true;
-                    break;
+                string stateText = "Đã dừng";
+                var brush = Avalonia.Media.Brushes.Gray;
+                bool isToggleChecked = false;
+                bool isToggleEnabled = true;
+
+                switch (state)
+                {
+                    case OfflineServerState.Stopped:
+                        stateText = "Đã dừng";
+                        brush = Avalonia.Media.Brushes.Gray;
+                        isToggleChecked = false;
+                        isToggleEnabled = true;
+                        break;
+                    case OfflineServerState.Starting:
+                        stateText = "Đang khởi động...";
+                        brush = Avalonia.Media.Brushes.Orange;
+                        isToggleChecked = true;
+                        isToggleEnabled = false;
+                        break;
+                    case OfflineServerState.Ready:
+                        stateText = "Sẵn sàng (Đang chạy)";
+                        brush = Avalonia.Media.Brushes.Green;
+                        isToggleChecked = true;
+                        isToggleEnabled = true;
+                        break;
+                    case OfflineServerState.ModelMissing:
+                        stateText = "Thiếu mô hình (Model Missing)";
+                        brush = Avalonia.Media.Brushes.Red;
+                        isToggleChecked = false;
+                        isToggleEnabled = true;
+                        break;
+                    case OfflineServerState.Failed:
+                        stateText = $"Lỗi: {OfflineTranslationServerManager.LastErrorMessage}";
+                        brush = Avalonia.Media.Brushes.Red;
+                        isToggleChecked = false;
+                        isToggleEnabled = true;
+                        break;
+                }
+
+                if (OfflineServerStateText != null) { OfflineServerStateText.Text = stateText; OfflineServerStateText.Foreground = brush; }
+                if (UtilAtom26StateText != null) { UtilAtom26StateText.Text = stateText; UtilAtom26StateText.Foreground = brush; }
+
+                if (OfflineServerToggle != null) { OfflineServerToggle.IsChecked = isToggleChecked; OfflineServerToggle.IsEnabled = isToggleEnabled; }
+                if (UtilAtom26Toggle != null) { UtilAtom26Toggle.IsChecked = isToggleChecked; UtilAtom26Toggle.IsEnabled = isToggleEnabled; }
+            }
+            finally
+            {
+                _isUpdatingToggle = false;
             }
         }
 
-        private async void StartOfflineServerBtn_Click(object? sender, RoutedEventArgs e)
+        private async void OfflineServerToggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {
-            string url = OfflineTranslateUrlBox.Text ?? "";
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            {
-                OfflineTranslationServerManager.ServerPort = uri.Port;
-            }
-            
-            await LoadingDialog.ShowLoadingTaskAsync(this, "Đang khởi động Offline Server...\nLần đầu load mô hình có thể tốn từ 10-45 giây.", async (dlg) => {
-                await OfflineTranslationServerManager.StartServerAsync();
-            });
-        }
+            if (_isUpdatingToggle) return;
 
-        private void StopOfflineServerBtn_Click(object? sender, RoutedEventArgs e)
-        {
-            OfflineTranslationServerManager.StopServer();
+            var toggle = sender as ToggleSwitch;
+            bool wantsOn = toggle?.IsChecked ?? false;
+            if (wantsOn)
+            {
+                if (OfflineTranslationServerManager.State == OfflineServerState.Stopped ||
+                    OfflineTranslationServerManager.State == OfflineServerState.Failed ||
+                    OfflineTranslationServerManager.State == OfflineServerState.ModelMissing)
+                {
+                    string url = OfflineTranslateUrlBox?.Text ?? "http://127.0.0.1:11435";
+                    if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                    {
+                        OfflineTranslationServerManager.ServerPort = uri.Port;
+                    }
+                    await LoadingDialog.ShowLoadingTaskAsync(this, "Đang khởi động Offline Server...\nLần đầu load mô hình có thể tốn từ 10-45 giây.", async (dlg) => {
+                        await OfflineTranslationServerManager.StartServerAsync();
+                    });
+                }
+            }
+            else
+            {
+                if (OfflineTranslationServerManager.State == OfflineServerState.Ready ||
+                    OfflineTranslationServerManager.State == OfflineServerState.Starting)
+                {
+                    OfflineTranslationServerManager.StopServer();
+                }
+            }
         }
 
         // --- ACTIVE MODEL SELECTION (TAB DỊCH THUẬT) ---
@@ -339,6 +372,13 @@ namespace m_mslc_overlay.views.dialogs
         private void UtilSpeakerDeleteBtn_Click(object? sender, RoutedEventArgs e)
         {
             // Placeholder
+        }
+
+        private void UtilAtom32Toggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingToggle || UtilAtom32Toggle == null) return;
+            ConfigManager.Current.EnableDiarizer = UtilAtom32Toggle.IsChecked ?? false;
+            LoggerService.Log($"[PreferencesDialog] atom32 (Speaker Diarization) EnableDiarizer toggled to {ConfigManager.Current.EnableDiarizer}");
         }
 
         private void DeleteModelFolder(string modelDirName)

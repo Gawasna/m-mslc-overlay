@@ -35,22 +35,6 @@
             <!-- Separator -->
             <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
 
-            <!-- Record button — click gọi StartRecording/StopRecording -->
-            <Button x:Name="RecordBtn"
-                    Classes="SubToolbarPill"
-                    ToolTip.Tip="Toggle audio recording"
-                    IsEnabled="{Binding IsOpen}">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <mi:MaterialIcon x:Name="RecordIcon" Kind="Microphone" Width="12" Height="12"
-                                            Foreground="{StaticResource TextPrimaryBrush}" />
-                    <TextBlock x:Name="RecordLabel" FontSize="10" FontWeight="SemiBold"
-                               VerticalAlignment="Center" Text="Record" />
-                </StackPanel>
-            </Button>
-
-            <!-- Separator -->
-            <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
-
             <!-- Export SRT button -->
             <Button x:Name="ExportSrtBtn"
                     Content="Export .SRT"

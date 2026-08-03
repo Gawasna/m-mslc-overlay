@@ -28,7 +28,7 @@ body {
 .machine-segment {
   position: relative;
   display: flex;
-  gap: 16px;
+  gap: 8px;  /* Reduced gap for tighter layout */
   margin: 4px 0;
   padding: 4px 8px;
   border-radius: 4px;
@@ -36,9 +36,26 @@ body {
 }
 .machine-segment:hover { background: rgba(34, 197, 94, 0.03); }
 
-/* Gutter */
+/* Audio icon column (left margin) */
+.seg-audio-icon {
+  width: 16px;
+  min-width: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.5;
+  transition: opacity 0.15s, transform 0.15s;
+  text-align: center;
+  padding-top: 2px;
+}
+.seg-audio-icon:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+/* Gutter (timestamp + speaker) */
 .seg-gutter {
-  min-width: 120px;
+  min-width: 110px;
   font-size: 11px;
   color: #9CA3AF;
   font-family: monospace;
@@ -46,7 +63,9 @@ body {
   user-select: none;
   padding-top: 2px;
 }
-.seg-gutter:hover { color: #6366F1; }
+.seg-gutter:hover { 
+  color: #6366F1; 
+}
 
 .seg-content {
   flex: 1;

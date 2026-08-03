@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NAudio.Wave;
+using NAudio.CoreAudioApi; // For WasapiOut
 
 namespace MMslcOverlay.Services.Workspace;
 
@@ -10,7 +11,7 @@ namespace MMslcOverlay.Services.Workspace;
 /// </summary>
 public class AudioPlayerService : IDisposable
 {
-    private WaveOutEvent? _waveOut;
+    private IWavePlayer? _waveOut;
     private readonly object _lock = new();
 
     public event Action<string>? PlaybackEnded; // segId
@@ -21,51 +22,131 @@ public class AudioPlayerService : IDisposable
     /// </summary>
     public void PlaySegmentByTime(string segId, string sessionDir, long offsetMs, long durationMs)
     {
+        Console.WriteLine($"[AudioPlayerService] ===== PlaySegmentByTime CALLED =====");
+        Console.WriteLine($"[AudioPlayerService]   segId: {segId}");
+        Console.WriteLine($"[AudioPlayerService]   sessionDir: {sessionDir}");
+        Console.WriteLine($"[AudioPlayerService]   offsetMs: {offsetMs}");
+        Console.WriteLine($"[AudioPlayerService]   durationMs: {durationMs}");
+        
+        System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] PlaySegmentByTime called:");
+        System.Diagnostics.Debug.WriteLine($"  segId: {segId}");
+        System.Diagnostics.Debug.WriteLine($"  sessionDir: {sessionDir}");
+        System.Diagnostics.Debug.WriteLine($"  offsetMs: {offsetMs}");
+        System.Diagnostics.Debug.WriteLine($"  durationMs: {durationMs}");
+        
         if (!Directory.Exists(sessionDir))
         {
+            Console.WriteLine($"[AudioPlayerService] ❌ Session directory NOT FOUND: {sessionDir}");
             System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Session directory not found: {sessionDir}");
+            PlaybackEnded?.Invoke(segId);
             return;
         }
+        
+        Console.WriteLine($"[AudioPlayerService] ✅ Session directory exists");
 
         lock (_lock)
         {
+            Console.WriteLine($"[AudioPlayerService] Acquired lock, stopping current playback...");
             StopCurrent();
+            Console.WriteLine($"[AudioPlayerService] Current playback stopped");
 
             try
             {
+                Console.WriteLine($"[AudioPlayerService] Loading VirtualWavReader from {sessionDir}...");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Loading VirtualWavReader from {sessionDir}");
+                
                 // Load virtual WAV reader from session chunks
                 var reader = VirtualWavReader.FromSessionDir(sessionDir);
                 
+                Console.WriteLine($"[AudioPlayerService] ✅ Reader loaded successfully");
+                Console.WriteLine($"[AudioPlayerService]   WaveFormat: {reader.WaveFormat}");
+                Console.WriteLine($"[AudioPlayerService]   Length: {reader.Length} bytes");
+                
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Reader loaded. WaveFormat: {reader.WaveFormat}");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Reader length: {reader.Length} bytes");
+                
                 // Seek to offset
+                Console.WriteLine($"[AudioPlayerService] Seeking to {offsetMs}ms...");
                 reader.SeekToMilliseconds(offsetMs);
+                Console.WriteLine($"[AudioPlayerService] ✅ Seeked to position {reader.Position} bytes");
+                
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Seeked to {offsetMs}ms (position: {reader.Position})");
                 
                 // Calculate byte count for duration
                 long bytesPerMs = reader.WaveFormat.AverageBytesPerSecond / 1000;
                 long byteCount = bytesPerMs * durationMs;
                 
-                // Wrap in limiter to play only duration
-                var limiter = new LimitedWaveStream(reader, byteCount);
+                Console.WriteLine($"[AudioPlayerService] Will play {byteCount} bytes ({durationMs}ms)");
+                Console.WriteLine($"[AudioPlayerService]   BytesPerMs: {bytesPerMs}");
                 
-                _waveOut = new WaveOutEvent();
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Will play {byteCount} bytes ({durationMs}ms)");
+                
+                // Wrap in limiter to play only duration
+                Console.WriteLine($"[AudioPlayerService] Creating LimitedWaveStream...");
+                var limiter = new LimitedWaveStream(reader, byteCount);
+                Console.WriteLine($"[AudioPlayerService] ✅ LimitedWaveStream created");
+                
+                // Use WasapiOut with shared mode to allow concurrent access with atom32
+                // WaveOutEvent would conflict if atom32 is recording from output device
+                Console.WriteLine($"[AudioPlayerService] Creating WasapiOut (Shared mode)...");
+                var wasapiOut = new WasapiOut(AudioClientShareMode.Shared, 100);
+                _waveOut = wasapiOut;
+                
+                // Set volume to 100%
+                _waveOut.Volume = 1.0f;
+                
+                Console.WriteLine($"[AudioPlayerService] ✅ WasapiOut created (Shared mode, Volume: 100%)");
+                
+                Console.WriteLine($"[AudioPlayerService] Initializing WasapiOut with limiter...");
                 _waveOut.Init(limiter);
+                Console.WriteLine($"[AudioPlayerService] ✅ WaveOut initialized");
+                
                 _waveOut.PlaybackStopped += (s, e) =>
                 {
-                    reader.Dispose();
-                    limiter.Dispose();
+                    Console.WriteLine($"[AudioPlayerService] 🛑 PlaybackStopped event fired for {segId}");
+                    if (e.Exception != null)
+                    {
+                        Console.WriteLine($"[AudioPlayerService] ❌ Playback exception: {e.Exception.Message}");
+                    }
+                    System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback stopped for {segId}");
+                    
+                    // Dispose in order
+                    try
+                    {
+                        reader.Dispose();
+                        limiter.Dispose();
+                    }
+                    catch (Exception disposeEx)
+                    {
+                        Console.WriteLine($"[AudioPlayerService] ⚠️ Dispose error: {disposeEx.Message}");
+                    }
+                    
                     PlaybackEnded?.Invoke(segId);
                 };
                 
+                Console.WriteLine($"[AudioPlayerService] Firing PlaybackStarted event for {segId}...");
                 PlaybackStarted?.Invoke(segId);
-                _waveOut.Play();
+                Console.WriteLine($"[AudioPlayerService] ✅ PlaybackStarted event fired");
                 
-                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playing segment {segId} from {sessionDir} at {offsetMs}ms for {durationMs}ms");
+                Console.WriteLine($"[AudioPlayerService] Calling _waveOut.Play()...");
+                Console.WriteLine($"[AudioPlayerService] Playback state BEFORE Play(): {_waveOut.PlaybackState}");
+                _waveOut.Play();
+                Console.WriteLine($"[AudioPlayerService] Playback state AFTER Play(): {_waveOut.PlaybackState}");
+                Console.WriteLine($"[AudioPlayerService] ✅ _waveOut.Play() completed - audio should be playing now!");
+                
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playing segment {segId}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback error: {ex.Message}");
+                Console.WriteLine($"[AudioPlayerService] ❌❌❌ EXCEPTION: {ex.Message}");
+                Console.WriteLine($"[AudioPlayerService] ❌ Stack trace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] ❌ Playback error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Stack trace: {ex.StackTrace}");
                 PlaybackEnded?.Invoke(segId);
             }
         }
+        
+        Console.WriteLine($"[AudioPlayerService] ===== PlaySegmentByTime COMPLETED =====");
     }
 
     /// <summary>

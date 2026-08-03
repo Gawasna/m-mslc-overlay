@@ -226,9 +226,17 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                 }
                 case "PLAY_AUDIO":
                 {
-                    System.Diagnostics.Debug.WriteLine($"Play audio for seg {msg.SegId}");
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetViewModel] ===== PLAY_AUDIO HANDLER START =====");
+                    Console.WriteLine($"[PaperSheetViewModel] ===== PLAY_AUDIO HANDLER START =====");
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetViewModel] msg.SegId = {msg.SegId}");
+                    Console.WriteLine($"[PaperSheetViewModel] msg.SegId = {msg.SegId}");
+                    
                     string? segId = msg.SegId;
-                    if (segId == null) break;
+                    if (segId == null)
+                    {
+                        Console.WriteLine($"[PaperSheetViewModel] ❌ segId is NULL, aborting");
+                        break;
+                    }
 
                     // Parse segId format: "active:42" or "seg_001:10" or just "42"
                     var parts = segId.Split(':');
@@ -237,52 +245,107 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     if (parts.Length == 2)
                     {
                         long.TryParse(parts[1], out segmentId);
+                        Console.WriteLine($"[PaperSheetViewModel] Parsed format 'prefix:id' → segmentId={segmentId}");
                     }
                     else if (parts.Length == 1)
                     {
                         long.TryParse(parts[0], out segmentId);
+                        Console.WriteLine($"[PaperSheetViewModel] Parsed format 'id' → segmentId={segmentId}");
                     }
-                    if (segmentId == -1) break;
+                    
+                    if (segmentId == -1)
+                    {
+                        Console.WriteLine($"[PaperSheetViewModel] ❌ Failed to parse segmentId, aborting");
+                        break;
+                    }
+                    
+                    Console.WriteLine($"[PaperSheetViewModel] ✅ Parsed segmentId={segmentId}, querying repository...");
 
                     // Query segment to get audio references
+                    Console.WriteLine($"[PaperSheetViewModel] Calling GetMergedSegments()...");
                     var all = _workspace.SegmentRepo?.GetMergedSegments();
+                    Console.WriteLine($"[PaperSheetViewModel] Got {all?.Count() ?? 0} segments from repository");
+                    
                     var seg = all?.FirstOrDefault(s => s.BaseSegment.Id == segmentId);
                     if (seg == null)
                     {
+                        Console.WriteLine($"[PaperSheetViewModel] ❌ Segment {segmentId} NOT FOUND in repository");
                         System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Segment {segmentId} not found in repository");
                         SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
                         break;
                     }
+                    
+                    Console.WriteLine($"[PaperSheetViewModel] ✅ Found segment {segmentId}:");
+                    Console.WriteLine($"[PaperSheetViewModel]   AudioSessionId = {seg.BaseSegment.AudioSessionId ?? "NULL"}");
+                    Console.WriteLine($"[PaperSheetViewModel]   AudioOffsetMs = {seg.BaseSegment.AudioOffsetMs?.ToString() ?? "NULL"}");
+                    Console.WriteLine($"[PaperSheetViewModel]   TsStartMs = {seg.BaseSegment.TsStartMs}");
+                    Console.WriteLine($"[PaperSheetViewModel]   TsEndMs = {seg.BaseSegment.TsEndMs}");
 
                     // Check if segment has audio references (Phase 2 session-based)
                     if (!string.IsNullOrEmpty(seg.BaseSegment.AudioSessionId) && 
                         seg.BaseSegment.AudioOffsetMs.HasValue)
                     {
+                        Console.WriteLine($"[PaperSheetViewModel] ✅ Segment has session-based audio, using Phase 2 playback");
+                        
                         // Phase 2: Session-based playback
                         string sessionDir = System.IO.Path.Combine(
                             _workspace.Storage.MslcDir, 
                             "audio", 
                             seg.BaseSegment.AudioSessionId);
                         
+                        Console.WriteLine($"[PaperSheetViewModel]   SessionDir = {sessionDir}");
+                        Console.WriteLine($"[PaperSheetViewModel]   Checking if directory exists...");
+                        
                         if (!System.IO.Directory.Exists(sessionDir))
                         {
+                            Console.WriteLine($"[PaperSheetViewModel] ❌ Session directory NOT FOUND: {sessionDir}");
                             System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Session directory not found: {sessionDir}");
                             SendToEditor(new BridgeMessage { Type = "AUDIO_UNAVAILABLE", SegId = segId });
                             break;
                         }
+                        
+                        Console.WriteLine($"[PaperSheetViewModel] ✅ Session directory exists");
 
-                        long durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
+                        // ✅ FIX: Dùng audio recorder offsets thay vì acoustic timestamps
+                        // AudioOffsetMs = start của segment trong PCM stream
+                        // AudioEndOffsetMs = end của segment trong PCM stream
+                        // => duration thực tế từ recorder, không phụ thuộc vào SDK acoustic time
+                        long startOffsetMs = seg.BaseSegment.AudioOffsetMs.Value;
+                        long durationMs;
+                        
+                        if (seg.BaseSegment.AudioEndOffsetMs.HasValue && seg.BaseSegment.AudioEndOffsetMs.Value > startOffsetMs)
+                        {
+                            // Preferred: dùng recorder-based duration (chính xác nhất)
+                            durationMs = seg.BaseSegment.AudioEndOffsetMs.Value - startOffsetMs;
+                            Console.WriteLine($"[PaperSheetViewModel]   Duration (recorder-based) = {durationMs}ms");
+                        }
+                        else
+                        {
+                            // Fallback: dùng acoustic timestamp delta nếu AudioEndOffsetMs chưa có (segment cũ)
+                            durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
+                            Console.WriteLine($"[PaperSheetViewModel]   Duration (acoustic fallback) = {durationMs}ms");
+                        }
+                        
                         if (durationMs <= 0)
                         {
+                            Console.WriteLine($"[PaperSheetViewModel] ❌ Invalid duration {durationMs}ms, aborting");
                             System.Diagnostics.Debug.WriteLine($"[PaperSheet] PLAY_AUDIO: Invalid duration {durationMs}ms");
                             break;
                         }
 
+                        Console.WriteLine($"[PaperSheetViewModel] 🎵 Calling _audioPlayer.PlaySegmentByTime()...");
+                        Console.WriteLine($"[PaperSheetViewModel]   segId: {segId}");
+                        Console.WriteLine($"[PaperSheetViewModel]   sessionDir: {sessionDir}");
+                        Console.WriteLine($"[PaperSheetViewModel]   offsetMs (start): {startOffsetMs}");
+                        Console.WriteLine($"[PaperSheetViewModel]   durationMs: {durationMs}");
+                        
                         _audioPlayer?.PlaySegmentByTime(
                             segId, 
                             sessionDir, 
-                            seg.BaseSegment.AudioOffsetMs.Value, 
+                            startOffsetMs, 
                             durationMs);
+                        
+                        Console.WriteLine($"[PaperSheetViewModel] ✅ PlaySegmentByTime() call completed");
                     }
                     else
                     {

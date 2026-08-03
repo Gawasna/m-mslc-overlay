@@ -3,6 +3,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Material.Icons;
+using Material.Icons.Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -51,6 +53,12 @@ namespace m_mslc_overlay
         
         // CRITICAL-TEXT-001: Track previous segment end time for continuous timeline
         private long _lastSegmentEndMs = 0;
+        
+        // FIX V6: Per-segment translation with context hints
+        // Translate EACH segment individually (for subtitle export compatibility)
+        // but provide previous segments as context hints to improve quality
+        private readonly System.Collections.Generic.Queue<string> _contextHints = new();
+        private const int MaxContextHints = 3;  // Keep last 3 segments as context
 
         private readonly object _logLock = new object();
         private readonly System.Collections.Generic.List<string> _rawLogs = new System.Collections.Generic.List<string>();
@@ -124,24 +132,54 @@ namespace m_mslc_overlay
             // ATOM50: Short sentence buffer merges fragments (≤3 words) with the next
             // long sentence before forwarding to translation, avoiding wasteful API calls
             // for isolated tokens like "but", "So", "Because", "I".
-            _shortSentenceBuffer.OnFlush += (mergedText) => {
+            // FIX V3: Now receives full CommitMetadata to preserve UtteranceOffset for correct linking.
+            // FIX V6: Per-segment translation with context hints
+            _shortSentenceBuffer.OnFlush += (mergedMeta) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     if (IsTranslationEnabled)
                     {
                         lock (_translationLock) {
                             _translationBuffer = "";
+                            
+                            // V6: Build context-aware translation prompt
+                            // Format: "[Previous context...] >> CURRENT_TEXT"
+                            // This tells translation engine about context without merging translations
+                            string contextPrefix = "";
+                            if (_contextHints.Count > 0)
+                            {
+                                contextPrefix = string.Join(" ", _contextHints) + " >> ";
+                            }
+                            
+                            string textWithContext = contextPrefix + mergedMeta.Text;
+                            
+                            // Add current text to context hints for next translation
+                            _contextHints.Enqueue(mergedMeta.Text);
+                            while (_contextHints.Count > MaxContextHints)
+                            {
+                                _contextHints.Dequeue();
+                            }
+                            
+                            // Clear context on HardCommit (sentence boundary)
+                            if (mergedMeta.Reason == "HardCommit")
+                            {
+                                _contextHints.Clear();
+                            }
                         }
-                        // ATOM81: enqueue via priority queue instead of direct async call
-                        _aiService.EnqueueTranslation(mergedText, "SoftCommit");
+                        
+                        // Pass to translation with UtteranceOffset preserved for linking
+                        _aiService.EnqueueTranslation(mergedMeta);
+                        
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[V6] Translating segment with {_contextHints.Count - 1} context hints: '{mergedMeta.Text}'");
                     }
                     else
                     {
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
                             if (_currentOverlay.UseTypewriter)
-                                _currentOverlay.EnqueueText(mergedText);
+                                _currentOverlay.EnqueueText(mergedMeta.Text);
                             else
-                                _currentOverlay.AddFinalText(mergedText);
+                                _currentOverlay.AddFinalText(mergedMeta.Text);
                         }
                     }
                 });
@@ -199,31 +237,57 @@ namespace m_mslc_overlay
                     // Ingest into workspace if open
                     if (_workspaceVm.IsOpen && _workspaceVm.Service?.IngestionService != null)
                     {
-                        // ✅ AUTO-START RECORDING: Start recording automatically on first STT segment
-                        if (!_workspaceVm.IsRecording)
-                        {
-                            _workspaceVm.StartRecording();
-                            System.Diagnostics.Debug.WriteLine("[MainWindow] 🎙️ Auto-started recording on first STT segment");
-                        }
+                        // DISABLED: AUTO-START RECORDING (user must click Record button explicitly)
+                        // Reason: Recording should be under explicit user control, not automatic
+                        // if (!_workspaceVm.IsRecording)
+                        // {
+                        //     _workspaceVm.StartRecording();
+                        //     System.Diagnostics.Debug.WriteLine("[MainWindow] 🎙️ Auto-started recording on first STT segment");
+                        // }
                         
-                        long tsEndMs = (long)meta.AcousticEndMs;
-                        if (tsEndMs <= 0)
+                        // CRITICAL-TEXT-001 FIX: Handle timestamp calculation
+                        long tsEndMs;
+                        
+                        if (meta.AcousticEndMs > 0)
                         {
-                            tsEndMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                            // Use acoustic timestamp from SDK (relative time in ms)
+                            tsEndMs = (long)meta.AcousticEndMs;
+                        }
+                        else
+                        {
+                            // Fallback: Use previous segment's end + estimate
+                            // NEVER use Unix timestamp - it causes overflow!
+                            if (_lastSegmentEndMs > 0)
+                            {
+                                tsEndMs = _lastSegmentEndMs + 2000; // Estimate 2s from previous
+                            }
+                            else
+                            {
+                                // Very first segment with no acoustic data: start at 0
+                                tsEndMs = 2000;
+                            }
                         }
                         
                         // CRITICAL-TEXT-001 FIX: Use previous segment's end as this segment's start
                         // This creates a continuous timeline and eliminates accumulating drift.
-                        // First segment: Use 2s estimate as fallback
-                        long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : (tsEndMs - 2000);
+                        // First segment: Use 0 as start
+                        long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : 0;
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
+                        // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav
+                        string resolvedSpeaker = !string.IsNullOrEmpty(meta.SpeakerId) ? meta.SpeakerId : (!string.IsNullOrEmpty(_latestSpeakerUid) ? _latestSpeakerUid : "UNK");
+                        if (resolvedSpeaker != "UNK")
+                        {
+                            string dispName = (resolvedSpeaker == _latestSpeakerUid && !string.IsNullOrEmpty(_latestSpeakerDisplayName)) ? _latestSpeakerDisplayName : resolvedSpeaker;
+                            _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
+                        }
+
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
                             tsEndMs: tsEndMs,
                             textSrc: meta.Text,
                             textTrs: null,
-                            speakerId: !string.IsNullOrEmpty(meta.SpeakerId) ? meta.SpeakerId : "UNK",
+                            speakerId: resolvedSpeaker,
                             commitType: meta.Reason == "HardCommit" ? "HARD" : "SOFT",
                             // CRITICAL-TEXT-001: Pass acoustic metadata to database
                             acousticEndMs: meta.AcousticEndMs,
@@ -235,9 +299,13 @@ namespace m_mslc_overlay
                         _segmentIdMap[segment.Id] = dbId;
                     }
 
+                    // FIX V6: No accumulation needed - translate per segment immediately
+                    // Context hints are managed in OnFlush handler
+
                     // ATOM50: route through ShortSentenceBuffer — translation fires
                     // only when OnFlush is triggered (either by merge or timeout).
-                    _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
+                    // FIX V3: Pass full CommitMetadata to preserve UtteranceOffset
+                    _shortSentenceBuffer.Feed(meta);
                 });
             };
 
@@ -287,6 +355,9 @@ namespace m_mslc_overlay
                         {
                             if (_segmentIdMap.TryGetValue(linkedSeg.Id, out long dbId))
                             {
+                                // FIX V6: Store per-segment translation (for subtitle export)
+                                // Translation is for THIS segment only, not accumulated
+                                
                                 // 1. Lưu vào SQLite database
                                 _workspaceVm.Service.ActiveSegmentRepo.UpdateSegmentTranslation(dbId, fullSentence);
 
@@ -301,6 +372,10 @@ namespace m_mslc_overlay
                                         NewValue = fullSentence
                                     });
                                 }
+                                
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"[V6] Applied translation to segment {dbId}: " +
+                                    $"'{fullSentence.Substring(0, Math.Min(40, fullSentence.Length))}{(fullSentence.Length > 40 ? "..." : "")}'");
                             }
                             else
                             {
@@ -362,17 +437,24 @@ namespace m_mslc_overlay
                     _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
                     _segmentIdMap.Clear();
                     _lastSegmentEndMs = 0;  // CRITICAL-TEXT-001: Reset timing state on reconnect
-                }
-                
-                // ✅ AUTO-STOP RECORDING: Stop recording when STT disconnects
-                if (statusMsg.Contains("Client disconnected"))
-                {
-                    if (_workspaceVm.IsRecording)
+                    
+                    // FIX V6: Clear context hints on reconnect
+                    lock (_translationLock)
                     {
-                        _workspaceVm.StopRecording();
-                        System.Diagnostics.Debug.WriteLine("[MainWindow] 🛑 Auto-stopped recording on STT disconnect");
+                        _contextHints.Clear();
                     }
                 }
+                
+                // DISABLED: AUTO-STOP RECORDING (user must click Stop button explicitly)
+                // Reason: Recording should persist across STT disconnect/reconnect
+                // if (statusMsg.Contains("Client disconnected"))
+                // {
+                //     if (_workspaceVm.IsRecording)
+                //     {
+                //         _workspaceVm.StopRecording();
+                //         System.Diagnostics.Debug.WriteLine("[MainWindow] 🛑 Auto-stopped recording on STT disconnect");
+                //     }
+                // }
                 
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
@@ -883,6 +965,15 @@ namespace m_mslc_overlay
 
             if (_workspaceVm.IsRecording) _workspaceVm.StopRecording();
             _workspaceVm.CloseWorkspace();
+            
+            // Update session control button to "Start Session" state
+            var btn = this.FindControl<Button>("SessionControlBtn");
+            var icon = this.FindControl<MaterialIcon>("SessionControlIcon");
+            var label = this.FindControl<TextBlock>("SessionControlLabel");
+            if (btn != null && icon != null && label != null)
+            {
+                UpdateButtonLabel(btn, icon, label);
+            }
         }
 
         /// <summary>
@@ -1266,6 +1357,226 @@ namespace m_mslc_overlay
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // UNIFIED SESSION CONTROL BUTTON
+        // ═══════════════════════════════════════════════════════════════════
+        
+        private enum SessionState
+        {
+            Idle,       // Not started
+            Starting,   // Opening Live Caption + Injecting
+            Recording,  // Active recording session
+            Stopping    // Stopping recording
+        }
+        
+        private SessionState _sessionState = SessionState.Idle;
+        
+        /// <summary>
+        /// Unified button that controls entire pipeline:
+        /// IDLE → Opens Live Caption + Injects + Creates Workspace + Starts Recording
+        /// RECORDING → Stops Recording + Closes Workspace
+        /// </summary>
+        private async void SessionControlBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = this.FindControl<Button>("SessionControlBtn");
+            var icon = this.FindControl<MaterialIcon>("SessionControlIcon");
+            var label = this.FindControl<TextBlock>("SessionControlLabel");
+            
+            if (btn == null || icon == null || label == null) return;
+            
+            switch (_sessionState)
+            {
+                case SessionState.Idle:
+                    await StartUnifiedSessionAsync(btn, icon, label);
+                    break;
+                    
+                case SessionState.Recording:
+                    await StopUnifiedSessionAsync(btn, icon, label);
+                    break;
+                    
+                default:
+                    // Button disabled during Starting/Stopping
+                    break;
+            }
+        }
+        
+        private async System.Threading.Tasks.Task StartUnifiedSessionAsync(Button btn, MaterialIcon icon, TextBlock label)
+        {
+            _sessionState = SessionState.Starting;
+            btn.IsEnabled = false;
+            label.Text = "Starting...";
+            
+            try
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION] Starting unified session...\n");
+                
+                // Step 1: Check Live Caption
+                DetectTargetProcess();
+                uint pid = _hiderService.TargetProcessId;
+                
+                if (pid == 0)
+                {
+                    // Live Caption not running - open settings page to let user enable it
+                    AppendLog($"[{timestamp}] [SESSION] Live Caption not detected, opening Settings...\n");
+                    bool opened = LiveCaptionUtils.LaunchLiveCaptionSettings();
+                    
+                    if (!opened)
+                    {
+                        AppendLog($"[{timestamp}] [SESSION ERROR] Failed to open Live Caption settings.\n");
+                        _sessionState = SessionState.Idle;
+                        btn.IsEnabled = true;
+                        UpdateButtonLabel(btn, icon, label);
+                        return;
+                    }
+                    
+                    // Show instruction to user
+                    AppendLog($"[{timestamp}] [SESSION] Please enable Live Captions in Settings, then click Start Session again.\n");
+                    _sessionState = SessionState.Idle;
+                    btn.IsEnabled = true;
+                    UpdateButtonLabel(btn, icon, label);
+                    return;
+                }
+                
+                AppendLog($"[{timestamp}] [SESSION] Live Caption detected (PID {pid})\n");
+                
+                // Step 2: Inject DLL
+                AppendLog($"[{timestamp}] [SESSION] Injecting hook DLL...\n");
+                bool injected = await _injectorService.InjectAsync(pid);
+                
+                if (!injected)
+                {
+                    AppendLog($"[{timestamp}] [SESSION ERROR] Injection failed. Check UAC permissions.\n");
+                    _sessionState = SessionState.Idle;
+                    btn.IsEnabled = true;
+                    UpdateButtonLabel(btn, icon, label);
+                    return;
+                }
+                
+                HookStatusDot.Fill = SolidColorBrush.Parse("#00FF88");
+                HookStatusText.Text = "Injected";
+                AppendLog($"[{timestamp}] [SESSION] Hook injected successfully\n");
+                
+                // Step 3: Start pipe server
+                _pipeService.Start();
+                AppendLog($"[{timestamp}] [SESSION] Named Pipe server started\n");
+                
+                // Step 4: Open/Create workspace (ONLY if not already open)
+                if (!_workspaceVm.IsOpen)
+                {
+                    string workspaceName = $"Session_{DateTime.Now:yyyyMMdd_HHmmss}";
+                    string workspacePath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                        workspaceName
+                    );
+                    
+                    _workspaceVm.OpenOrCreate(workspacePath);
+                    AppendLog($"[{timestamp}] [SESSION] Workspace created: {workspacePath}\n");
+                }
+                else
+                {
+                    AppendLog($"[{timestamp}] [SESSION] Using existing workspace: {_workspaceVm.WorkspacePath}\n");
+                }
+                
+                // Step 5: Start recording
+                _workspaceVm.StartRecording();
+                AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
+                
+                // Update button to "Pause Recording"
+                _sessionState = SessionState.Recording;
+                btn.IsEnabled = true;
+                icon.Kind = Material.Icons.MaterialIconKind.Pause;
+                label.Text = "Pause";
+                btn.Classes.Remove("PrimaryBtn");
+                btn.Classes.Add("DangerBtn");
+                ToolTip.SetTip(btn, "Pause recording (stop accepting new segments)");
+                
+                AppendLog($"[{timestamp}] [SESSION] ✅ Session started successfully. Speak to begin transcription.\n");
+            }
+            catch (Exception ex)
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION ERROR] {ex.Message}\n");
+                _sessionState = SessionState.Idle;
+                btn.IsEnabled = true;
+                UpdateButtonLabel(btn, icon, label);
+            }
+        }
+        
+        private async System.Threading.Tasks.Task StopUnifiedSessionAsync(Button btn, MaterialIcon icon, TextBlock label)
+        {
+            _sessionState = SessionState.Stopping;
+            btn.IsEnabled = false;
+            label.Text = "Pausing...";
+            
+            try
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION] Pausing recording...\n");
+                
+                // Step 1: Stop recording (but keep workspace open)
+                if (_workspaceVm.IsRecording)
+                {
+                    _workspaceVm.StopRecording();
+                    AppendLog($"[{timestamp}] [SESSION] Audio recording stopped\n");
+                }
+                
+                // Step 2: Flush pending edits
+                if (_workspaceVm.IsDirty)
+                {
+                    await FlushPendingEditsAsync();
+                    AppendLog($"[{timestamp}] [SESSION] Pending edits flushed\n");
+                }
+                
+                // Step 3: Workspace stays OPEN (user can continue editing, export, etc.)
+                // User must explicitly close via File menu or Close Workspace button
+                
+                // Update button state
+                _sessionState = SessionState.Idle;
+                btn.IsEnabled = true;
+                UpdateButtonLabel(btn, icon, label);
+                
+                AppendLog($"[{timestamp}] [SESSION] ✅ Recording paused. Workspace remains open for editing/export.\n");
+            }
+            catch (Exception ex)
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION ERROR] {ex.Message}\n");
+                _sessionState = SessionState.Idle;
+                btn.IsEnabled = true;
+                UpdateButtonLabel(btn, icon, label);
+            }
+        }
+        
+        /// <summary>
+        /// Update button label/icon based on workspace state (context-aware)
+        /// </summary>
+        private void UpdateButtonLabel(Button btn, MaterialIcon icon, TextBlock label)
+        {
+            if (_workspaceVm.IsOpen)
+            {
+                // Workspace is open - show "Resume" button
+                icon.Kind = Material.Icons.MaterialIconKind.PlayCircle;
+                label.Text = "Resume";
+                btn.Classes.Remove("DangerBtn");
+                btn.Classes.Add("PrimaryBtn");
+                ToolTip.SetTip(btn, "Resume recording (continue accepting segments into current workspace)");
+            }
+            else
+            {
+                // No workspace open - show "Start Session" button
+                icon.Kind = Material.Icons.MaterialIconKind.PlayCircle;
+                label.Text = "Start Session";
+                btn.Classes.Remove("DangerBtn");
+                btn.Classes.Add("PrimaryBtn");
+                ToolTip.SetTip(btn, "Start new transcription session (opens Live Caption, injects, starts recording)");
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // LEGACY MANUAL INJECTION (kept for debugging)
+        // ═══════════════════════════════════════════════════════════════════
+        
         private async void InjectBtn_Click(object sender, RoutedEventArgs e)
         {
             DetectTargetProcess();
@@ -1397,9 +1708,14 @@ namespace m_mslc_overlay
                     break;
 
                 case RecognitionEvent re:
-                    // Cache latest speaker for next commit
+                    // Cache latest speaker for next commit and instantly sync with Doc Nav
                     _latestSpeakerUid = re.Uid;
                     _latestSpeakerDisplayName = re.DisplayName;
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!string.IsNullOrEmpty(re.Uid))
+                            _workspaceVm.NavPane?.AddOrUpdateSpeaker(re.Uid, !string.IsNullOrEmpty(re.DisplayName) ? re.DisplayName : re.Uid);
+                    });
                     break;
 
                 case ReadyEvent:

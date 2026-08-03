@@ -61,6 +61,20 @@
                     <!-- Translation Tab -->
                     <StackPanel x:Name="TabTranslation" IsVisible="False" Spacing="24">
                         <TextBlock Text="{DynamicResource Tab_Translation}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        
+                        <!-- Tùy chọn dịch (Quyết định Config chính thức, tránh ngầm định) -->
+                        <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,-12,0,0">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Tùy chọn Dịch thuật (Active Translation Engine)" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Lựa chọn này quyết định công cụ dịch được sử dụng chính thức trong ứng dụng." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="24" Margin="0,4,0,0">
+                                    <RadioButton x:Name="EngineCloudAIRadio" GroupName="ActiveEngineGroup" Content="Cloud AI (Gemini / Ollama)" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="EngineDeepLRadio" GroupName="ActiveEngineGroup" Content="DeepL API" VerticalAlignment="Center"/>
+                                    <RadioButton x:Name="EngineOfflineRadio" GroupName="ActiveEngineGroup" Content="Offline CTranslate2 (GPU)" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TabControl Margin="0,-8,0,0">
                             <TabControl.Styles>
                                 <Style Selector="TabItem">
@@ -69,17 +83,9 @@
                                     <Setter Property="MinHeight" Value="36"/>
                                 </Style>
                             </TabControl.Styles>
-                            <!-- Engine Dịch -->
-                            <TabItem Header="{DynamicResource Pref_Trans_Engine}">
+                            <!-- Cấu hình DeepL API -->
+                            <TabItem Header="DeepL API">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="Translation Engine" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        <ComboBox x:Name="TranslationEngineCombo" Width="240" SelectedIndex="0">
-                                            <ComboBoxItem Content="DeepL API"/>
-                                            <ComboBoxItem Content="Cloud AI (Ollama/Gemini)"/>
-                                            <ComboBoxItem Content="Offline CTranslate2 (GPU)"/>
-                                        </ComboBox>
-                                    </StackPanel>
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="DeepL API Key" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="DeepLApiKeyBox" Width="400" HorizontalAlignment="Left" PasswordChar="•" Watermark="..."/>
@@ -114,11 +120,25 @@
                                 </StackPanel>
                             </TabItem>
 
-                            <!-- Local AI -->
+                            <!-- Local AI / Offline Translation -->
                             <TabItem Header="{DynamicResource Pref_Trans_LocalAI}">
                                 <StackPanel Spacing="16" Margin="0,16,0,0">
                                     
-                                    <!-- Setup / Installation Assistant (Đưa lên đầu) -->
+                                    <!-- Điều khiển Máy chủ Dịch (Nút gạt khởi động) -->
+                                    <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Width="400" HorizontalAlignment="Left">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="Điều khiển Máy chủ Dịch (Server Lifecycle)" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                                <ToggleSwitch x:Name="OfflineServerToggle" Grid.Column="0" OnContent="Bật máy chủ" OffContent="Tắt máy chủ" IsCheckedChanged="OfflineServerToggle_IsCheckedChanged" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <TextBlock Text="Trạng thái:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="OfflineServerStateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Setup / Installation Assistant -->
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="{DynamicResource Pref_LocalAI_ActiveModel}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                         
@@ -139,16 +159,6 @@
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="Plugin Server Directory (Thư mục Server dịch offline)" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         <TextBox x:Name="OfflineServerDirBox" Width="400" HorizontalAlignment="Left" Watermark="plugins/atom26"/>
-                                    </StackPanel>
-                                    
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="Trạng thái Plugin Server:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        <TextBlock x:Name="OfflineServerStateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        
-                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                            <Button x:Name="StartOfflineServerBtn" Content="Khởi động Server" Width="130" HorizontalContentAlignment="Center" Click="StartOfflineServerBtn_Click"/>
-                                            <Button x:Name="StopOfflineServerBtn" Content="Dừng Server" Width="130" HorizontalContentAlignment="Center" Click="StopOfflineServerBtn_Click"/>
-                                        </StackPanel>
                                     </StackPanel>
 
                                     <StackPanel Spacing="8" Margin="0,8,0,0">
@@ -187,8 +197,19 @@
                                 <!-- Thông tin -->
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_OfflineTranslation}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2 - atom26)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
+                                
+                                <!-- Bật/Tắt Tiện Ích -->
+                                <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                    <ToggleSwitch x:Name="UtilAtom26Toggle" Grid.Column="0" OnContent="Bật máy chủ Dịch (Running)" OffContent="Tắt máy chủ Dịch (Stopped)" IsCheckedChanged="OfflineServerToggle_IsCheckedChanged" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="Trạng thái:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="UtilAtom26StateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                                
+                                <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>
                                 
                                 <!-- Controls -->
                                 <StackPanel Orientation="Horizontal" Spacing="12">
@@ -210,9 +231,16 @@
                                 <!-- Thông tin -->
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_SpeakerLabeling}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization - atom32)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
+                                <!-- Bật/Tắt Tiện Ích -->
+                                <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                    <ToggleSwitch x:Name="UtilAtom32Toggle" Grid.Column="0" OnContent="Bật Tiện ích (Kích hoạt cùng Overlay)" OffContent="Tắt Tiện ích (Vô hiệu hóa)" IsCheckedChanged="UtilAtom32Toggle_IsCheckedChanged" VerticalAlignment="Center"/>
+                                </Grid>
+                                
+                                <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>
+
                                 <!-- Controls -->
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <ComboBox x:Name="UtilSpeakerModelCombo" Width="260" SelectedIndex="0" CornerRadius="6" IsEnabled="False">
