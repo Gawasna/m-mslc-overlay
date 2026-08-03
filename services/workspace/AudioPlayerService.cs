@@ -109,8 +109,18 @@ public class AudioPlayerService : IDisposable
                         Console.WriteLine($"[AudioPlayerService] ❌ Playback exception: {e.Exception.Message}");
                     }
                     System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback stopped for {segId}");
-                    reader.Dispose();
-                    limiter.Dispose();
+                    
+                    // Dispose in order
+                    try
+                    {
+                        reader.Dispose();
+                        limiter.Dispose();
+                    }
+                    catch (Exception disposeEx)
+                    {
+                        Console.WriteLine($"[AudioPlayerService] ⚠️ Dispose error: {disposeEx.Message}");
+                    }
+                    
                     PlaybackEnded?.Invoke(segId);
                 };
                 

@@ -965,6 +965,15 @@ namespace m_mslc_overlay
 
             if (_workspaceVm.IsRecording) _workspaceVm.StopRecording();
             _workspaceVm.CloseWorkspace();
+            
+            // Update session control button to "Start Session" state
+            var btn = this.FindControl<Button>("SessionControlBtn");
+            var icon = this.FindControl<MaterialIcon>("SessionControlIcon");
+            var label = this.FindControl<TextBlock>("SessionControlLabel");
+            if (btn != null && icon != null && label != null)
+            {
+                UpdateButtonLabel(btn, icon, label);
+            }
         }
 
         /// <summary>
@@ -1417,7 +1426,7 @@ namespace m_mslc_overlay
                         AppendLog($"[{timestamp}] [SESSION ERROR] Failed to open Live Caption settings.\n");
                         _sessionState = SessionState.Idle;
                         btn.IsEnabled = true;
-                        label.Text = "Start Session";
+                        UpdateButtonLabel(btn, icon, label);
                         return;
                     }
                     
@@ -1425,7 +1434,7 @@ namespace m_mslc_overlay
                     AppendLog($"[{timestamp}] [SESSION] Please enable Live Captions in Settings, then click Start Session again.\n");
                     _sessionState = SessionState.Idle;
                     btn.IsEnabled = true;
-                    label.Text = "Start Session";
+                    UpdateButtonLabel(btn, icon, label);
                     return;
                 }
                 
@@ -1440,7 +1449,7 @@ namespace m_mslc_overlay
                     AppendLog($"[{timestamp}] [SESSION ERROR] Injection failed. Check UAC permissions.\n");
                     _sessionState = SessionState.Idle;
                     btn.IsEnabled = true;
-                    label.Text = "Start Session";
+                    UpdateButtonLabel(btn, icon, label);
                     return;
                 }
                 
@@ -1452,28 +1461,35 @@ namespace m_mslc_overlay
                 _pipeService.Start();
                 AppendLog($"[{timestamp}] [SESSION] Named Pipe server started\n");
                 
-                // Step 4: Create new workspace
-                string workspaceName = $"Session_{DateTime.Now:yyyyMMdd_HHmmss}";
-                string workspacePath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    workspaceName
-                );
-                
-                _workspaceVm.OpenOrCreate(workspacePath);
-                AppendLog($"[{timestamp}] [SESSION] Workspace created: {workspacePath}\n");
+                // Step 4: Open/Create workspace (ONLY if not already open)
+                if (!_workspaceVm.IsOpen)
+                {
+                    string workspaceName = $"Session_{DateTime.Now:yyyyMMdd_HHmmss}";
+                    string workspacePath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                        workspaceName
+                    );
+                    
+                    _workspaceVm.OpenOrCreate(workspacePath);
+                    AppendLog($"[{timestamp}] [SESSION] Workspace created: {workspacePath}\n");
+                }
+                else
+                {
+                    AppendLog($"[{timestamp}] [SESSION] Using existing workspace: {_workspaceVm.WorkspacePath}\n");
+                }
                 
                 // Step 5: Start recording
                 _workspaceVm.StartRecording();
                 AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
                 
-                // Update button to "Stop Session"
+                // Update button to "Pause Recording"
                 _sessionState = SessionState.Recording;
                 btn.IsEnabled = true;
-                icon.Kind = Material.Icons.MaterialIconKind.StopCircle;
-                label.Text = "Stop Session";
+                icon.Kind = Material.Icons.MaterialIconKind.Pause;
+                label.Text = "Pause";
                 btn.Classes.Remove("PrimaryBtn");
                 btn.Classes.Add("DangerBtn");
-                ToolTip.SetTip(btn, "Stop recording session");
+                ToolTip.SetTip(btn, "Pause recording (stop accepting new segments)");
                 
                 AppendLog($"[{timestamp}] [SESSION] ✅ Session started successfully. Speak to begin transcription.\n");
             }
@@ -1483,7 +1499,7 @@ namespace m_mslc_overlay
                 AppendLog($"[{timestamp}] [SESSION ERROR] {ex.Message}\n");
                 _sessionState = SessionState.Idle;
                 btn.IsEnabled = true;
-                label.Text = "Start Session";
+                UpdateButtonLabel(btn, icon, label);
             }
         }
         
@@ -1491,14 +1507,14 @@ namespace m_mslc_overlay
         {
             _sessionState = SessionState.Stopping;
             btn.IsEnabled = false;
-            label.Text = "Stopping...";
+            label.Text = "Pausing...";
             
             try
             {
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                AppendLog($"[{timestamp}] [SESSION] Stopping session...\n");
+                AppendLog($"[{timestamp}] [SESSION] Pausing recording...\n");
                 
-                // Step 1: Stop recording
+                // Step 1: Stop recording (but keep workspace open)
                 if (_workspaceVm.IsRecording)
                 {
                     _workspaceVm.StopRecording();
@@ -1512,23 +1528,15 @@ namespace m_mslc_overlay
                     AppendLog($"[{timestamp}] [SESSION] Pending edits flushed\n");
                 }
                 
-                // Step 3: Close workspace (keeps files on disk)
-                if (_workspaceVm.IsOpen)
-                {
-                    _workspaceVm.CloseWorkspace();
-                    AppendLog($"[{timestamp}] [SESSION] Workspace closed\n");
-                }
+                // Step 3: Workspace stays OPEN (user can continue editing, export, etc.)
+                // User must explicitly close via File menu or Close Workspace button
                 
-                // Update button back to "Start Session"
+                // Update button state
                 _sessionState = SessionState.Idle;
                 btn.IsEnabled = true;
-                icon.Kind = Material.Icons.MaterialIconKind.PlayCircle;
-                label.Text = "Start Session";
-                btn.Classes.Remove("DangerBtn");
-                btn.Classes.Add("PrimaryBtn");
-                ToolTip.SetTip(btn, "Start new transcription session");
+                UpdateButtonLabel(btn, icon, label);
                 
-                AppendLog($"[{timestamp}] [SESSION] ✅ Session stopped. Files saved to workspace.\n");
+                AppendLog($"[{timestamp}] [SESSION] ✅ Recording paused. Workspace remains open for editing/export.\n");
             }
             catch (Exception ex)
             {
@@ -1536,8 +1544,32 @@ namespace m_mslc_overlay
                 AppendLog($"[{timestamp}] [SESSION ERROR] {ex.Message}\n");
                 _sessionState = SessionState.Idle;
                 btn.IsEnabled = true;
+                UpdateButtonLabel(btn, icon, label);
+            }
+        }
+        
+        /// <summary>
+        /// Update button label/icon based on workspace state (context-aware)
+        /// </summary>
+        private void UpdateButtonLabel(Button btn, MaterialIcon icon, TextBlock label)
+        {
+            if (_workspaceVm.IsOpen)
+            {
+                // Workspace is open - show "Resume" button
+                icon.Kind = Material.Icons.MaterialIconKind.PlayCircle;
+                label.Text = "Resume";
+                btn.Classes.Remove("DangerBtn");
+                btn.Classes.Add("PrimaryBtn");
+                ToolTip.SetTip(btn, "Resume recording (continue accepting segments into current workspace)");
+            }
+            else
+            {
+                // No workspace open - show "Start Session" button
                 icon.Kind = Material.Icons.MaterialIconKind.PlayCircle;
                 label.Text = "Start Session";
+                btn.Classes.Remove("DangerBtn");
+                btn.Classes.Add("PrimaryBtn");
+                ToolTip.SetTip(btn, "Start new transcription session (opens Live Caption, injects, starts recording)");
             }
         }
         

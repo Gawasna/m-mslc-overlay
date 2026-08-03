@@ -306,8 +306,25 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                         
                         Console.WriteLine($"[PaperSheetViewModel] ✅ Session directory exists");
 
-                        long durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
-                        Console.WriteLine($"[PaperSheetViewModel]   Duration = {durationMs}ms");
+                        // ✅ FIX: Dùng audio recorder offsets thay vì acoustic timestamps
+                        // AudioOffsetMs = start của segment trong PCM stream
+                        // AudioEndOffsetMs = end của segment trong PCM stream
+                        // => duration thực tế từ recorder, không phụ thuộc vào SDK acoustic time
+                        long startOffsetMs = seg.BaseSegment.AudioOffsetMs.Value;
+                        long durationMs;
+                        
+                        if (seg.BaseSegment.AudioEndOffsetMs.HasValue && seg.BaseSegment.AudioEndOffsetMs.Value > startOffsetMs)
+                        {
+                            // Preferred: dùng recorder-based duration (chính xác nhất)
+                            durationMs = seg.BaseSegment.AudioEndOffsetMs.Value - startOffsetMs;
+                            Console.WriteLine($"[PaperSheetViewModel]   Duration (recorder-based) = {durationMs}ms");
+                        }
+                        else
+                        {
+                            // Fallback: dùng acoustic timestamp delta nếu AudioEndOffsetMs chưa có (segment cũ)
+                            durationMs = seg.BaseSegment.TsEndMs - seg.BaseSegment.TsStartMs;
+                            Console.WriteLine($"[PaperSheetViewModel]   Duration (acoustic fallback) = {durationMs}ms");
+                        }
                         
                         if (durationMs <= 0)
                         {
@@ -319,13 +336,13 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                         Console.WriteLine($"[PaperSheetViewModel] 🎵 Calling _audioPlayer.PlaySegmentByTime()...");
                         Console.WriteLine($"[PaperSheetViewModel]   segId: {segId}");
                         Console.WriteLine($"[PaperSheetViewModel]   sessionDir: {sessionDir}");
-                        Console.WriteLine($"[PaperSheetViewModel]   offsetMs: {seg.BaseSegment.AudioOffsetMs.Value}");
+                        Console.WriteLine($"[PaperSheetViewModel]   offsetMs (start): {startOffsetMs}");
                         Console.WriteLine($"[PaperSheetViewModel]   durationMs: {durationMs}");
                         
                         _audioPlayer?.PlaySegmentByTime(
                             segId, 
                             sessionDir, 
-                            seg.BaseSegment.AudioOffsetMs.Value, 
+                            startOffsetMs, 
                             durationMs);
                         
                         Console.WriteLine($"[PaperSheetViewModel] ✅ PlaySegmentByTime() call completed");
