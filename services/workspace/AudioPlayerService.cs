@@ -21,6 +21,12 @@ public class AudioPlayerService : IDisposable
     /// </summary>
     public void PlaySegmentByTime(string segId, string sessionDir, long offsetMs, long durationMs)
     {
+        Console.WriteLine($"[AudioPlayerService] ===== PlaySegmentByTime CALLED =====");
+        Console.WriteLine($"[AudioPlayerService]   segId: {segId}");
+        Console.WriteLine($"[AudioPlayerService]   sessionDir: {sessionDir}");
+        Console.WriteLine($"[AudioPlayerService]   offsetMs: {offsetMs}");
+        Console.WriteLine($"[AudioPlayerService]   durationMs: {durationMs}");
+        
         System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] PlaySegmentByTime called:");
         System.Diagnostics.Debug.WriteLine($"  segId: {segId}");
         System.Diagnostics.Debug.WriteLine($"  sessionDir: {sessionDir}");
@@ -29,27 +35,39 @@ public class AudioPlayerService : IDisposable
         
         if (!Directory.Exists(sessionDir))
         {
+            Console.WriteLine($"[AudioPlayerService] ❌ Session directory NOT FOUND: {sessionDir}");
             System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Session directory not found: {sessionDir}");
             PlaybackEnded?.Invoke(segId);
             return;
         }
+        
+        Console.WriteLine($"[AudioPlayerService] ✅ Session directory exists");
 
         lock (_lock)
         {
+            Console.WriteLine($"[AudioPlayerService] Acquired lock, stopping current playback...");
             StopCurrent();
+            Console.WriteLine($"[AudioPlayerService] Current playback stopped");
 
             try
             {
+                Console.WriteLine($"[AudioPlayerService] Loading VirtualWavReader from {sessionDir}...");
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Loading VirtualWavReader from {sessionDir}");
                 
                 // Load virtual WAV reader from session chunks
                 var reader = VirtualWavReader.FromSessionDir(sessionDir);
                 
+                Console.WriteLine($"[AudioPlayerService] ✅ Reader loaded successfully");
+                Console.WriteLine($"[AudioPlayerService]   WaveFormat: {reader.WaveFormat}");
+                Console.WriteLine($"[AudioPlayerService]   Length: {reader.Length} bytes");
+                
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Reader loaded. WaveFormat: {reader.WaveFormat}");
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Reader length: {reader.Length} bytes");
                 
                 // Seek to offset
+                Console.WriteLine($"[AudioPlayerService] Seeking to {offsetMs}ms...");
                 reader.SeekToMilliseconds(offsetMs);
+                Console.WriteLine($"[AudioPlayerService] ✅ Seeked to position {reader.Position} bytes");
                 
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Seeked to {offsetMs}ms (position: {reader.Position})");
                 
@@ -57,33 +75,54 @@ public class AudioPlayerService : IDisposable
                 long bytesPerMs = reader.WaveFormat.AverageBytesPerSecond / 1000;
                 long byteCount = bytesPerMs * durationMs;
                 
+                Console.WriteLine($"[AudioPlayerService] Will play {byteCount} bytes ({durationMs}ms)");
+                Console.WriteLine($"[AudioPlayerService]   BytesPerMs: {bytesPerMs}");
+                
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Will play {byteCount} bytes ({durationMs}ms)");
                 
                 // Wrap in limiter to play only duration
+                Console.WriteLine($"[AudioPlayerService] Creating LimitedWaveStream...");
                 var limiter = new LimitedWaveStream(reader, byteCount);
+                Console.WriteLine($"[AudioPlayerService] ✅ LimitedWaveStream created");
                 
+                Console.WriteLine($"[AudioPlayerService] Creating WaveOutEvent...");
                 _waveOut = new WaveOutEvent();
+                Console.WriteLine($"[AudioPlayerService] ✅ WaveOutEvent created");
+                
+                Console.WriteLine($"[AudioPlayerService] Initializing WaveOut with limiter...");
                 _waveOut.Init(limiter);
+                Console.WriteLine($"[AudioPlayerService] ✅ WaveOut initialized");
+                
                 _waveOut.PlaybackStopped += (s, e) =>
                 {
+                    Console.WriteLine($"[AudioPlayerService] 🛑 PlaybackStopped event fired for {segId}");
                     System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback stopped for {segId}");
                     reader.Dispose();
                     limiter.Dispose();
                     PlaybackEnded?.Invoke(segId);
                 };
                 
+                Console.WriteLine($"[AudioPlayerService] Firing PlaybackStarted event for {segId}...");
                 PlaybackStarted?.Invoke(segId);
+                Console.WriteLine($"[AudioPlayerService] ✅ PlaybackStarted event fired");
+                
+                Console.WriteLine($"[AudioPlayerService] Calling _waveOut.Play()...");
                 _waveOut.Play();
+                Console.WriteLine($"[AudioPlayerService] ✅ _waveOut.Play() completed - audio should be playing now!");
                 
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playing segment {segId}");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[AudioPlayerService] ❌❌❌ EXCEPTION: {ex.Message}");
+                Console.WriteLine($"[AudioPlayerService] ❌ Stack trace: {ex.StackTrace}");
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] ❌ Playback error: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Stack trace: {ex.StackTrace}");
                 PlaybackEnded?.Invoke(segId);
             }
         }
+        
+        Console.WriteLine($"[AudioPlayerService] ===== PlaySegmentByTime COMPLETED =====");
     }
 
     /// <summary>

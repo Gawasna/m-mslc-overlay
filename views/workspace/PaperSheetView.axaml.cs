@@ -182,9 +182,33 @@ public partial class PaperSheetView : UserControl
                 System.Diagnostics.Debug.WriteLine("[PaperSheetView] DOCUMENT_READY received, WebView2 is ready");
             }
             
+            // ✅ Debug: Check PLAY_AUDIO forwarding
+            if (json.Contains("\"PLAY_AUDIO\""))
+            {
+                System.Diagnostics.Debug.WriteLine($"[PaperSheetView] ✅ PLAY_AUDIO detected, checking DataContext...");
+                System.Diagnostics.Debug.WriteLine($"[PaperSheetView]   DataContext type: {DataContext?.GetType().Name ?? "null"}");
+                System.Diagnostics.Debug.WriteLine($"[PaperSheetView]   Is WorkspaceViewModel: {DataContext is WorkspaceViewModel}");
+                if (DataContext is WorkspaceViewModel wvm)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetView]   Sheet type: {wvm.Sheet?.GetType().Name ?? "null"}");
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetView]   Is PaperSheetViewModel: {wvm.Sheet is PaperSheetViewModel}");
+                }
+            }
+            
             if (DataContext is WorkspaceViewModel workspaceVm && workspaceVm.Sheet is PaperSheetViewModel vm)
             {
+                if (json.Contains("\"PLAY_AUDIO\""))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetView] → Forwarding PLAY_AUDIO to PaperSheetViewModel");
+                }
                 vm.HandleWebMessage(json);
+            }
+            else
+            {
+                if (json.Contains("\"PLAY_AUDIO\""))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PaperSheetView] ❌ Cannot forward - DataContext check FAILED");
+                }
             }
         } 
         catch (Exception ex) 

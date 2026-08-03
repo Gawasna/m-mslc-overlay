@@ -38,9 +38,33 @@
             <!-- Record button — click gọi StartRecording/StopRecording -->
             <Button x:Name="RecordBtn"
                     Classes="SubToolbarPill"
-                    ToolTip.Tip="Toggle audio recording"
+                    ToolTip.Tip="Toggle audio recording (manual control)"
                     IsEnabled="{Binding IsOpen}">
                 <StackPanel Orientation="Horizontal" Spacing="4">
+                    <!-- Recording indicator: red pulsing dot when active -->
+                    <Ellipse x:Name="RecordingIndicator"
+                             Width="8" Height="8"
+                             Fill="Red"
+                             IsVisible="False">
+                        <Ellipse.Styles>
+                            <Style Selector="Ellipse">
+                                <Style.Animations>
+                                    <Animation Duration="0:0:1" IterationCount="Infinite">
+                                        <KeyFrame Cue="0%">
+                                            <Setter Property="Opacity" Value="1.0"/>
+                                        </KeyFrame>
+                                        <KeyFrame Cue="50%">
+                                            <Setter Property="Opacity" Value="0.3"/>
+                                        </KeyFrame>
+                                        <KeyFrame Cue="100%">
+                                            <Setter Property="Opacity" Value="1.0"/>
+                                        </KeyFrame>
+                                    </Animation>
+                                </Style.Animations>
+                            </Style>
+                        </Ellipse.Styles>
+                    </Ellipse>
+                    
                     <mi:MaterialIcon x:Name="RecordIcon" Kind="Microphone" Width="12" Height="12"
                                             Foreground="{StaticResource TextPrimaryBrush}" />
                     <TextBlock x:Name="RecordLabel" FontSize="10" FontWeight="SemiBold"

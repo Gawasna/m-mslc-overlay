@@ -52,11 +52,11 @@ namespace m_mslc_overlay
         // CRITICAL-TEXT-001: Track previous segment end time for continuous timeline
         private long _lastSegmentEndMs = 0;
         
-        // FIX V4: Translation context accumulator - sliding window of recent deltas
-        // Translation needs FULL CONTEXT, not individual deltas. This window accumulates
-        // the last N commits to provide context for translation.
-        private readonly System.Collections.Generic.List<string> _translationContext = new();
-        private const int MaxTranslationContextSegments = 8;  // Keep last 8 deltas (~1-2 sentences)
+        // FIX V6: Per-segment translation with context hints
+        // Translate EACH segment individually (for subtitle export compatibility)
+        // but provide previous segments as context hints to improve quality
+        private readonly System.Collections.Generic.Queue<string> _contextHints = new();
+        private const int MaxContextHints = 3;  // Keep last 3 segments as context
 
         private readonly object _logLock = new object();
         private readonly System.Collections.Generic.List<string> _rawLogs = new System.Collections.Generic.List<string>();
@@ -131,47 +131,44 @@ namespace m_mslc_overlay
             // long sentence before forwarding to translation, avoiding wasteful API calls
             // for isolated tokens like "but", "So", "Because", "I".
             // FIX V3: Now receives full CommitMetadata to preserve UtteranceOffset for correct linking.
-            // FIX V4: Use accumulated context for translation instead of just merged deltas.
+            // FIX V6: Per-segment translation with context hints
             _shortSentenceBuffer.OnFlush += (mergedMeta) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     if (IsTranslationEnabled)
                     {
-                        // FIX V4: Build full context from sliding window
-                        string fullContext;
-                        bool isHardCommit = mergedMeta.Reason == "HardCommit";
-                        
                         lock (_translationLock) {
                             _translationBuffer = "";
-                            // Combine all accumulated deltas into full context
-                            fullContext = string.Join(" ", _translationContext);
                             
-                            // FIX V4: Clear context AFTER hard commit translation is sent
-                            // This ensures the hard commit gets full context, then we start fresh
-                            if (isHardCommit)
+                            // V6: Build context-aware translation prompt
+                            // Format: "[Previous context...] >> CURRENT_TEXT"
+                            // This tells translation engine about context without merging translations
+                            string contextPrefix = "";
+                            if (_contextHints.Count > 0)
                             {
-                                _translationContext.Clear();
-                                System.Diagnostics.Debug.WriteLine("[V4] Context cleared after HardCommit");
+                                contextPrefix = string.Join(" ", _contextHints) + " >> ";
+                            }
+                            
+                            string textWithContext = contextPrefix + mergedMeta.Text;
+                            
+                            // Add current text to context hints for next translation
+                            _contextHints.Enqueue(mergedMeta.Text);
+                            while (_contextHints.Count > MaxContextHints)
+                            {
+                                _contextHints.Dequeue();
+                            }
+                            
+                            // Clear context on HardCommit (sentence boundary)
+                            if (mergedMeta.Reason == "HardCommit")
+                            {
+                                _contextHints.Clear();
                             }
                         }
                         
-                        // Create new metadata with FULL CONTEXT but preserve original UtteranceOffset
-                        var contextMeta = CommitMetadata.From(
-                            text: fullContext,                    // FIX V4: Full accumulated text
-                            reason: mergedMeta.Reason,
-                            acousticEndMs: mergedMeta.AcousticEndMs,
-                            utteranceOffset: mergedMeta.UtteranceOffset,  // Preserve for linking
-                            isDangling: mergedMeta.IsDangling,
-                            wasMerged: true,  // Mark as context-enriched
-                            speakerId: mergedMeta.SpeakerId,
-                            speakerDisplayName: mergedMeta.SpeakerDisplayName
-                        );
-                        
-                        // FIX V4: Pass context-enriched metadata to translation
-                        _aiService.EnqueueTranslation(contextMeta);
+                        // Pass to translation with UtteranceOffset preserved for linking
+                        _aiService.EnqueueTranslation(mergedMeta);
                         
                         System.Diagnostics.Debug.WriteLine(
-                            $"[V4] Translation with context ({_translationContext.Count} segments): " +
-                            $"'{fullContext.Substring(0, Math.Min(80, fullContext.Length))}{(fullContext.Length > 80 ? "..." : "")}'");
+                            $"[V6] Translating segment with {_contextHints.Count - 1} context hints: '{mergedMeta.Text}'");
                     }
                     else
                     {
@@ -238,12 +235,13 @@ namespace m_mslc_overlay
                     // Ingest into workspace if open
                     if (_workspaceVm.IsOpen && _workspaceVm.Service?.IngestionService != null)
                     {
-                        // ✅ AUTO-START RECORDING: Start recording automatically on first STT segment
-                        if (!_workspaceVm.IsRecording)
-                        {
-                            _workspaceVm.StartRecording();
-                            System.Diagnostics.Debug.WriteLine("[MainWindow] 🎙️ Auto-started recording on first STT segment");
-                        }
+                        // DISABLED: AUTO-START RECORDING (user must click Record button explicitly)
+                        // Reason: Recording should be under explicit user control, not automatic
+                        // if (!_workspaceVm.IsRecording)
+                        // {
+                        //     _workspaceVm.StartRecording();
+                        //     System.Diagnostics.Debug.WriteLine("[MainWindow] 🎙️ Auto-started recording on first STT segment");
+                        // }
                         
                         // CRITICAL-TEXT-001 FIX: Handle timestamp calculation
                         long tsEndMs;
@@ -299,26 +297,8 @@ namespace m_mslc_overlay
                         _segmentIdMap[segment.Id] = dbId;
                     }
 
-                    // FIX V4: Accumulate translation context (sliding window)
-                    // Translation needs FULL CONTEXT, not individual deltas. Accumulate recent commits.
-                    lock (_translationLock)
-                    {
-                        // Add current delta to context window
-                        _translationContext.Add(meta.Text);
-                        
-                        // Trim window if too large
-                        while (_translationContext.Count > MaxTranslationContextSegments)
-                        {
-                            _translationContext.RemoveAt(0);
-                        }
-                        
-                        // Clear context on Hard Commit (sentence boundary)
-                        if (meta.Reason == "HardCommit")
-                        {
-                            // Flush accumulated context, then clear for next sentence
-                            // Note: We keep the hard commit in context for final translation
-                        }
-                    }
+                    // FIX V6: No accumulation needed - translate per segment immediately
+                    // Context hints are managed in OnFlush handler
 
                     // ATOM50: route through ShortSentenceBuffer — translation fires
                     // only when OnFlush is triggered (either by merge or timeout).
@@ -373,6 +353,9 @@ namespace m_mslc_overlay
                         {
                             if (_segmentIdMap.TryGetValue(linkedSeg.Id, out long dbId))
                             {
+                                // FIX V6: Store per-segment translation (for subtitle export)
+                                // Translation is for THIS segment only, not accumulated
+                                
                                 // 1. Lưu vào SQLite database
                                 _workspaceVm.Service.ActiveSegmentRepo.UpdateSegmentTranslation(dbId, fullSentence);
 
@@ -387,6 +370,10 @@ namespace m_mslc_overlay
                                         NewValue = fullSentence
                                     });
                                 }
+                                
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"[V6] Applied translation to segment {dbId}: " +
+                                    $"'{fullSentence.Substring(0, Math.Min(40, fullSentence.Length))}{(fullSentence.Length > 40 ? "..." : "")}'");
                             }
                             else
                             {
@@ -449,22 +436,23 @@ namespace m_mslc_overlay
                     _segmentIdMap.Clear();
                     _lastSegmentEndMs = 0;  // CRITICAL-TEXT-001: Reset timing state on reconnect
                     
-                    // FIX V4: Clear translation context on reconnect
+                    // FIX V6: Clear context hints on reconnect
                     lock (_translationLock)
                     {
-                        _translationContext.Clear();
+                        _contextHints.Clear();
                     }
                 }
                 
-                // ✅ AUTO-STOP RECORDING: Stop recording when STT disconnects
-                if (statusMsg.Contains("Client disconnected"))
-                {
-                    if (_workspaceVm.IsRecording)
-                    {
-                        _workspaceVm.StopRecording();
-                        System.Diagnostics.Debug.WriteLine("[MainWindow] 🛑 Auto-stopped recording on STT disconnect");
-                    }
-                }
+                // DISABLED: AUTO-STOP RECORDING (user must click Stop button explicitly)
+                // Reason: Recording should persist across STT disconnect/reconnect
+                // if (statusMsg.Contains("Client disconnected"))
+                // {
+                //     if (_workspaceVm.IsRecording)
+                //     {
+                //         _workspaceVm.StopRecording();
+                //         System.Diagnostics.Debug.WriteLine("[MainWindow] 🛑 Auto-stopped recording on STT disconnect");
+                //     }
+                // }
                 
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
