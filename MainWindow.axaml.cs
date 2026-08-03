@@ -3,6 +3,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Material.Icons;
+using Material.Icons.Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -1346,6 +1348,203 @@ namespace m_mslc_overlay
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // UNIFIED SESSION CONTROL BUTTON
+        // ═══════════════════════════════════════════════════════════════════
+        
+        private enum SessionState
+        {
+            Idle,       // Not started
+            Starting,   // Opening Live Caption + Injecting
+            Recording,  // Active recording session
+            Stopping    // Stopping recording
+        }
+        
+        private SessionState _sessionState = SessionState.Idle;
+        
+        /// <summary>
+        /// Unified button that controls entire pipeline:
+        /// IDLE → Opens Live Caption + Injects + Creates Workspace + Starts Recording
+        /// RECORDING → Stops Recording + Closes Workspace
+        /// </summary>
+        private async void SessionControlBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = this.FindControl<Button>("SessionControlBtn");
+            var icon = this.FindControl<MaterialIcon>("SessionControlIcon");
+            var label = this.FindControl<TextBlock>("SessionControlLabel");
+            
+            if (btn == null || icon == null || label == null) return;
+            
+            switch (_sessionState)
+            {
+                case SessionState.Idle:
+                    await StartUnifiedSessionAsync(btn, icon, label);
+                    break;
+                    
+                case SessionState.Recording:
+                    await StopUnifiedSessionAsync(btn, icon, label);
+                    break;
+                    
+                default:
+                    // Button disabled during Starting/Stopping
+                    break;
+            }
+        }
+        
+        private async System.Threading.Tasks.Task StartUnifiedSessionAsync(Button btn, MaterialIcon icon, TextBlock label)
+        {
+            _sessionState = SessionState.Starting;
+            btn.IsEnabled = false;
+            label.Text = "Starting...";
+            
+            try
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION] Starting unified session...\n");
+                
+                // Step 1: Check Live Caption
+                DetectTargetProcess();
+                uint pid = _hiderService.TargetProcessId;
+                
+                if (pid == 0)
+                {
+                    // Live Caption not running - open settings page to let user enable it
+                    AppendLog($"[{timestamp}] [SESSION] Live Caption not detected, opening Settings...\n");
+                    bool opened = LiveCaptionUtils.LaunchLiveCaptionSettings();
+                    
+                    if (!opened)
+                    {
+                        AppendLog($"[{timestamp}] [SESSION ERROR] Failed to open Live Caption settings.\n");
+                        _sessionState = SessionState.Idle;
+                        btn.IsEnabled = true;
+                        label.Text = "Start Session";
+                        return;
+                    }
+                    
+                    // Show instruction to user
+                    AppendLog($"[{timestamp}] [SESSION] Please enable Live Captions in Settings, then click Start Session again.\n");
+                    _sessionState = SessionState.Idle;
+                    btn.IsEnabled = true;
+                    label.Text = "Start Session";
+                    return;
+                }
+                
+                AppendLog($"[{timestamp}] [SESSION] Live Caption detected (PID {pid})\n");
+                
+                // Step 2: Inject DLL
+                AppendLog($"[{timestamp}] [SESSION] Injecting hook DLL...\n");
+                bool injected = await _injectorService.InjectAsync(pid);
+                
+                if (!injected)
+                {
+                    AppendLog($"[{timestamp}] [SESSION ERROR] Injection failed. Check UAC permissions.\n");
+                    _sessionState = SessionState.Idle;
+                    btn.IsEnabled = true;
+                    label.Text = "Start Session";
+                    return;
+                }
+                
+                HookStatusDot.Fill = SolidColorBrush.Parse("#00FF88");
+                HookStatusText.Text = "Injected";
+                AppendLog($"[{timestamp}] [SESSION] Hook injected successfully\n");
+                
+                // Step 3: Start pipe server
+                _pipeService.Start();
+                AppendLog($"[{timestamp}] [SESSION] Named Pipe server started\n");
+                
+                // Step 4: Create new workspace
+                string workspaceName = $"Session_{DateTime.Now:yyyyMMdd_HHmmss}";
+                string workspacePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    workspaceName
+                );
+                
+                _workspaceVm.OpenOrCreate(workspacePath);
+                AppendLog($"[{timestamp}] [SESSION] Workspace created: {workspacePath}\n");
+                
+                // Step 5: Start recording
+                _workspaceVm.StartRecording();
+                AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
+                
+                // Update button to "Stop Session"
+                _sessionState = SessionState.Recording;
+                btn.IsEnabled = true;
+                icon.Kind = Material.Icons.MaterialIconKind.StopCircle;
+                label.Text = "Stop Session";
+                btn.Classes.Remove("PrimaryBtn");
+                btn.Classes.Add("DangerBtn");
+                ToolTip.SetTip(btn, "Stop recording session");
+                
+                AppendLog($"[{timestamp}] [SESSION] ✅ Session started successfully. Speak to begin transcription.\n");
+            }
+            catch (Exception ex)
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION ERROR] {ex.Message}\n");
+                _sessionState = SessionState.Idle;
+                btn.IsEnabled = true;
+                label.Text = "Start Session";
+            }
+        }
+        
+        private async System.Threading.Tasks.Task StopUnifiedSessionAsync(Button btn, MaterialIcon icon, TextBlock label)
+        {
+            _sessionState = SessionState.Stopping;
+            btn.IsEnabled = false;
+            label.Text = "Stopping...";
+            
+            try
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION] Stopping session...\n");
+                
+                // Step 1: Stop recording
+                if (_workspaceVm.IsRecording)
+                {
+                    _workspaceVm.StopRecording();
+                    AppendLog($"[{timestamp}] [SESSION] Audio recording stopped\n");
+                }
+                
+                // Step 2: Flush pending edits
+                if (_workspaceVm.IsDirty)
+                {
+                    await FlushPendingEditsAsync();
+                    AppendLog($"[{timestamp}] [SESSION] Pending edits flushed\n");
+                }
+                
+                // Step 3: Close workspace (keeps files on disk)
+                if (_workspaceVm.IsOpen)
+                {
+                    _workspaceVm.CloseWorkspace();
+                    AppendLog($"[{timestamp}] [SESSION] Workspace closed\n");
+                }
+                
+                // Update button back to "Start Session"
+                _sessionState = SessionState.Idle;
+                btn.IsEnabled = true;
+                icon.Kind = Material.Icons.MaterialIconKind.PlayCircle;
+                label.Text = "Start Session";
+                btn.Classes.Remove("DangerBtn");
+                btn.Classes.Add("PrimaryBtn");
+                ToolTip.SetTip(btn, "Start new transcription session");
+                
+                AppendLog($"[{timestamp}] [SESSION] ✅ Session stopped. Files saved to workspace.\n");
+            }
+            catch (Exception ex)
+            {
+                string timestamp = DateTime.Now.ToString("HH:mm:ss");
+                AppendLog($"[{timestamp}] [SESSION ERROR] {ex.Message}\n");
+                _sessionState = SessionState.Idle;
+                btn.IsEnabled = true;
+                icon.Kind = Material.Icons.MaterialIconKind.PlayCircle;
+                label.Text = "Start Session";
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // LEGACY MANUAL INJECTION (kept for debugging)
+        // ═══════════════════════════════════════════════════════════════════
+        
         private async void InjectBtn_Click(object sender, RoutedEventArgs e)
         {
             DetectTargetProcess();

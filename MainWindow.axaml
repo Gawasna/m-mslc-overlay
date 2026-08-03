@@ -155,14 +155,39 @@
             <DockPanel LastChildFill="False">
                 <!-- Left: Quick Action Buttons (Icon only, no corner radius) -->
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <!-- Inject DLL Button -->
+                    
+                    <!-- 🎯 UNIFIED SESSION CONTROL BUTTON -->
+                    <Button x:Name="SessionControlBtn" 
+                            Click="SessionControlBtn_Click"
+                            Width="120" Height="{StaticResource QuickActionButtonSize}" 
+                            CornerRadius="{StaticResource CornerRadiusZero}" 
+                            Padding="8,0" 
+                            Classes="PrimaryBtn"
+                            ToolTip.Tip="Start new transcription session (opens Live Caption, injects, starts recording)">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <materialIcons:MaterialIcon x:Name="SessionControlIcon" 
+                                                       Kind="PlayCircle" 
+                                                       Width="16" Height="16" 
+                                                       Foreground="{StaticResource BgCardBrush}" />
+                            <TextBlock x:Name="SessionControlLabel" 
+                                      Text="Start Session" 
+                                      FontSize="12" 
+                                      FontWeight="SemiBold"
+                                      Foreground="{StaticResource BgCardBrush}" 
+                                      VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    
+                    <Rectangle Width="1" Height="24" Fill="{StaticResource BorderLightBrush}" />
+                    
+                    <!-- Inject DLL Button (LEGACY - keep for manual injection) -->
                     <Button x:Name="InjectBtn" 
                             Click="InjectBtn_Click"
                             Width="{StaticResource QuickActionButtonSize}" Height="{StaticResource QuickActionButtonSize}" 
                             CornerRadius="{StaticResource CornerRadiusZero}" Padding="0" 
-                            Classes="PrimaryBtn"
-                            ToolTip.Tip="{DynamicResource Tooltip_InjectDll}">
-                        <materialIcons:MaterialIcon Kind="Flash" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource BgCardBrush}" />
+                            Classes="SecondaryBtn"
+                            ToolTip.Tip="{DynamicResource Tooltip_InjectDll} (Manual)">
+                        <materialIcons:MaterialIcon Kind="Flash" Width="{StaticResource QuickActionIconSize}" Height="{StaticResource QuickActionIconSize}" Foreground="{StaticResource TextPrimaryBrush}" />
                     </Button>
                     <!-- Open Overlay Button -->
                     <Button Click="OpenOverlayBtn_Click"

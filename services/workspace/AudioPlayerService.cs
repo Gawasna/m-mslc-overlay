@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NAudio.Wave;
+using NAudio.CoreAudioApi; // For WasapiOut
 
 namespace MMslcOverlay.Services.Workspace;
 
@@ -10,7 +11,7 @@ namespace MMslcOverlay.Services.Workspace;
 /// </summary>
 public class AudioPlayerService : IDisposable
 {
-    private WaveOutEvent? _waveOut;
+    private IWavePlayer? _waveOut;
     private readonly object _lock = new();
 
     public event Action<string>? PlaybackEnded; // segId
@@ -85,17 +86,28 @@ public class AudioPlayerService : IDisposable
                 var limiter = new LimitedWaveStream(reader, byteCount);
                 Console.WriteLine($"[AudioPlayerService] ✅ LimitedWaveStream created");
                 
-                Console.WriteLine($"[AudioPlayerService] Creating WaveOutEvent...");
-                _waveOut = new WaveOutEvent();
-                Console.WriteLine($"[AudioPlayerService] ✅ WaveOutEvent created");
+                // Use WasapiOut with shared mode to allow concurrent access with atom32
+                // WaveOutEvent would conflict if atom32 is recording from output device
+                Console.WriteLine($"[AudioPlayerService] Creating WasapiOut (Shared mode)...");
+                var wasapiOut = new WasapiOut(AudioClientShareMode.Shared, 100);
+                _waveOut = wasapiOut;
                 
-                Console.WriteLine($"[AudioPlayerService] Initializing WaveOut with limiter...");
+                // Set volume to 100%
+                _waveOut.Volume = 1.0f;
+                
+                Console.WriteLine($"[AudioPlayerService] ✅ WasapiOut created (Shared mode, Volume: 100%)");
+                
+                Console.WriteLine($"[AudioPlayerService] Initializing WasapiOut with limiter...");
                 _waveOut.Init(limiter);
                 Console.WriteLine($"[AudioPlayerService] ✅ WaveOut initialized");
                 
                 _waveOut.PlaybackStopped += (s, e) =>
                 {
                     Console.WriteLine($"[AudioPlayerService] 🛑 PlaybackStopped event fired for {segId}");
+                    if (e.Exception != null)
+                    {
+                        Console.WriteLine($"[AudioPlayerService] ❌ Playback exception: {e.Exception.Message}");
+                    }
                     System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playback stopped for {segId}");
                     reader.Dispose();
                     limiter.Dispose();
@@ -107,7 +119,9 @@ public class AudioPlayerService : IDisposable
                 Console.WriteLine($"[AudioPlayerService] ✅ PlaybackStarted event fired");
                 
                 Console.WriteLine($"[AudioPlayerService] Calling _waveOut.Play()...");
+                Console.WriteLine($"[AudioPlayerService] Playback state BEFORE Play(): {_waveOut.PlaybackState}");
                 _waveOut.Play();
+                Console.WriteLine($"[AudioPlayerService] Playback state AFTER Play(): {_waveOut.PlaybackState}");
                 Console.WriteLine($"[AudioPlayerService] ✅ _waveOut.Play() completed - audio should be playing now!");
                 
                 System.Diagnostics.Debug.WriteLine($"[AudioPlayerService] Playing segment {segId}");

@@ -66,6 +66,23 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
 
+    <!-- Danger Button (Red background, white text) -->
+    <Style Selector="Button.DangerBtn">
+        <Setter Property="Background" Value="#DC2626"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.DangerBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#B91C1C"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.DangerBtn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#991B1B"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
     <!-- Custom TitleBar Buttons Style -->
     <Style Selector="Button.TitleBarBtn">
         <Setter Property="Background" Value="Transparent"/>
