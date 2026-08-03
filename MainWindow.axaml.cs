@@ -124,24 +124,25 @@ namespace m_mslc_overlay
             // ATOM50: Short sentence buffer merges fragments (≤3 words) with the next
             // long sentence before forwarding to translation, avoiding wasteful API calls
             // for isolated tokens like "but", "So", "Because", "I".
-            _shortSentenceBuffer.OnFlush += (mergedText) => {
+            // FIX V3: Now receives full CommitMetadata to preserve UtteranceOffset for correct linking.
+            _shortSentenceBuffer.OnFlush += (mergedMeta) => {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     if (IsTranslationEnabled)
                     {
                         lock (_translationLock) {
                             _translationBuffer = "";
                         }
-                        // ATOM81: enqueue via priority queue instead of direct async call
-                        _aiService.EnqueueTranslation(mergedText, "SoftCommit");
+                        // FIX V3: Pass full CommitMetadata instead of bare string
+                        _aiService.EnqueueTranslation(mergedMeta);
                     }
                     else
                     {
                         if (_currentOverlay != null && _currentOverlay.IsVisible)
                         {
                             if (_currentOverlay.UseTypewriter)
-                                _currentOverlay.EnqueueText(mergedText);
+                                _currentOverlay.EnqueueText(mergedMeta.Text);
                             else
-                                _currentOverlay.AddFinalText(mergedText);
+                                _currentOverlay.AddFinalText(mergedMeta.Text);
                         }
                     }
                 });
@@ -235,12 +236,20 @@ namespace m_mslc_overlay
                         long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : 0;
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
+                        // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav
+                        string resolvedSpeaker = !string.IsNullOrEmpty(meta.SpeakerId) ? meta.SpeakerId : (!string.IsNullOrEmpty(_latestSpeakerUid) ? _latestSpeakerUid : "UNK");
+                        if (resolvedSpeaker != "UNK")
+                        {
+                            string dispName = (resolvedSpeaker == _latestSpeakerUid && !string.IsNullOrEmpty(_latestSpeakerDisplayName)) ? _latestSpeakerDisplayName : resolvedSpeaker;
+                            _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
+                        }
+
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
                             tsEndMs: tsEndMs,
                             textSrc: meta.Text,
                             textTrs: null,
-                            speakerId: !string.IsNullOrEmpty(meta.SpeakerId) ? meta.SpeakerId : "UNK",
+                            speakerId: resolvedSpeaker,
                             commitType: meta.Reason == "HardCommit" ? "HARD" : "SOFT",
                             // CRITICAL-TEXT-001: Pass acoustic metadata to database
                             acousticEndMs: meta.AcousticEndMs,
@@ -254,7 +263,8 @@ namespace m_mslc_overlay
 
                     // ATOM50: route through ShortSentenceBuffer — translation fires
                     // only when OnFlush is triggered (either by merge or timeout).
-                    _shortSentenceBuffer.Feed(meta.Text, meta.Reason);
+                    // FIX V3: Pass full CommitMetadata to preserve UtteranceOffset
+                    _shortSentenceBuffer.Feed(meta);
                 });
             };
 
@@ -1414,9 +1424,14 @@ namespace m_mslc_overlay
                     break;
 
                 case RecognitionEvent re:
-                    // Cache latest speaker for next commit
+                    // Cache latest speaker for next commit and instantly sync with Doc Nav
                     _latestSpeakerUid = re.Uid;
                     _latestSpeakerDisplayName = re.DisplayName;
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!string.IsNullOrEmpty(re.Uid))
+                            _workspaceVm.NavPane?.AddOrUpdateSpeaker(re.Uid, !string.IsNullOrEmpty(re.DisplayName) ? re.DisplayName : re.Uid);
+                    });
                     break;
 
                 case ReadyEvent:

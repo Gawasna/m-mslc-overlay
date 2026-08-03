@@ -100,10 +100,18 @@ class MachineSegmentView {
     // Important: we don't want ProseMirror to treat this as directly editable text
     this.dom.contentEditable = "false";
 
+    // ✅ Audio icon (separate column, left margin)
+    const audioIcon = document.createElement("span");
+    audioIcon.className = "seg-audio-icon";
+    audioIcon.textContent = "🔊";
+    audioIcon.title = "Play audio";
+    audioIcon.addEventListener("click", () => sendToHost({ type: "PLAY_AUDIO", segId: node.attrs.segId }));
+
+    // Gutter (timestamp + speaker ID)
     const gutter = document.createElement("span");
     gutter.className = "seg-gutter";
     gutter.textContent = formatTimestamp(node.attrs.tsStartMs) + " [" + node.attrs.speakerId + "]";
-    gutter.addEventListener("click", () => sendToHost({ type: "PLAY_AUDIO", segId: node.attrs.segId }));
+    // Note: Click handler removed from gutter (now on icon)
 
     const content = document.createElement("div");
     content.className = "seg-content";
@@ -111,7 +119,8 @@ class MachineSegmentView {
     // We let ProseMirror manage the content via contentDOM
     this.contentDOM = content;
 
-    this.dom.append(gutter, content);
+    // ✅ Layout: icon | gutter | content
+    this.dom.append(audioIcon, gutter, content);
 
     this.dom.addEventListener("dblclick", () => {
       sendToHost({ type: "OPEN_EDIT_FIELD", segId: node.attrs.segId, pos: getPos() });

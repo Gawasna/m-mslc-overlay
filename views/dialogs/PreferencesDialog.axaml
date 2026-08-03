@@ -197,8 +197,19 @@
                                 <!-- Thông tin -->
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_OfflineTranslation}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2 - atom26)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
+                                
+                                <!-- Bật/Tắt Tiện Ích -->
+                                <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                    <ToggleSwitch x:Name="UtilAtom26Toggle" Grid.Column="0" OnContent="Bật máy chủ Dịch (Running)" OffContent="Tắt máy chủ Dịch (Stopped)" IsCheckedChanged="OfflineServerToggle_IsCheckedChanged" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="Trạng thái:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="UtilAtom26StateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                                
+                                <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>
                                 
                                 <!-- Controls -->
                                 <StackPanel Orientation="Horizontal" Spacing="12">
@@ -220,9 +231,16 @@
                                 <!-- Thông tin -->
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_SpeakerLabeling}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization - atom32)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
+                                <!-- Bật/Tắt Tiện Ích -->
+                                <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                    <ToggleSwitch x:Name="UtilAtom32Toggle" Grid.Column="0" OnContent="Bật Tiện ích (Kích hoạt cùng Overlay)" OffContent="Tắt Tiện ích (Vô hiệu hóa)" IsCheckedChanged="UtilAtom32Toggle_IsCheckedChanged" VerticalAlignment="Center"/>
+                                </Grid>
+                                
+                                <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>
+
                                 <!-- Controls -->
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <ComboBox x:Name="UtilSpeakerModelCombo" Width="260" SelectedIndex="0" CornerRadius="6" IsEnabled="False">

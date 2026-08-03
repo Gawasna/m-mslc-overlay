@@ -72,6 +72,8 @@ namespace m_mslc_overlay.views.dialogs
                 if (UseNllbRadio != null) UseNllbRadio.IsChecked = true;
             }
 
+            if (UtilAtom32Toggle != null) UtilAtom32Toggle.IsChecked = cfg.EnableDiarizer;
+
             UpdateServerStateUI(OfflineTranslationServerManager.State);
         }
 
@@ -105,6 +107,7 @@ namespace m_mslc_overlay.views.dialogs
             cfg.PipeName = PipeNameBox.Text ?? "MSLCCaptionPipe";
             cfg.VerboseLogging = VerboseLogCheck.IsChecked ?? false;
             cfg.EnableGlobalHotkeys = EnableHotkeysCheck.IsChecked ?? true;
+            cfg.EnableDiarizer = UtilAtom32Toggle?.IsChecked ?? false;
             
             ConfigManager.Save();
 
@@ -231,59 +234,53 @@ namespace m_mslc_overlay.views.dialogs
 
         private void UpdateServerStateUI(OfflineServerState state)
         {
-            if (OfflineServerStateText == null) return;
-
             _isUpdatingToggle = true;
             try
             {
+                string stateText = "Đã dừng";
+                var brush = Avalonia.Media.Brushes.Gray;
+                bool isToggleChecked = false;
+                bool isToggleEnabled = true;
+
                 switch (state)
                 {
                     case OfflineServerState.Stopped:
-                        OfflineServerStateText.Text = "Đã dừng";
-                        OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Gray;
-                        if (OfflineServerToggle != null)
-                        {
-                            OfflineServerToggle.IsChecked = false;
-                            OfflineServerToggle.IsEnabled = true;
-                        }
+                        stateText = "Đã dừng";
+                        brush = Avalonia.Media.Brushes.Gray;
+                        isToggleChecked = false;
+                        isToggleEnabled = true;
                         break;
                     case OfflineServerState.Starting:
-                        OfflineServerStateText.Text = "Đang khởi động...";
-                        OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Orange;
-                        if (OfflineServerToggle != null)
-                        {
-                            OfflineServerToggle.IsChecked = true;
-                            OfflineServerToggle.IsEnabled = false;
-                        }
+                        stateText = "Đang khởi động...";
+                        brush = Avalonia.Media.Brushes.Orange;
+                        isToggleChecked = true;
+                        isToggleEnabled = false;
                         break;
                     case OfflineServerState.Ready:
-                        OfflineServerStateText.Text = "Sẵn sàng (Đang chạy)";
-                        OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Green;
-                        if (OfflineServerToggle != null)
-                        {
-                            OfflineServerToggle.IsChecked = true;
-                            OfflineServerToggle.IsEnabled = true;
-                        }
+                        stateText = "Sẵn sàng (Đang chạy)";
+                        brush = Avalonia.Media.Brushes.Green;
+                        isToggleChecked = true;
+                        isToggleEnabled = true;
                         break;
                     case OfflineServerState.ModelMissing:
-                        OfflineServerStateText.Text = "Thiếu mô hình (Model Missing)";
-                        OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
-                        if (OfflineServerToggle != null)
-                        {
-                            OfflineServerToggle.IsChecked = false;
-                            OfflineServerToggle.IsEnabled = true;
-                        }
+                        stateText = "Thiếu mô hình (Model Missing)";
+                        brush = Avalonia.Media.Brushes.Red;
+                        isToggleChecked = false;
+                        isToggleEnabled = true;
                         break;
                     case OfflineServerState.Failed:
-                        OfflineServerStateText.Text = $"Lỗi: {OfflineTranslationServerManager.LastErrorMessage}";
-                        OfflineServerStateText.Foreground = Avalonia.Media.Brushes.Red;
-                        if (OfflineServerToggle != null)
-                        {
-                            OfflineServerToggle.IsChecked = false;
-                            OfflineServerToggle.IsEnabled = true;
-                        }
+                        stateText = $"Lỗi: {OfflineTranslationServerManager.LastErrorMessage}";
+                        brush = Avalonia.Media.Brushes.Red;
+                        isToggleChecked = false;
+                        isToggleEnabled = true;
                         break;
                 }
+
+                if (OfflineServerStateText != null) { OfflineServerStateText.Text = stateText; OfflineServerStateText.Foreground = brush; }
+                if (UtilAtom26StateText != null) { UtilAtom26StateText.Text = stateText; UtilAtom26StateText.Foreground = brush; }
+
+                if (OfflineServerToggle != null) { OfflineServerToggle.IsChecked = isToggleChecked; OfflineServerToggle.IsEnabled = isToggleEnabled; }
+                if (UtilAtom26Toggle != null) { UtilAtom26Toggle.IsChecked = isToggleChecked; UtilAtom26Toggle.IsEnabled = isToggleEnabled; }
             }
             finally
             {
@@ -293,16 +290,17 @@ namespace m_mslc_overlay.views.dialogs
 
         private async void OfflineServerToggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {
-            if (_isUpdatingToggle || OfflineServerToggle == null) return;
+            if (_isUpdatingToggle) return;
 
-            bool wantsOn = OfflineServerToggle.IsChecked ?? false;
+            var toggle = sender as ToggleSwitch;
+            bool wantsOn = toggle?.IsChecked ?? false;
             if (wantsOn)
             {
                 if (OfflineTranslationServerManager.State == OfflineServerState.Stopped ||
                     OfflineTranslationServerManager.State == OfflineServerState.Failed ||
                     OfflineTranslationServerManager.State == OfflineServerState.ModelMissing)
                 {
-                    string url = OfflineTranslateUrlBox?.Text ?? "";
+                    string url = OfflineTranslateUrlBox?.Text ?? "http://127.0.0.1:11435";
                     if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
                     {
                         OfflineTranslationServerManager.ServerPort = uri.Port;
@@ -374,6 +372,13 @@ namespace m_mslc_overlay.views.dialogs
         private void UtilSpeakerDeleteBtn_Click(object? sender, RoutedEventArgs e)
         {
             // Placeholder
+        }
+
+        private void UtilAtom32Toggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingToggle || UtilAtom32Toggle == null) return;
+            ConfigManager.Current.EnableDiarizer = UtilAtom32Toggle.IsChecked ?? false;
+            LoggerService.Log($"[PreferencesDialog] atom32 (Speaker Diarization) EnableDiarizer toggled to {ConfigManager.Current.EnableDiarizer}");
         }
 
         private void DeleteModelFolder(string modelDirName)
