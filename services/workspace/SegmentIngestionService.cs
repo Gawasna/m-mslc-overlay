@@ -20,7 +20,19 @@ public class SegmentIngestionService
     /// <summary>
     /// Nhận DTO từ hệ thống STT và lưu vào active.db
     /// </summary>
-    public long IngestSttPayload(long tsStartMs, long tsEndMs, string textSrc, string? textTrs = null, string? speakerId = null, string commitType = "HARD")
+    public long IngestSttPayload(
+        long tsStartMs, 
+        long tsEndMs, 
+        string textSrc, 
+        string? textTrs = null, 
+        string? speakerId = null, 
+        string commitType = "HARD",
+        // CRITICAL-TEXT-001: Acoustic metadata from AdaptiveCommitEngine
+        double? acousticEndMs = null,
+        ulong? utteranceOffset = null,
+        bool isDangling = false,
+        int? avgSpeechSpeedMs = null,
+        string commitReason = "UNKNOWN")
     {
         var segment = new Segment
         {
@@ -31,7 +43,14 @@ public class SegmentIngestionService
             SpeakerId = speakerId,
             CommitType = commitType, 
             ChunkId = _activeChunkId,
-            CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            
+            // CRITICAL-TEXT-001: Store acoustic metadata for debugging and accuracy
+            AcousticEndMs = acousticEndMs,
+            UtteranceOffset = utteranceOffset,
+            IsDangling = isDangling,
+            AvgSpeechSpeedMs = avgSpeechSpeedMs,
+            CommitReason = commitReason
         };
 
         var id = _activeRepo.InsertSegment(segment);

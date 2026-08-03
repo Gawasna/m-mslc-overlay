@@ -42,10 +42,61 @@ public class BaseSegmentRepository
         ";
         command.ExecuteNonQuery();
         
+        // CRITICAL-TEXT-001: Auto-migration for acoustic metadata columns
+        EnsureAcousticMetadataColumns(connection);
+        
         // Enable WAL mode for better concurrency
         using var walCmd = connection.CreateCommand();
         walCmd.CommandText = "PRAGMA journal_mode = WAL;";
         walCmd.ExecuteNonQuery();
+    }
+    
+    /// <summary>
+    /// CRITICAL-TEXT-001: Auto-migration to add acoustic metadata columns.
+    /// Safe to run multiple times - checks if columns exist first.
+    /// </summary>
+    private void EnsureAcousticMetadataColumns(SqliteConnection connection)
+    {
+        // Get existing columns
+        var existingColumns = new HashSet<string>();
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = "PRAGMA table_info(segments);";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                existingColumns.Add(reader.GetString(1)); // Column name at index 1
+            }
+        }
+        
+        // Add missing columns (SQLite doesn't support IF NOT EXISTS for ALTER TABLE)
+        if (!existingColumns.Contains("acoustic_end_ms"))
+        {
+            ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN acoustic_end_ms REAL;");
+        }
+        if (!existingColumns.Contains("utterance_offset"))
+        {
+            ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN utterance_offset INTEGER;");
+        }
+        if (!existingColumns.Contains("is_dangling"))
+        {
+            ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN is_dangling INTEGER DEFAULT 0;");
+        }
+        if (!existingColumns.Contains("avg_speech_speed_ms"))
+        {
+            ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN avg_speech_speed_ms INTEGER;");
+        }
+        if (!existingColumns.Contains("commit_reason"))
+        {
+            ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN commit_reason TEXT DEFAULT 'UNKNOWN';");
+        }
+    }
+    
+    private void ExecuteNonQuery(SqliteConnection connection, string sql)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
     }
 
     public long InsertSegment(Segment segment)
@@ -57,11 +108,13 @@ public class BaseSegmentRepository
         command.CommandText = @"
             INSERT INTO segments (
                 ts_start_ms, ts_end_ms, speaker_id, text_src, text_trs, 
-                commit_type, supersedes_id, chunk_id, created_at
+                commit_type, supersedes_id, chunk_id, created_at,
+                acoustic_end_ms, utterance_offset, is_dangling, avg_speech_speed_ms, commit_reason
             )
             VALUES (
                 @ts_start_ms, @ts_end_ms, @speaker_id, @text_src, @text_trs, 
-                @commit_type, @supersedes_id, @chunk_id, @created_at
+                @commit_type, @supersedes_id, @chunk_id, @created_at,
+                @acoustic_end_ms, @utterance_offset, @is_dangling, @avg_speech_speed_ms, @commit_reason
             );
             SELECT last_insert_rowid();
         ";
@@ -75,6 +128,16 @@ public class BaseSegmentRepository
         command.Parameters.AddWithValue("@supersedes_id", segment.SupersedesId ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@chunk_id", segment.ChunkId);
         command.Parameters.AddWithValue("@created_at", segment.CreatedAt);
+        
+        // CRITICAL-TEXT-001: Store acoustic metadata
+        command.Parameters.AddWithValue("@acoustic_end_ms", 
+            segment.AcousticEndMs.HasValue ? (object)segment.AcousticEndMs.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@utterance_offset", 
+            segment.UtteranceOffset.HasValue ? (object)(long)segment.UtteranceOffset.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@is_dangling", segment.IsDangling ? 1 : 0);
+        command.Parameters.AddWithValue("@avg_speech_speed_ms", 
+            segment.AvgSpeechSpeedMs.HasValue ? (object)segment.AvgSpeechSpeedMs.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@commit_reason", segment.CommitReason ?? "UNKNOWN");
 
         var id = (long)command.ExecuteScalar()!;
         segment.Id = id;
@@ -95,7 +158,8 @@ public class BaseSegmentRepository
         // Lấy tất cả, filter ra những record không bị thay thế bởi bất kỳ record nào khác
         command.CommandText = @"
             SELECT id, ts_start_ms, ts_end_ms, speaker_id, text_src, text_trs, 
-                   commit_type, supersedes_id, chunk_id, created_at
+                   commit_type, supersedes_id, chunk_id, created_at,
+                   acoustic_end_ms, utterance_offset, is_dangling, avg_speech_speed_ms, commit_reason
             FROM segments s1
             WHERE NOT EXISTS (
                 SELECT 1 FROM segments s2 WHERE s2.supersedes_id = s1.id
@@ -117,7 +181,14 @@ public class BaseSegmentRepository
                 CommitType = reader.GetString(6),
                 SupersedesId = reader.IsDBNull(7) ? null : reader.GetInt64(7),
                 ChunkId = reader.GetString(8),
-                CreatedAt = reader.GetInt64(9)
+                CreatedAt = reader.GetInt64(9),
+                
+                // CRITICAL-TEXT-001: Load acoustic metadata
+                AcousticEndMs = reader.IsDBNull(10) ? null : reader.GetDouble(10),
+                UtteranceOffset = reader.IsDBNull(11) ? null : (ulong)reader.GetInt64(11),
+                IsDangling = !reader.IsDBNull(12) && reader.GetInt32(12) == 1,
+                AvgSpeechSpeedMs = reader.IsDBNull(13) ? null : reader.GetInt32(13),
+                CommitReason = reader.IsDBNull(14) ? "UNKNOWN" : reader.GetString(14)
             });
         }
 
@@ -143,5 +214,31 @@ public class BaseSegmentRepository
         command.Parameters.AddWithValue("@id", id);
 
         command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Force checkpoint WAL to main database file.
+    /// Call this before closing workspace to ensure all pending writes are persisted.
+    /// </summary>
+    public void FlushWal()
+    {
+        try
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            using var command = connection.CreateCommand();
+            // PRAGMA wal_checkpoint(TRUNCATE) forces all WAL frames to be written to the main DB
+            // and then truncates the WAL file to zero bytes
+            command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+            command.ExecuteNonQuery();
+
+            System.Diagnostics.Debug.WriteLine($"[BaseSegmentRepository] WAL checkpoint completed for {_connectionString}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BaseSegmentRepository] WAL checkpoint failed: {ex.Message}");
+            // Don't throw - this is a best-effort cleanup
+        }
     }
 }

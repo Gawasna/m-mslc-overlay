@@ -48,6 +48,9 @@ namespace m_mslc_overlay
         private string _translationBuffer = "";
         private string _translationDisplayBuffer = "";
         private bool _isTranslationDirty = false;
+        
+        // CRITICAL-TEXT-001: Track previous segment end time for continuous timeline
+        private long _lastSegmentEndMs = 0;
 
         private readonly object _logLock = new object();
         private readonly System.Collections.Generic.List<string> _rawLogs = new System.Collections.Generic.List<string>();
@@ -201,7 +204,12 @@ namespace m_mslc_overlay
                         {
                             tsEndMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                         }
-                        long tsStartMs = tsEndMs - 2000; // Estimated 2s duration
+                        
+                        // CRITICAL-TEXT-001 FIX: Use previous segment's end as this segment's start
+                        // This creates a continuous timeline and eliminates accumulating drift.
+                        // First segment: Use 2s estimate as fallback
+                        long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : (tsEndMs - 2000);
+                        _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
@@ -209,7 +217,13 @@ namespace m_mslc_overlay
                             textSrc: meta.Text,
                             textTrs: null,
                             speakerId: !string.IsNullOrEmpty(meta.SpeakerId) ? meta.SpeakerId : "UNK",
-                            commitType: meta.Reason == "HardCommit" ? "HARD" : "SOFT"
+                            commitType: meta.Reason == "HardCommit" ? "HARD" : "SOFT",
+                            // CRITICAL-TEXT-001: Pass acoustic metadata to database
+                            acousticEndMs: meta.AcousticEndMs,
+                            utteranceOffset: meta.UtteranceOffset,
+                            isDangling: meta.IsDangling,
+                            avgSpeechSpeedMs: (int)_pipeService.AverageSpeechSpeed,
+                            commitReason: meta.Reason
                         );
                         _segmentIdMap[segment.Id] = dbId;
                     }
@@ -253,6 +267,14 @@ namespace m_mslc_overlay
                         // ATOM79: link translation back to originating segment
                         var linkedSeg = _segmentTracker.LinkTranslation(result);
 
+                        // ✅ FIX 1: Add explicit null check with logging
+                        if (linkedSeg == null)
+                        {
+                            AppendLog($"[{timestamp}] ⚠️ WARNING: Translation '{fullSentence}' could not be linked to any segment. Data loss risk!\n");
+                            System.Diagnostics.Debug.WriteLine($"[MainWindow] ⚠️ LinkedSeg is NULL for translation: {fullSentence}");
+                            // Continue to overlay display, but don't try to save to workspace
+                        }
+
                         // Cập nhật bản dịch vào Workspace database và gửi sang WebView2 PaperSheet
                         if (linkedSeg != null && _workspaceVm.IsOpen && _workspaceVm.Service?.ActiveSegmentRepo != null)
                         {
@@ -272,6 +294,12 @@ namespace m_mslc_overlay
                                         NewValue = fullSentence
                                     });
                                 }
+                            }
+                            else
+                            {
+                                // ✅ FIX 2: Add logging for missing DB ID
+                                AppendLog($"[{timestamp}] ⚠️ WARNING: Segment ID {linkedSeg.Id} not found in _segmentIdMap. Translation lost!\n");
+                                System.Diagnostics.Debug.WriteLine($"[MainWindow] ⚠️ SegmentID {linkedSeg.Id} not in _segmentIdMap. DbId lookup failed.");
                             }
                         }
 
@@ -325,6 +353,7 @@ namespace m_mslc_overlay
                     _segmentTracker.Reset();  // ATOM79: clear stale segments on reconnect
                     _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
                     _segmentIdMap.Clear();
+                    _lastSegmentEndMs = 0;  // CRITICAL-TEXT-001: Reset timing state on reconnect
                 }
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
@@ -1295,7 +1324,7 @@ namespace m_mslc_overlay
                 return;
             }
 
-            string installDir = AppPathHelper.GetWritablePath(atom32Entry.InstallDir);
+            string installDir = PluginManifestService.ResolveInstallDir(atom32Entry.InstallDir);
             string pythonExe = Path.Combine(installDir, ".venv", "Scripts", "python.exe");
             string scriptPath = Path.Combine(installDir, atom32Entry.EntryScript);
 

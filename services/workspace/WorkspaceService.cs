@@ -77,5 +77,17 @@ public class WorkspaceService : IDisposable
     public void Dispose()
     {
         AudioService?.Dispose();
+        
+        // ✅ FIX: Force WAL checkpoint before closing workspace
+        // This ensures all pending writes in WAL are flushed to main DB
+        if (ActiveSegmentRepo != null)
+        {
+            ActiveSegmentRepo.FlushWal();
+        }
+        
+        foreach (var repo in _baseRepos)
+        {
+            repo.FlushWal();
+        }
     }
 }
