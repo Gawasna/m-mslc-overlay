@@ -13,6 +13,10 @@ public class Segment
     // Timecode kết thúc
     public long TsEndMs { get; set; }
     
+    // Audio reference (session-based chunked PCM)
+    public string? AudioSessionId { get; set; }  // "session_20260802_143022"
+    public long? AudioOffsetMs { get; set; }     // Global offset trong session (ms)
+    
     // "SPK_1", "SPK_2", ...
     public string? SpeakerId { get; set; }
     

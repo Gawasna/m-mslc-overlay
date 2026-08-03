@@ -1,6 +1,7 @@
 using System;
 using MMslcOverlay.Core.Workspace.Models;
 using MMslcOverlay.Core.Workspace.Repositories;
+using MMslcOverlay.Core.Workspace.Storage;
 
 namespace MMslcOverlay.Services.Workspace;
 
@@ -8,13 +9,21 @@ public class SegmentIngestionService
 {
     private readonly BaseSegmentRepository _activeRepo;
     private readonly string _activeChunkId;
+    private readonly StreamingPcmRecorder? _audioRecorder;
+    private readonly AudioOffsetIndex? _offsetIndex;
 
     public event Action<Segment>? SegmentAdded;
 
-    public SegmentIngestionService(BaseSegmentRepository activeRepo, string activeChunkId)
+    public SegmentIngestionService(
+        BaseSegmentRepository activeRepo, 
+        string activeChunkId,
+        StreamingPcmRecorder? audioRecorder = null,
+        AudioOffsetIndex? offsetIndex = null)
     {
         _activeRepo = activeRepo;
         _activeChunkId = activeChunkId;
+        _audioRecorder = audioRecorder;
+        _offsetIndex = offsetIndex;
     }
 
     /// <summary>
@@ -53,8 +62,25 @@ public class SegmentIngestionService
             CommitReason = commitReason
         };
 
+        // ✅ Get audio reference from recorder
+        if (_audioRecorder != null)
+        {
+            var audioRef = _audioRecorder.GetCurrentReference();
+            segment.AudioSessionId = audioRef.sessionId;
+            segment.AudioOffsetMs = audioRef.offsetMs;
+            
+            System.Diagnostics.Debug.WriteLine(
+                $"[SegmentIngestion] Audio ref: session={audioRef.sessionId}, offset={audioRef.offsetMs}ms");
+        }
+
         var id = _activeRepo.InsertSegment(segment);
         segment.Id = id;
+
+        // ✅ Dual write to offset backup file
+        if (_offsetIndex != null && segment.AudioOffsetMs.HasValue)
+        {
+            _offsetIndex.AppendOffset(id, segment.AudioOffsetMs.Value);
+        }
 
         // Bắn sự kiện ra ngoài cho UI (Ví dụ: PaperSheetViewModel) update
         SegmentAdded?.Invoke(segment);

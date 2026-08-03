@@ -20,6 +20,7 @@ public class WorkspaceService : IDisposable
     // Services
     public SegmentIngestionService? IngestionService { get; private set; }
     public AudioRecorderService? AudioService { get; private set; }
+    public StreamingPcmRecorder? AudioRecorder { get; private set; }  // ✅ NEW
 
     public WorkspaceService(string workspaceRoot)
     {
@@ -61,8 +62,32 @@ public class WorkspaceService : IDisposable
             var activeOffsetsPath = Storage.GetSegmentOffsetsPath(sessionMeta.ActiveChunkId);
             var activeAudioOffsetIndex = new AudioOffsetIndex(activeOffsetsPath);
             
-            // Start sub-services
-            IngestionService = new SegmentIngestionService(ActiveSegmentRepo, sessionMeta.ActiveChunkId);
+            // ✅ PHASE 3: Run session recovery before creating new recorder
+            string audioDir = Path.Combine(Storage.MslcDir, "audio");
+            var recoveryService = new SessionRecoveryService(audioDir);
+            var recoveredSessions = recoveryService.RecoverAllSessions();
+            
+            if (recoveredSessions.Count > 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WorkspaceService] 🔧 Recovered {recoveredSessions.Count} incomplete audio sessions:");
+                foreach (var recoveredId in recoveredSessions)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {recoveredId}");
+                }
+            }
+            
+            // ✅ NEW: Initialize StreamingPcmRecorder
+            string newSessionId = $"session_{DateTime.Now:yyyyMMdd_HHmmss}";
+            AudioRecorder = new StreamingPcmRecorder(audioDir, newSessionId);
+            System.Diagnostics.Debug.WriteLine($"[WorkspaceService] Audio recorder initialized: {newSessionId}");
+            
+            // Start sub-services with audio integration
+            IngestionService = new SegmentIngestionService(
+                ActiveSegmentRepo, 
+                sessionMeta.ActiveChunkId,
+                AudioRecorder,          // ✅ Pass recorder
+                activeAudioOffsetIndex  // ✅ Pass offset index
+            );
             
             var audioFilePath = Path.Combine(Storage.MslcDir, "segments", $"{sessionMeta.ActiveChunkId}.audio.wav");
             AudioService = new AudioRecorderService(audioFilePath, activeAudioOffsetIndex);
@@ -76,6 +101,7 @@ public class WorkspaceService : IDisposable
     
     public void Dispose()
     {
+        AudioRecorder?.Dispose();  // ✅ Dispose recorder first (stops recording)
         AudioService?.Dispose();
         
         // ✅ FIX: Force WAL checkpoint before closing workspace

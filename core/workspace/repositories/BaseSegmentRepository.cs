@@ -30,6 +30,8 @@ public class BaseSegmentRepository
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 ts_start_ms   INTEGER NOT NULL,
                 ts_end_ms     INTEGER NOT NULL,
+                audio_session_id TEXT,
+                audio_offset_ms INTEGER,
                 speaker_id    TEXT,
                 text_src      TEXT NOT NULL,
                 text_trs      TEXT,
@@ -39,6 +41,7 @@ public class BaseSegmentRepository
                 created_at    INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_ts ON segments(ts_start_ms);
+            CREATE INDEX IF NOT EXISTS idx_audio_session ON segments(audio_session_id);
         ";
         command.ExecuteNonQuery();
         
@@ -78,6 +81,14 @@ public class BaseSegmentRepository
         {
             ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN utterance_offset INTEGER;");
         }
+        if (!existingColumns.Contains("audio_session_id"))
+        {
+            ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN audio_session_id TEXT;");
+        }
+        if (!existingColumns.Contains("audio_offset_ms"))
+        {
+            ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN audio_offset_ms INTEGER;");
+        }
         if (!existingColumns.Contains("is_dangling"))
         {
             ExecuteNonQuery(connection, "ALTER TABLE segments ADD COLUMN is_dangling INTEGER DEFAULT 0;");
@@ -107,12 +118,12 @@ public class BaseSegmentRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             INSERT INTO segments (
-                ts_start_ms, ts_end_ms, speaker_id, text_src, text_trs, 
+                ts_start_ms, ts_end_ms, audio_session_id, audio_offset_ms, speaker_id, text_src, text_trs, 
                 commit_type, supersedes_id, chunk_id, created_at,
                 acoustic_end_ms, utterance_offset, is_dangling, avg_speech_speed_ms, commit_reason
             )
             VALUES (
-                @ts_start_ms, @ts_end_ms, @speaker_id, @text_src, @text_trs, 
+                @ts_start_ms, @ts_end_ms, @audio_session_id, @audio_offset_ms, @speaker_id, @text_src, @text_trs, 
                 @commit_type, @supersedes_id, @chunk_id, @created_at,
                 @acoustic_end_ms, @utterance_offset, @is_dangling, @avg_speech_speed_ms, @commit_reason
             );
@@ -121,6 +132,8 @@ public class BaseSegmentRepository
 
         command.Parameters.AddWithValue("@ts_start_ms", segment.TsStartMs);
         command.Parameters.AddWithValue("@ts_end_ms", segment.TsEndMs);
+        command.Parameters.AddWithValue("@audio_session_id", segment.AudioSessionId ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@audio_offset_ms", segment.AudioOffsetMs ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@speaker_id", segment.SpeakerId ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@text_src", segment.TextSrc);
         command.Parameters.AddWithValue("@text_trs", segment.TextTrs ?? (object)DBNull.Value);
@@ -157,7 +170,7 @@ public class BaseSegmentRepository
         using var command = connection.CreateCommand();
         // Lấy tất cả, filter ra những record không bị thay thế bởi bất kỳ record nào khác
         command.CommandText = @"
-            SELECT id, ts_start_ms, ts_end_ms, speaker_id, text_src, text_trs, 
+            SELECT id, ts_start_ms, ts_end_ms, audio_session_id, audio_offset_ms, speaker_id, text_src, text_trs, 
                    commit_type, supersedes_id, chunk_id, created_at,
                    acoustic_end_ms, utterance_offset, is_dangling, avg_speech_speed_ms, commit_reason
             FROM segments s1
@@ -175,20 +188,20 @@ public class BaseSegmentRepository
                 Id = reader.GetInt64(0),
                 TsStartMs = reader.GetInt64(1),
                 TsEndMs = reader.GetInt64(2),
-                SpeakerId = reader.IsDBNull(3) ? null : reader.GetString(3),
-                TextSrc = reader.GetString(4),
-                TextTrs = reader.IsDBNull(5) ? null : reader.GetString(5),
-                CommitType = reader.GetString(6),
-                SupersedesId = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-                ChunkId = reader.GetString(8),
-                CreatedAt = reader.GetInt64(9),
-                
-                // CRITICAL-TEXT-001: Load acoustic metadata
-                AcousticEndMs = reader.IsDBNull(10) ? null : reader.GetDouble(10),
-                UtteranceOffset = reader.IsDBNull(11) ? null : (ulong)reader.GetInt64(11),
-                IsDangling = !reader.IsDBNull(12) && reader.GetInt32(12) == 1,
-                AvgSpeechSpeedMs = reader.IsDBNull(13) ? null : reader.GetInt32(13),
-                CommitReason = reader.IsDBNull(14) ? "UNKNOWN" : reader.GetString(14)
+                AudioSessionId = reader.IsDBNull(3) ? null : reader.GetString(3),
+                AudioOffsetMs = reader.IsDBNull(4) ? null : reader.GetInt64(4),
+                SpeakerId = reader.IsDBNull(5) ? null : reader.GetString(5),
+                TextSrc = reader.GetString(6),
+                TextTrs = reader.IsDBNull(7) ? null : reader.GetString(7),
+                CommitType = reader.GetString(8),
+                SupersedesId = reader.IsDBNull(9) ? null : reader.GetInt64(9),
+                ChunkId = reader.GetString(10),
+                CreatedAt = reader.GetInt64(11),
+                AcousticEndMs = reader.IsDBNull(12) ? null : reader.GetDouble(12),
+                UtteranceOffset = reader.IsDBNull(13) ? null : (ulong)reader.GetInt64(13),
+                IsDangling = reader.IsDBNull(14) ? false : reader.GetInt32(14) == 1,
+                AvgSpeechSpeedMs = reader.IsDBNull(15) ? null : (int?)reader.GetInt64(15),
+                CommitReason = reader.IsDBNull(16) ? null : reader.GetString(16)
             });
         }
 

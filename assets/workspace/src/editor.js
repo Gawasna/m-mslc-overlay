@@ -312,6 +312,85 @@ const trackChangesPlugin = new Plugin({
     }
 });
 
+const searchPluginKey = new PluginKey("search");
+let lastSearchQuery = "";
+let lastSearchDoc = null;
+let searchMatches = [];
+let activeMatchIndex = 0;
+
+const searchPlugin = new Plugin({
+  key: searchPluginKey,
+  state: {
+    init: () => DecorationSet.empty,
+    apply(tr, oldSet, oldState, newState) {
+      const meta = tr.getMeta(searchPluginKey);
+      if (meta) {
+        if (meta.type === "CLEAR_FIND") {
+          lastSearchQuery = "";
+          lastSearchDoc = null;
+          searchMatches = [];
+          activeMatchIndex = 0;
+          return DecorationSet.empty;
+        }
+        if (meta.type === "FIND") {
+          const query = meta.query;
+          if (!query) {
+            lastSearchQuery = "";
+            lastSearchDoc = null;
+            searchMatches = [];
+            activeMatchIndex = 0;
+            return DecorationSet.empty;
+          }
+          if (query !== lastSearchQuery || lastSearchDoc !== newState.doc) {
+            lastSearchQuery = query;
+            lastSearchDoc = newState.doc;
+            searchMatches = [];
+            activeMatchIndex = 0;
+            const lowerQuery = query.toLowerCase();
+            const queryLen = query.length;
+            newState.doc.descendants((node, pos) => {
+              if (node.isText && node.text) {
+                const text = node.text;
+                const lowerText = text.toLowerCase();
+                let idx = lowerText.indexOf(lowerQuery);
+                while (idx !== -1) {
+                  searchMatches.push({ from: pos + idx, to: pos + idx + queryLen });
+                  idx = lowerText.indexOf(lowerQuery, idx + 1);
+                }
+              }
+            });
+          } else {
+            if (searchMatches.length > 0) {
+              activeMatchIndex = (activeMatchIndex + 1) % searchMatches.length;
+            }
+          }
+
+          if (searchMatches.length === 0) {
+            return DecorationSet.empty;
+          }
+
+          const decos = searchMatches.map((m, i) => {
+            const cls = i === activeMatchIndex ? "search-match search-match-active" : "search-match";
+            return Decoration.inline(m.from, m.to, { class: cls });
+          });
+          return DecorationSet.create(newState.doc, decos);
+        }
+      }
+
+      if (tr.docChanged) {
+        lastSearchDoc = null;
+        return oldSet.map(tr.mapping, tr.doc);
+      }
+      return oldSet;
+    }
+  },
+  props: {
+    decorations(state) {
+      return this.getState(state);
+    }
+  }
+});
+
 // 3. Editor Initialization
 let view;
 
@@ -350,7 +429,8 @@ function initEditor() {
                 keymap(baseKeymap),
                 magicCursorPlugin,
                 scrollModePlugin,
-                trackChangesPlugin
+                trackChangesPlugin,
+                searchPlugin
             ]
         }),
         nodeViews: {
@@ -448,6 +528,10 @@ window.__bridge = {
                     doc,
                     plugins: view.state.plugins
                 });
+                lastSearchQuery = "";
+                lastSearchDoc = null;
+                searchMatches = [];
+                activeMatchIndex = 0;
                 view.updateState(state);
                 
         } else if (msg.type === "INSERT_MACHINE_SEGMENT") {
@@ -604,6 +688,32 @@ window.__bridge = {
                     }
                 }
             });
+        } else if (msg.type === "FIND_NEXT") {
+            const query = msg.query || "";
+            if (!query.trim()) {
+                view.dispatch(view.state.tr.setMeta(searchPluginKey, { type: "CLEAR_FIND" }));
+                sendToHost({ type: "FIND_RESULT", matchCount: 0, activeMatchIndex: 0 });
+            } else {
+                view.dispatch(view.state.tr.setMeta(searchPluginKey, { type: "FIND", query: query }));
+                if (searchMatches.length > 0) {
+                    const match = searchMatches[activeMatchIndex];
+                    try {
+                        const coords = view.coordsAtPos(match.from);
+                        if (coords) {
+                            const targetY = coords.top + window.scrollY - 250;
+                            window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+                        }
+                    } catch (e) {
+                        console.log("Scroll failed:", e);
+                    }
+                    sendToHost({ type: "FIND_RESULT", matchCount: searchMatches.length, activeMatchIndex: activeMatchIndex + 1 });
+                } else {
+                    sendToHost({ type: "FIND_RESULT", matchCount: 0, activeMatchIndex: 0 });
+                }
+            }
+        } else if (msg.type === "CLEAR_FIND") {
+            view.dispatch(view.state.tr.setMeta(searchPluginKey, { type: "CLEAR_FIND" }));
+            sendToHost({ type: "FIND_RESULT", matchCount: 0, activeMatchIndex: 0 });
         }
         } catch (e) {
             sendToHost({ type: "JS_ERROR", message: e.toString(), stack: e.stack });

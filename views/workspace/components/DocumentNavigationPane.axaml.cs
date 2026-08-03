@@ -50,6 +50,24 @@ namespace MMslcOverlay.Views.Workspace.Components
                     if (defBox  != null) defBox.Text  = string.Empty;
                 }
             };
+
+            var findBtn = this.Find<Button>("FindNextBtn");
+            if (findBtn != null)
+            {
+                findBtn.Click += (_, _) => Vm()?.FindReplace.ExecuteFindNext();
+            }
+            var findBox = this.Find<TextBox>("FindTextBox");
+            if (findBox != null)
+            {
+                findBox.KeyDown += (_, e) =>
+                {
+                    if (e.Key == Avalonia.Input.Key.Enter)
+                    {
+                        Vm()?.FindReplace.ExecuteFindNext();
+                        e.Handled = true;
+                    }
+                };
+            }
         }
 
         // P3.5: Open preferences dialog from fallback panel

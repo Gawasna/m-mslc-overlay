@@ -199,6 +199,13 @@ namespace m_mslc_overlay
                     // Ingest into workspace if open
                     if (_workspaceVm.IsOpen && _workspaceVm.Service?.IngestionService != null)
                     {
+                        // ✅ AUTO-START RECORDING: Start recording automatically on first STT segment
+                        if (!_workspaceVm.IsRecording)
+                        {
+                            _workspaceVm.StartRecording();
+                            System.Diagnostics.Debug.WriteLine("[MainWindow] 🎙️ Auto-started recording on first STT segment");
+                        }
+                        
                         long tsEndMs = (long)meta.AcousticEndMs;
                         if (tsEndMs <= 0)
                         {
@@ -346,6 +353,7 @@ namespace m_mslc_overlay
             _pipeService.OnStatusChanged += (statusMsg) => {
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
                 AppendLog($"[{timestamp}] [SYSTEM] {statusMsg}\n");
+                
                 // ATOM50: reset buffer on new pipe session to avoid stale pending
                 if (statusMsg.Contains("Client connected"))
                 {
@@ -355,6 +363,17 @@ namespace m_mslc_overlay
                     _segmentIdMap.Clear();
                     _lastSegmentEndMs = 0;  // CRITICAL-TEXT-001: Reset timing state on reconnect
                 }
+                
+                // ✅ AUTO-STOP RECORDING: Stop recording when STT disconnects
+                if (statusMsg.Contains("Client disconnected"))
+                {
+                    if (_workspaceVm.IsRecording)
+                    {
+                        _workspaceVm.StopRecording();
+                        System.Diagnostics.Debug.WriteLine("[MainWindow] 🛑 Auto-stopped recording on STT disconnect");
+                    }
+                }
+                
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateDynamicStrings);
             };
 

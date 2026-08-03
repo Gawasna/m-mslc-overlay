@@ -81,6 +81,19 @@ public class BridgeMessage
     [JsonPropertyName("content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Content { get; set; }
+
+    // FIND_NEXT & FIND_RESULT
+    [JsonPropertyName("query")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Query { get; set; }
+
+    [JsonPropertyName("matchCount")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? MatchCount { get; set; }
+
+    [JsonPropertyName("activeMatchIndex")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ActiveMatchIndex { get; set; }
 }
 
 public class BridgeSegment
