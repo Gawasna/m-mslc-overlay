@@ -45,8 +45,25 @@ body {
   cursor: pointer;
   user-select: none;
   padding-top: 2px;
+  position: relative;
+  padding-left: 20px; /* Space for speaker icon */
 }
-.seg-gutter:hover { color: #6366F1; }
+.seg-gutter::before {
+  content: "🔊"; /* Speaker icon */
+  position: absolute;
+  left: 0;
+  top: 2px;
+  font-size: 12px;
+  opacity: 0.5;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.seg-gutter:hover { 
+  color: #6366F1; 
+}
+.seg-gutter:hover::before {
+  opacity: 1;
+  transform: scale(1.15);
+}
 
 .seg-content {
   flex: 1;

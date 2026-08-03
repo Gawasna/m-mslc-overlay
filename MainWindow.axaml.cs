@@ -206,16 +206,33 @@ namespace m_mslc_overlay
                             System.Diagnostics.Debug.WriteLine("[MainWindow] 🎙️ Auto-started recording on first STT segment");
                         }
                         
-                        long tsEndMs = (long)meta.AcousticEndMs;
-                        if (tsEndMs <= 0)
+                        // CRITICAL-TEXT-001 FIX: Handle timestamp calculation
+                        long tsEndMs;
+                        
+                        if (meta.AcousticEndMs > 0)
                         {
-                            tsEndMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                            // Use acoustic timestamp from SDK (relative time in ms)
+                            tsEndMs = (long)meta.AcousticEndMs;
+                        }
+                        else
+                        {
+                            // Fallback: Use previous segment's end + estimate
+                            // NEVER use Unix timestamp - it causes overflow!
+                            if (_lastSegmentEndMs > 0)
+                            {
+                                tsEndMs = _lastSegmentEndMs + 2000; // Estimate 2s from previous
+                            }
+                            else
+                            {
+                                // Very first segment with no acoustic data: start at 0
+                                tsEndMs = 2000;
+                            }
                         }
                         
                         // CRITICAL-TEXT-001 FIX: Use previous segment's end as this segment's start
                         // This creates a continuous timeline and eliminates accumulating drift.
-                        // First segment: Use 2s estimate as fallback
-                        long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : (tsEndMs - 2000);
+                        // First segment: Use 0 as start
+                        long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : 0;
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
