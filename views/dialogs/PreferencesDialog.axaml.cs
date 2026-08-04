@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using m_mslc_overlay.services;
+using MMslcOverlay.Services;
 
 namespace m_mslc_overlay.views.dialogs
 {
@@ -18,10 +19,19 @@ namespace m_mslc_overlay.views.dialogs
             LoadSettings();
 
             OfflineTranslationServerManager.OnStateChanged += OnServerStateChanged;
+            DiarizerProcessManager.OnGlobalStateChanged += OnAtom32StateChanged;
 
             this.Closed += (s, e) => {
                 OfflineTranslationServerManager.OnStateChanged -= OnServerStateChanged;
+                DiarizerProcessManager.OnGlobalStateChanged -= OnAtom32StateChanged;
             };
+        }
+
+        private void OnAtom32StateChanged(DiarizerState state)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                UpdateAtom32StateUI(state);
+            });
         }
 
         private void OnServerStateChanged(OfflineServerState state)
@@ -75,6 +85,7 @@ namespace m_mslc_overlay.views.dialogs
             if (UtilAtom32Toggle != null) UtilAtom32Toggle.IsChecked = cfg.EnableDiarizer;
 
             UpdateServerStateUI(OfflineTranslationServerManager.State);
+            UpdateAtom32StateUI(DiarizerProcessManager.GlobalState);
         }
 
         private void SaveSettings()
@@ -285,6 +296,38 @@ namespace m_mslc_overlay.views.dialogs
             finally
             {
                 _isUpdatingToggle = false;
+            }
+        }
+
+        private void UpdateAtom32StateUI(DiarizerState state)
+        {
+            string stateText = "Đã dừng";
+            var brush = Avalonia.Media.Brushes.Gray;
+
+            switch (state)
+            {
+                case DiarizerState.Stopped:
+                    stateText = "Đã dừng";
+                    brush = Avalonia.Media.Brushes.Gray;
+                    break;
+                case DiarizerState.Starting:
+                    stateText = "Đang khởi động...";
+                    brush = Avalonia.Media.Brushes.Orange;
+                    break;
+                case DiarizerState.Ready:
+                    stateText = "Sẵn sàng (Đang chạy)";
+                    brush = Avalonia.Media.Brushes.Green;
+                    break;
+                case DiarizerState.Failed:
+                    stateText = "Lỗi khởi chạy";
+                    brush = Avalonia.Media.Brushes.Red;
+                    break;
+            }
+
+            if (UtilAtom32StateText != null) 
+            { 
+                UtilAtom32StateText.Text = stateText; 
+                UtilAtom32StateText.Foreground = brush; 
             }
         }
 

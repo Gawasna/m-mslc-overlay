@@ -49,10 +49,14 @@
     <!-- Fluent overrides -->
     <SolidColorBrush x:Key="TextBoxBorderBrushFocused" Color="#0078D4"/>
     <SolidColorBrush x:Key="TextBoxBorderBrushPointerOver" Color="#106EBE"/>
-    <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="#0078D4"/>
-    <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="#0078D4"/>
-    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="#106EBE"/>
-    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="#005A9E"/>
+    <SolidColorBrush x:Key="CheckBoxBorderBrushChecked" Color="Transparent"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundChecked" Color="Transparent"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="CheckBoxBackgroundCheckedPressed" Color="Transparent"/>
+    <!-- CheckBox indicator colors -->
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked" Color="#0078D4"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="#106EBE"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPressed" Color="#005A9E"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#0078D4"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#106EBE"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#005A9E"/>

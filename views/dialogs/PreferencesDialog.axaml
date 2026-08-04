@@ -237,6 +237,10 @@
                                 <!-- Bật/Tắt Tiện Ích -->
                                 <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
                                     <ToggleSwitch x:Name="UtilAtom32Toggle" Grid.Column="0" OnContent="Bật Tiện ích (Kích hoạt cùng Overlay)" OffContent="Tắt Tiện ích (Vô hiệu hóa)" IsCheckedChanged="UtilAtom32Toggle_IsCheckedChanged" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="Trạng thái:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="UtilAtom32StateText" Text="Đã dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </Grid>
                                 
                                 <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>

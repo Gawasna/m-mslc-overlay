@@ -328,21 +328,22 @@ public class StreamingPcmRecorder : IDisposable
     
     /// <summary>
     /// Gọi 1 lần duy nhất khi utterance đầu tiên commit để anchor hai timeline.
-    /// anchorAudioMs = start của utterance đầu trong file audio
-    ///               = _sessionOffsetMs (= END của utterance) - duration
-    /// Sau khi gọi, dùng AudioOffsetForTs() thay vì GetCurrentReference().
+    /// utteranceStartMs = SDK Offset / 10000 (100ns ticks → ms): mốc bắt đầu thực sự của utterance.
+    /// tsEndMs = AcousticEndMs của commit đầu tiên: thời điểm kết thúc từ được commit.
+    /// Công thức: _sessionOffsetMs (recorder end) - (tsEndMs - utteranceStartMs) = recorder start
     /// </summary>
-    public void SetFirstUtteranceAnchor(long tsStartMs, long tsEndMs)
+    public void SetFirstUtteranceAnchor(long utteranceStartMs, long tsEndMs)
     {
         if (_anchorAudioMs >= 0) return; // chỉ set 1 lần
         
-        // _sessionOffsetMs tại thời điểm commit = END của utterance đầu trong audio.
-        // START = END - (tsEndMs - tsStartMs): đây là offset bắt đầu thực sự trong file PCM.
-        long utteranceDurationMs = Math.Max(0, tsEndMs - tsStartMs);
-        _anchorAudioMs = Math.Max(0, _sessionOffsetMs - utteranceDurationMs);
-        _anchorTsMs = tsStartMs;
+        // tsEndMs = AcousticEndMs của commit đầu (= ms kể từ đầu utterance đến cuối word commit)
+        // utteranceStartMs = SDK Offset: ms kể từ đầu session đến khi utterance bắt đầu
+        // => khoảng thời gian từ utterance start đến commit end:
+        long audioSpanMs = Math.Max(0, tsEndMs - utteranceStartMs);
+        _anchorAudioMs = Math.Max(0, _sessionOffsetMs - audioSpanMs);
+        _anchorTsMs = utteranceStartMs;
         System.Diagnostics.Debug.WriteLine(
-            $"[StreamingPcmRecorder] Anchor set: sessionOffset={_sessionOffsetMs}ms, utteranceDur={utteranceDurationMs}ms -> anchorAudioMs={_anchorAudioMs}, anchorTsMs={_anchorTsMs}");
+            $"[StreamingPcmRecorder] Anchor set: sessionOffset={_sessionOffsetMs}ms, utteranceStart={utteranceStartMs}ms, tsEnd={tsEndMs}ms, span={audioSpanMs}ms -> anchorAudioMs={_anchorAudioMs}, anchorTsMs={_anchorTsMs}");
     }
     
     /// <summary>

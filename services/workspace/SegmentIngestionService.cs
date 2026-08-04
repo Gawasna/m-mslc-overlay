@@ -41,7 +41,10 @@ public class SegmentIngestionService
         ulong? utteranceOffset = null,
         bool isDangling = false,
         int? avgSpeechSpeedMs = null,
-        string commitReason = "UNKNOWN")
+        string commitReason = "UNKNOWN",
+        // SDK utterance start in ms (= utteranceOffset / 10000).
+        // Used to anchor recorder timeline to exact speech start, not commit boundary.
+        long? utteranceStartMs = null)
     {
         long? audioStartMs = null;
         long? audioEndMs = null;
@@ -58,7 +61,10 @@ public class SegmentIngestionService
             // All subsequent segments use: audioStart = anchorAudio + (tsStart - anchorTs)
             if (!_audioRecorder.HasAnchor)
             {
-                _audioRecorder.SetFirstUtteranceAnchor(tsStartMs, tsEndMs);
+                // utteranceStartMs = SDK Offset / 10000: the true speech boundary
+                // tsEndMs used here is AcousticEndMs of the first commit
+                long anchorStart = utteranceStartMs ?? tsStartMs;
+                _audioRecorder.SetFirstUtteranceAnchor(anchorStart, tsEndMs);
             }
             
             long anchoredStart = _audioRecorder.AudioOffsetForTs(tsStartMs);
