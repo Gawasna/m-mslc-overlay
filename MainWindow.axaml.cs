@@ -275,9 +275,10 @@ namespace m_mslc_overlay
                         }
                         
                         // CRITICAL-TEXT-001 FIX: Use previous segment's end as this segment's start
-                        // This creates a continuous timeline and eliminates accumulating drift.
-                        // First segment: Use 0 as start
-                        long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : 0;
+                        // If it's the very first segment, use its actual UtteranceOffset instead of 0 to skip the initial silence.
+                        // If there's a huge gap between utterances (e.g. user pauses for a long time), skip the gap.
+                        long startOffsetMs = (long)(meta.UtteranceOffset / 10000);
+                        long tsStartMs = _lastSegmentEndMs > 0 ? Math.Max(_lastSegmentEndMs, startOffsetMs) : startOffsetMs;
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
                         // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav

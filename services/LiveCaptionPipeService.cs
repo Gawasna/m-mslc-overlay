@@ -176,7 +176,8 @@ namespace m_mslc_overlay.services
                     {
                         var commitMeta = CommitMetadata.From(
                             flushResult.CommittedText, "OffsetChange",
-                            acousticEndMs: acousticEndMs, utteranceOffset: _lastOffset);
+                            acousticEndMs: flushResult.AcousticEndMs, // <--- Use interpolated end MS
+                            utteranceOffset: _lastOffset);
                         _udpSender.SendCommit(commitMeta);
                         OnFinalSentenceReceived?.Invoke(commitMeta);
                     }
@@ -210,7 +211,7 @@ namespace m_mslc_overlay.services
                     string reason = result.Type == CommitType.Hard ? "HardCommit" : "SoftCommit";
                     var commitMeta = CommitMetadata.From(
                         result.CommittedText, reason,
-                        acousticEndMs: acousticEndMs,
+                        acousticEndMs: result.AcousticEndMs, // <--- Use interpolated end MS
                         utteranceOffset: offset,
                         isDangling: result.IsDangling);
                     _udpSender.SendCommit(commitMeta);
@@ -242,6 +243,7 @@ namespace m_mslc_overlay.services
                     {
                         var commitMeta = CommitMetadata.From(
                             result.CommittedText, "DebounceCommit",
+                            acousticEndMs: result.AcousticEndMs, // <--- Add interpolated end MS
                             isDangling: result.IsDangling);
                         _udpSender.SendCommit(commitMeta);
                         OnFinalSentenceReceived?.Invoke(commitMeta);
