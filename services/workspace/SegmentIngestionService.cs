@@ -43,9 +43,6 @@ public class SegmentIngestionService
         int? avgSpeechSpeedMs = null,
         string commitReason = "UNKNOWN")
     {
-        // ✅ FIX: Capture start offset TRƯỚC khi tạo segment object
-        // AudioOffsetMs = vị trí recorder TẠI THỜI ĐIỂM commit text này
-        // Đây chính xác là điểm âm thanh tương ứng với đoạn văn bản
         long? audioStartMs = null;
         long? audioEndMs = null;
         string? audioSessionId = null;
@@ -54,10 +51,17 @@ public class SegmentIngestionService
         {
             var audioRef = _audioRecorder.GetCurrentReference();
             audioSessionId = audioRef.sessionId;
-            audioStartMs = audioRef.offsetMs;
             
-            System.Diagnostics.Debug.WriteLine(
-                $"[SegmentIngestion] Audio START ref: session={audioRef.sessionId}, startOffset={audioRef.offsetMs}ms");
+            // Khi text commit đến từ atom32, lời nói của segment thực tế đã hoàn tất!
+            // Do đó offset âm thanh hiện tại chính là điểm kết thúc (AudioEndOffsetMs).
+            // Vị trí bắt đầu (AudioOffsetMs) bằng điểm kết thúc trừ đi thời lượng thực tế của lời nói.
+            long currentRefMs = audioRef.offsetMs;
+            long speechDurationMs = Math.Max(0, tsEndMs - tsStartMs);
+
+            audioEndMs = currentRefMs;
+            audioStartMs = Math.Max(0, currentRefMs - speechDurationMs);
+            
+            SessionLogger.Log($"[SegmentIngestion] Received segment: ts=({tsStartMs}->{tsEndMs}, dur={speechDurationMs}ms) at recorder offset={currentRefMs}ms -> saved audioStart={audioStartMs}ms, audioEnd={audioEndMs}ms");
         }
 
         var segment = new Segment
@@ -78,28 +82,16 @@ public class SegmentIngestionService
             AvgSpeechSpeedMs = avgSpeechSpeedMs,
             CommitReason = commitReason,
             
-            // Audio reference: start offset
+            // Audio reference: lưu đủ cả start và end offset ngay từ đầu trước khi ghi vào SQLite
             AudioSessionId = audioSessionId,
-            AudioOffsetMs = audioStartMs
+            AudioOffsetMs = audioStartMs,
+            AudioEndOffsetMs = audioEndMs
         };
 
         var id = _activeRepo.InsertSegment(segment);
         segment.Id = id;
 
-        // ✅ FIX: Capture end offset SAU khi insert (recorder vẫn đang chạy)
-        // Đây là thời điểm segment được commit, audio tiếp theo bắt đầu từ đây
-        if (_audioRecorder != null)
-        {
-            var endRef = _audioRecorder.GetCurrentReference();
-            audioEndMs = endRef.offsetMs;
-            segment.AudioEndOffsetMs = audioEndMs;
-            
-            System.Diagnostics.Debug.WriteLine(
-                $"[SegmentIngestion] Audio END ref: session={endRef.sessionId}, endOffset={endRef.offsetMs}ms, " +
-                $"duration={(audioEndMs - audioStartMs)}ms");
-        }
-
-        // ✅ Dual write to offset backup file (dùng start offset)
+        // Dual write to offset backup file (dùng start offset)
         if (_offsetIndex != null && segment.AudioOffsetMs.HasValue)
         {
             _offsetIndex.AppendOffset(id, segment.AudioOffsetMs.Value);

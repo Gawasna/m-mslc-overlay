@@ -523,9 +523,13 @@ window.__bridge = {
                     nodes.push(createFreeformNode(null));
                     for (const seg of msg.segments) {
                         const textNode = schema.nodes.seg_text.create({}, schema.text(seg.textSrc));
+                        let contentNodes = [textNode];
+                        if (seg.textTrs) {
+                            contentNodes.push(schema.nodes.seg_trs.create({}, schema.text(seg.textTrs)));
+                        }
                         const segNode = schema.nodes.machine_segment.create(
                             { segId: seg.segId, tsStartMs: seg.tsStartMs, tsEndMs: seg.tsEndMs, speakerId: seg.speakerId },
-                            textNode
+                            contentNodes
                         );
                         nodes.push(segNode);
                         nodes.push(createFreeformNode(seg.segId));

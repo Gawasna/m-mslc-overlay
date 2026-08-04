@@ -32,6 +32,8 @@ public class WorkspaceService : IDisposable
         try
         {
             Storage.Initialize();
+            SessionLogger.CurrentMslcDir = Storage.MslcDir;
+            SessionLogger.Log($"[WorkspaceService] Workspace opened: {Storage.MslcDir}");
             
             var sessionMeta = Storage.LoadOrCreateSessionMeta();
             ChunkManager = new ChunkManager(Storage);

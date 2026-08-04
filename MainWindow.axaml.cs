@@ -112,6 +112,11 @@ namespace m_mslc_overlay
                         // Vì PaperSheetView giờ đây là Composite Root bao gồm cả Toolbars (cần WorkspaceViewModel)
                         if (_workspaceVm.IsOpen) paperSheet.DataContext = _workspaceVm;
                     }
+
+                    // Bug 2 fix: Khi workspace vừa open, sync trạng thái diarizer vào NavPane ngay.
+                    // Nếu diarizer chưa start → hiện fallback panel thay vì blank speaker list.
+                    if (_workspaceVm.IsOpen)
+                        SyncNavPaneDiarizerState();
                 }
                 else if (e.PropertyName == nameof(WorkspaceViewModel.DisplayName) ||
                          e.PropertyName == nameof(WorkspaceViewModel.WorkspacePath) ||
@@ -120,6 +125,7 @@ namespace m_mslc_overlay
                     UpdateSessionDisplay();
                 }
             };
+
 
             _hiderService = new AppContainerHiderService();
             _pipeService = new LiveCaptionPipeService();
@@ -1688,8 +1694,35 @@ namespace m_mslc_overlay
                 
                 // P3.4: Clear speakers on shutdown
                 _workspaceVm.NavPane?.Speakers.Clear();
+
+                // Sync: sau khi shutdown, cập nhật lại NavPane state
+                SyncNavPaneDiarizerState();
             }
         }
+
+        /// <summary>
+        /// Cập nhật trạng thái khả dụng của diarizer vào NavPane.
+        /// Gọi sau mỗi workspace open, sau khi diarizer start/stop.
+        /// Bug 2 fix: DocNav Speaker panel không hiển thị vì NavPane không biết diarizer chưa chạy
+        /// (IsDiarizerAvailable mặc định là true → UI hiện blank list thay vì fallback message).
+        /// </summary>
+        private void SyncNavPaneDiarizerState()
+        {
+            if (_diarizerManager != null)
+            {
+                // Diarizer đang chạy → NavPane biết speakers sẽ đến
+                // Không reset IsDiarizerAvailable để tránh flicker nếu đã có speakers
+                return;
+            }
+
+            // Diarizer chưa start → hiện fallback message trong Speaker panel
+            string reason = !ConfigManager.Current.EnableDiarizer
+                ? "Tính năng Speaker Diarization bị tắt trong Preferences. Bật để sử dụng."
+                : "Speaker Diarization chưa được khởi động.\nMở Overlay (nút phía trên) để kích hoạt tự động.";
+
+            _workspaceVm.NavPane?.SetDiarizerUnavailable(reason);
+        }
+
 
         /// <summary>
         /// Handle diarization events from atom32 process.
@@ -1720,7 +1753,13 @@ namespace m_mslc_overlay
 
                 case ReadyEvent:
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Engine ready.\n");
+                    // Bug 2 fix: Mark NavPane available khi diarizer lên sóng
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _workspaceVm.NavPane?.SetDiarizerAvailable();
+                    });
                     break;
+
 
                 case ErrorEvent err:
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] {err.Message}\n");
