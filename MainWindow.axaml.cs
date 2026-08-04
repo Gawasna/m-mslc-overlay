@@ -301,7 +301,9 @@ namespace m_mslc_overlay
                             utteranceOffset: meta.UtteranceOffset,
                             isDangling: meta.IsDangling,
                             avgSpeechSpeedMs: (int)_pipeService.AverageSpeechSpeed,
-                            commitReason: meta.Reason
+                            commitReason: meta.Reason,
+                            // SDK utterance start: used to anchor recorder timeline at exact speech boundary
+                            utteranceStartMs: meta.UtteranceOffset > 0 ? (long)(meta.UtteranceOffset / 10000UL) : (long?)null
                         );
                         // Stamp dbId directly on meta so OnTranslationCompleted can use it
                         // without going through _segmentIdMap (which drifts on ShortSentenceBuffer merges)
@@ -1916,6 +1918,14 @@ namespace m_mslc_overlay
         {
             var preferencesDialog = new m_mslc_overlay.views.dialogs.PreferencesDialog();
             preferencesDialog.ShowDialog(this);
+        }
+
+        private async void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
+        {
+            var exportDialog = new m_mslc_overlay.views.dialogs.ExportDialog((jsonPayload) => {
+                services.LoggerService.Log($"[MainWindow] Export callback triggered with JSON payload:\n{jsonPayload}");
+            });
+            await exportDialog.ShowDialog(this);
         }
 
         private void ActiveExtractorCheckout_Click(object? sender, RoutedEventArgs e)

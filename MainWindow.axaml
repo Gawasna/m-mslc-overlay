@@ -101,6 +101,8 @@
                         <MenuItem Header="TXT..."  Command="{Binding ExportTxtCommand}"  x:CompileBindings="False" />
                         <MenuItem Header="Markdown..." Command="{Binding ExportMdCommand}" x:CompileBindings="False" />
                         <MenuItem Header="PDF..."  Command="{Binding ExportPdfCommand}"  x:CompileBindings="False" />
+                        <Separator />
+                        <MenuItem Header="Advanced Export..." Click="OnExportAdvancedMenuClick" />
                     </MenuItem>
                     <Separator />
                     <MenuItem Header="{DynamicResource Menu_InjectTargetDll}">

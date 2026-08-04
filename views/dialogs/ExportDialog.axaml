@@ -1,0 +1,120 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.dialogs.ExportDialog"
+        Title="{DynamicResource Title_Export}"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
+        Width="530" Height="510"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{StaticResource BgWindowBrush}">
+
+    <Grid RowDefinitions="*, Auto" Margin="10">
+        <!-- Main Form Content -->
+        <StackPanel Grid.Row="0" Spacing="8">
+            
+            <!-- 1. Global Export Toggles (The Triggers) -->
+            <StackPanel Orientation="Horizontal" Spacing="20" Margin="4,2,0,2">
+                <CheckBox x:Name="ExportSubtitlesCheck" Content="{DynamicResource Export_Subtitles}" IsChecked="True" Checked="OnCheckboxChanged" Unchecked="OnCheckboxChanged" TabIndex="1" FontSize="11" FontWeight="SemiBold"/>
+                <CheckBox x:Name="ExportAudioCheck" Content="{DynamicResource Export_Audio}" IsChecked="True" Checked="OnCheckboxChanged" Unchecked="OnCheckboxChanged" TabIndex="2" FontSize="11" FontWeight="SemiBold"/>
+            </StackPanel>
+
+            <!-- Columns for Subtitle & Audio Options -->
+            <Grid ColumnDefinitions="*, *">
+                
+                <!-- 2. Subtitle Options Section -->
+                <Grid Grid.Column="0" Margin="0,0,5,0">
+                    <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" Margin="0,8,0,0" Padding="8,10,8,8" Background="{StaticResource BgCardBrush}" CornerRadius="2">
+                        <StackPanel Spacing="5" IsEnabled="{Binding #ExportSubtitlesCheck.IsChecked}">
+                            <TextBlock Text="{DynamicResource Export_Format}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <ComboBox x:Name="SubtitleFormatCombo" HorizontalAlignment="Stretch" SelectedIndex="0" Height="22" TabIndex="3" FontSize="11">
+                                <ComboBoxItem Content=".SRT"/>
+                                <ComboBoxItem Content=".ASS"/>
+                                <ComboBoxItem Content=".VTT"/>
+                            </ComboBox>
+
+                            <TextBlock Text="{DynamicResource Export_Encoding}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <ComboBox x:Name="SubtitleEncodingCombo" HorizontalAlignment="Stretch" SelectedIndex="0" Height="22" TabIndex="4" FontSize="11">
+                                <ComboBoxItem Content="UTF-8"/>
+                                <ComboBoxItem Content="ANSI"/>
+                            </ComboBox>
+
+                            <CheckBox x:Name="IncludeStylesCheck" Content="{DynamicResource Export_IncludeStyles}" IsChecked="True" FontSize="11" Margin="0,2,0,0" TabIndex="5"/>
+                            <CheckBox x:Name="MergeLinesCheck" Content="{DynamicResource Export_MergeLines}" IsChecked="False" FontSize="11" TabIndex="6"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- GroupBox Legend Simulation -->
+                    <Border Background="{StaticResource BgWindowBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Padding="4,0">
+                        <TextBlock Text="{DynamicResource Export_SubtitleOptions}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    </Border>
+                </Grid>
+
+                <!-- 3. Audio Options Section -->
+                <Grid Grid.Column="1" Margin="5,0,0,0">
+                    <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" Margin="0,8,0,0" Padding="8,10,8,8" Background="{StaticResource BgCardBrush}" CornerRadius="2">
+                        <StackPanel Spacing="5" IsEnabled="{Binding #ExportAudioCheck.IsChecked}">
+                            <TextBlock Text="{DynamicResource Export_Format}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <RadioButton x:Name="AudioFormatMp3" Content="MP3" GroupName="AudioFormat" IsChecked="True" TabIndex="7" FontSize="11"/>
+                                <RadioButton x:Name="AudioFormatWav" Content="WAV" GroupName="AudioFormat" TabIndex="8" FontSize="11"/>
+                                <RadioButton x:Name="AudioFormatFlac" Content="FLAC" GroupName="AudioFormat" TabIndex="9" FontSize="11"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{DynamicResource Export_Bitrate}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <ComboBox x:Name="AudioBitrateCombo" HorizontalAlignment="Stretch" SelectedIndex="1" Height="22" TabIndex="10" FontSize="11">
+                                <ComboBoxItem Content="128 kbps"/>
+                                <ComboBoxItem Content="192 kbps"/>
+                                <ComboBoxItem Content="320 kbps"/>
+                            </ComboBox>
+
+                            <TextBlock Text="{DynamicResource Export_Channels}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <RadioButton x:Name="AudioChannelsStereo" Content="Stereo" GroupName="AudioChannels" IsChecked="True" TabIndex="11" FontSize="11"/>
+                                <RadioButton x:Name="AudioChannelsMono" Content="Mono" GroupName="AudioChannels" TabIndex="12" FontSize="11"/>
+                            </StackPanel>
+
+                            <CheckBox x:Name="NormalizeVolumeCheck" Content="{DynamicResource Export_NormalizeVolume}" IsChecked="True" FontSize="11" Margin="0,2,0,0" TabIndex="13"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- GroupBox Legend Simulation -->
+                    <Border Background="{StaticResource BgWindowBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Padding="4,0">
+                        <TextBlock Text="{DynamicResource Export_AudioOptions}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    </Border>
+                </Grid>
+
+            </Grid>
+
+            <!-- 4. Output Destination Section -->
+            <Grid>
+                <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" Margin="0,8,0,0" Padding="10" Background="{StaticResource BgCardBrush}" CornerRadius="2">
+                    <StackPanel Spacing="5">
+                        <!-- Output Directory Row -->
+                        <TextBlock Text="{DynamicResource Export_OutputDirectory}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBox Grid.Column="0" x:Name="TargetPathInput" Height="22" Watermark="Select target directory..." TabIndex="14" TextChanged="TargetPathInput_TextChanged" FontSize="11"/>
+                            <Button Grid.Column="1" x:Name="BrowseBtn" Content="{DynamicResource Export_Browse}" Click="BrowseBtn_Click" Margin="6,0,0,0" Height="22" Classes="SecondaryBtn" TabIndex="15" FontSize="11"/>
+                        </Grid>
+
+                        <!-- Filename Row -->
+                        <TextBlock Text="{DynamicResource Export_FilenamePattern}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox x:Name="FilenameInput" Height="22" TabIndex="16" Watermark="[ProjectName]_[Date]" FontSize="11"/>
+
+                        <!-- Overwrite Checkbox -->
+                        <CheckBox x:Name="OverwriteCheck" Content="{DynamicResource Export_Overwrite}" IsChecked="False" FontSize="11" Margin="0,2,0,0" TabIndex="17"/>
+                    </StackPanel>
+                </Border>
+                <!-- GroupBox Legend Simulation -->
+                <Border Background="{StaticResource BgWindowBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Padding="4,0">
+                    <TextBlock Text="{DynamicResource Export_OutputDestination}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                </Border>
+            </Grid>
+
+        </StackPanel>
+
+        <!-- 5. Dialog Footer (Action Area) -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto, *, Auto, Auto" Margin="0,10,0,0">
+            <Button Grid.Column="0" x:Name="HelpBtn" Content="{DynamicResource Export_Action_Help}" Click="HelpBtn_Click" Classes="SecondaryBtn" Padding="14,4" Height="24" TabIndex="20" FontSize="11"/>
+            <Button Grid.Column="2" x:Name="CancelBtn" Content="{DynamicResource Export_Action_Cancel}" Click="CancelBtn_Click" Classes="SecondaryBtn" Padding="14,4" Margin="0,0,8,0" Height="24" TabIndex="19" FontSize="11"/>
+            <Button Grid.Column="3" x:Name="ExportBtn" Content="{DynamicResource Export_Action_Export}" Click="ExportBtn_Click" Classes="PrimaryBtn" Padding="22,4" Height="24" TabIndex="18" FontSize="11"/>
+        </Grid>
+    </Grid>
+</Window>

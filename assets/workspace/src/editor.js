@@ -92,6 +92,10 @@ function sendToHost(msg) {
     }
 }
 
+// Global map: segId → MachineSegmentView instance, used to reset _isPlaying on AUDIO_PLAY_END.
+// This replaces the broken view.nodeViews[pos] lookup which was dead code.
+const audioIconPlayingMap = new Map();
+
 class MachineSegmentView {
   constructor(node, view, getPos) {
     this.dom = document.createElement("div");
@@ -112,6 +116,7 @@ class MachineSegmentView {
       e.stopPropagation();
       if (this._isPlaying) return; // guard: prevent double-click flood
       this._isPlaying = true;
+      audioIconPlayingMap.set(this._segId, this);
       audioIcon.style.opacity = "0.4";
       sendToHost({ type: "PLAY_AUDIO", segId: node.attrs.segId });
     });
@@ -139,6 +144,7 @@ class MachineSegmentView {
   // Called from bridge when playback ends — re-enable the icon
   resetPlayState() {
     this._isPlaying = false;
+    audioIconPlayingMap.delete(this._segId);
     if (this._audioIcon) this._audioIcon.style.opacity = "";
   }
   
@@ -674,6 +680,12 @@ window.__bridge = {
                 }
             });
         } else if (msg.type === "AUDIO_PLAY_START") {
+            // Flush all OTHER playing segments first (handles interrupt-then-play race)
+            audioIconPlayingMap.forEach((nodeView, segId) => {
+                if (segId !== msg.segId && typeof nodeView.resetPlayState === "function") {
+                    nodeView.resetPlayState();
+                }
+            });
             document.querySelectorAll(".seg-gutter").forEach(el => {
                 const segEl = el.closest(".machine-segment");
                 if (segEl && segEl.dataset.segId === msg.segId) {
@@ -685,27 +697,23 @@ window.__bridge = {
                 }
             });
         } else if (msg.type === "AUDIO_PLAY_END") {
-            document.querySelectorAll(".seg-gutter").forEach(el => {
-                el.style.color = "";
-                el.title = "";
-            });
-            // Re-enable the audio icon on the segment that finished playing
+            // Reset gutter highlight on ONLY the finished segment
             document.querySelectorAll(".machine-segment").forEach(el => {
-                const icon = el.querySelector(".seg-audio-icon");
-                if (icon) {
-                    icon.style.opacity = "";
+                if (el.dataset.segId === msg.segId) {
+                    const gutter = el.querySelector(".seg-gutter");
+                    if (gutter) { gutter.style.color = ""; gutter.title = ""; }
+                    const icon = el.querySelector(".seg-audio-icon");
+                    if (icon) icon.style.opacity = "";
                 }
             });
-            // Also reset _isPlaying on the NodeView instance via DOM lookup
-            view.state.doc.descendants((node, pos) => {
-                if (node.type.name === "machine_segment" && node.attrs.segId === msg.segId) {
-                    const nodeView = view.nodeViews && view.nodeViews[pos];
-                    if (nodeView && typeof nodeView.resetPlayState === "function") {
-                        nodeView.resetPlayState();
-                    }
-                    return false;
-                }
-            });
+            // Reset _isPlaying on the NodeView instance via global map
+            const playingView = audioIconPlayingMap.get(msg.segId);
+            if (playingView && typeof playingView.resetPlayState === "function") {
+                playingView.resetPlayState();
+            } else {
+                // Fallback: clean up from map if the view is stale
+                audioIconPlayingMap.delete(msg.segId);
+            }
         } else if (msg.type === "FLUSH_FREEFORM") {
             // Gap 7: Force flush all dirty freeform blocks immediately
             if (window.changeTimeout) {

@@ -139,12 +139,22 @@
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/>
     </Style>
 
-    <!-- RadioButton Style (Clean without text wrapper background box) -->
+    <!-- RadioButton Style (Clean without background highlight box around text) -->
+    <!-- Must override both PART_LayoutRoot AND ContentPresenter to fully suppress Fluent theme hover/checked highlight -->
     <Style Selector="RadioButton">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Padding" Value="4,0"/>
+    </Style>
+    <Style Selector="RadioButton /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="RadioButton:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="RadioButton:checked /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
     </Style>
     <Style Selector="RadioButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="Transparent"/>
@@ -155,12 +165,22 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
 
-    <!-- CheckBox Style (Clean without text wrapper background box) -->
+    <!-- CheckBox Style (Clean without background highlight box around text) -->
+    <!-- Must override both PART_LayoutRoot AND ContentPresenter to fully suppress Fluent theme hover/checked highlight -->
     <Style Selector="CheckBox">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Padding" Value="4,0"/>
+    </Style>
+    <Style Selector="CheckBox /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="CheckBox:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="CheckBox:checked /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent"/>
     </Style>
     <Style Selector="CheckBox:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="Transparent"/>
