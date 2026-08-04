@@ -78,7 +78,7 @@ public partial class FloatingTextOverlay : Window
         _hiderService.HideTargetApp("LiveCaptions");
     }
 
-    private int GetTotalLength(System.Collections.Generic.List<string> list)
+    private static int GetTotalLength(System.Collections.Generic.List<string> list)
     {
         int total = 0;
         foreach (var s in list)
@@ -121,7 +121,7 @@ public partial class FloatingTextOverlay : Window
         }
 
         // Dọn dẹp hàng đợi và các câu đã hiển thị (vì đây là thông báo trực tiếp từ hệ thống)
-        while (_sentenceQueue.TryDequeue(out _)) { }
+        _sentenceQueue.Clear();
         _displayedSentences.Clear();
         _baseText = "";
         _currentSentence = "";
@@ -326,7 +326,7 @@ public partial class FloatingTextOverlay : Window
     private void TestTypewriter_Click(object? sender, RoutedEventArgs e)
     {
         DisplayTextBlock.Text = "";
-        while (_sentenceQueue.TryDequeue(out _)) { }
+        _sentenceQueue.Clear();
         _displayedSentences.Clear();
         _baseText = "";
         _currentSentence = "";
@@ -341,7 +341,7 @@ public partial class FloatingTextOverlay : Window
         DisplayTextBlock.Text = LanguageManager.GetString("Msg_HelpText");
     }
 
-    private System.Collections.Concurrent.ConcurrentQueue<string> _sentenceQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _sentenceQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
 
     public void EnqueueText(string text)
     {
@@ -350,7 +350,7 @@ public partial class FloatingTextOverlay : Window
 
     public void ClearQueueAndText()
     {
-        while (_sentenceQueue.TryDequeue(out _)) { }
+        _sentenceQueue.Clear();
         _displayedSentences.Clear();
         _baseText = "";
         _currentSentence = "";

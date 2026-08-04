@@ -65,7 +65,12 @@ namespace m_mslc_overlay.services
 
         public void Stop()
         {
-            _cancellationTokenSource?.Cancel();
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource.Cancel();
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+            }
             OnStatusChanged?.Invoke("Pipe listener stopped.");
         }
 
@@ -127,7 +132,14 @@ namespace m_mslc_overlay.services
                 finally
                 {
                     OnStatusChanged?.Invoke("Client disconnected. Restarting pipe in 1s...");
-                    try { await Task.Delay(1000, token); } catch { }
+                    try
+                    {
+                        await Task.Delay(1000, token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Expected cancellation during shutdown
+                    }
                 }
             }
         }
@@ -147,60 +159,12 @@ namespace m_mslc_overlay.services
                 OnPartialCaptionReceived?.Invoke(text);
 
                 double wallClockMs = Environment.TickCount64;
-                // acousticEndMs = endpoint của âm thanh cuối trong packet này (100ns ticks → ms)
-                // Fallback về wall-clock nếu SDK không cung cấp offset (edge case: offset=0)
                 double acousticEndMs = (offset > 0 && duration > 0)
                     ? (double)(offset + duration) / 10_000.0
                     : wallClockMs;
 
-                // Handle Offset Changes (force flush old sentence)
-                // S19 guard: only trigger on significant offset jumps (>50ms = 500000 ticks)
-                // to avoid spurious flushes from SDK offset jitter within the same utterance.
-                bool isSignificantOffsetChange = offset != 0 && _lastOffset != 0
-                    && offset != _lastOffset
-                    && Math.Abs((long)offset - (long)_lastOffset) > 500_000;
-
-                if (isSignificantOffsetChange)
-                {
-                    var flushResult = _commitEngine.Evaluate(_lastRawText, acousticEndMs, wallClockMs, true);
-                    if (flushResult.Type != CommitType.None && !string.IsNullOrWhiteSpace(flushResult.CommittedText))
-                    {
-                        OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
-                            flushResult.CommittedText, "OffsetChange",
-                            acousticEndMs: acousticEndMs, utteranceOffset: _lastOffset));
-                    }
-                    _lastRawText = "";
-                }
-                if (offset != 0) _lastOffset = offset;
-
-                // Pacing computation
-                if (root.TryGetProperty("pacing_ms", out var pacingProp) && pacingProp.TryGetDouble(out var pMs) && pMs >= 50.0 && pMs <= 1500.0)
-                {
-                    lock (_speechSpeedHistory)
-                    {
-                        _speechSpeedHistory.Add(pMs);
-                        if (_speechSpeedHistory.Count > 15) _speechSpeedHistory.RemoveAt(0);
-                    }
-                    OnPacingChanged?.Invoke(AverageSpeechSpeed);
-                }
-                else if (!isFinal && duration > 0 && !string.IsNullOrWhiteSpace(text))
-                {
-                    double ms = duration / 10000.0;
-                    int wordCount = text.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                    if (wordCount >= 3)
-                    {
-                        double msPerWord = ms / wordCount;
-                        if (msPerWord >= 100 && msPerWord <= 1500)
-                        {
-                            lock (_speechSpeedHistory)
-                            {
-                                _speechSpeedHistory.Add(msPerWord);
-                                if (_speechSpeedHistory.Count > 15) _speechSpeedHistory.RemoveAt(0);
-                            }
-                            OnPacingChanged?.Invoke(AverageSpeechSpeed);
-                        }
-                    }
-                }
+                EvaluateOffsetChange(offset, acousticEndMs, wallClockMs);
+                UpdatePacing(root, isFinal, duration, text);
 
                 // Core SSACE Evaluation
                 var result = _commitEngine.Evaluate(text, acousticEndMs, wallClockMs, isFinal);
@@ -214,13 +178,62 @@ namespace m_mslc_overlay.services
                         isDangling: result.IsDangling));
                 }
 
-                // Sau FINAL, engine đã ResetState() — _lastRawText phải sạch để
-                // OffsetChange trên packet kế tiếp không flush lại text đã committed.
                 _lastRawText = isFinal ? "" : text;
             }
             catch (Exception ex)
             {
                 OnError?.Invoke($"JSON parsing error: {ex.Message}");
+            }
+        }
+
+        private void EvaluateOffsetChange(ulong offset, double acousticEndMs, double wallClockMs)
+        {
+            bool isSignificantOffsetChange = offset != 0 && _lastOffset != 0
+                && offset != _lastOffset
+                && Math.Abs((long)offset - (long)_lastOffset) > 500_000;
+
+            if (isSignificantOffsetChange)
+            {
+                var flushResult = _commitEngine.Evaluate(_lastRawText, acousticEndMs, wallClockMs, true);
+                if (flushResult.Type != CommitType.None && !string.IsNullOrWhiteSpace(flushResult.CommittedText))
+                {
+                    OnFinalSentenceReceived?.Invoke(CommitMetadata.From(
+                        flushResult.CommittedText, "OffsetChange",
+                        acousticEndMs: acousticEndMs, utteranceOffset: _lastOffset));
+                }
+                _lastRawText = "";
+            }
+            if (offset != 0) _lastOffset = offset;
+        }
+
+        private void UpdatePacing(JsonElement root, bool isFinal, ulong duration, string text)
+        {
+            if (root.TryGetProperty("pacing_ms", out var pacingProp) && pacingProp.TryGetDouble(out var pMs) && pMs >= 50.0 && pMs <= 1500.0)
+            {
+                lock (_speechSpeedHistory)
+                {
+                    _speechSpeedHistory.Add(pMs);
+                    if (_speechSpeedHistory.Count > 15) _speechSpeedHistory.RemoveAt(0);
+                }
+                OnPacingChanged?.Invoke(AverageSpeechSpeed);
+            }
+            else if (!isFinal && duration > 0 && !string.IsNullOrWhiteSpace(text))
+            {
+                double ms = duration / 10000.0;
+                int wordCount = text.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                if (wordCount >= 3)
+                {
+                    double msPerWord = ms / wordCount;
+                    if (msPerWord >= 100 && msPerWord <= 1500)
+                    {
+                        lock (_speechSpeedHistory)
+                        {
+                            _speechSpeedHistory.Add(msPerWord);
+                            if (_speechSpeedHistory.Count > 15) _speechSpeedHistory.RemoveAt(0);
+                        }
+                        OnPacingChanged?.Invoke(AverageSpeechSpeed);
+                    }
+                }
             }
         }
 
@@ -230,7 +243,6 @@ namespace m_mslc_overlay.services
             {
                 try
                 {
-                    // Active polling loop (50-100ms) for AdaptiveCommitEngine Debounce
                     await Task.Delay(50, token);
                     
                     double arrivalTimeMs = Environment.TickCount64;
@@ -255,7 +267,16 @@ namespace m_mslc_overlay.services
 
         public void Dispose()
         {
-            Stop();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Stop();
+            }
         }
     }
 }
