@@ -99,13 +99,22 @@ class MachineSegmentView {
     this.dom.setAttribute("data-seg-id", node.attrs.segId);
     // Important: we don't want ProseMirror to treat this as directly editable text
     this.dom.contentEditable = "false";
+    this._segId = node.attrs.segId;
+    this._isPlaying = false;
 
     // ✅ Audio icon (separate column, left margin)
     const audioIcon = document.createElement("span");
     audioIcon.className = "seg-audio-icon";
     audioIcon.textContent = "🔊";
     audioIcon.title = "Play audio";
-    audioIcon.addEventListener("click", () => sendToHost({ type: "PLAY_AUDIO", segId: node.attrs.segId }));
+    this._audioIcon = audioIcon;
+    audioIcon.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (this._isPlaying) return; // guard: prevent double-click flood
+      this._isPlaying = true;
+      audioIcon.style.opacity = "0.4";
+      sendToHost({ type: "PLAY_AUDIO", segId: node.attrs.segId });
+    });
 
     // Gutter (timestamp + speaker ID)
     const gutter = document.createElement("span");
@@ -127,6 +136,12 @@ class MachineSegmentView {
     });
   }
   
+  // Called from bridge when playback ends — re-enable the icon
+  resetPlayState() {
+    this._isPlaying = false;
+    if (this._audioIcon) this._audioIcon.style.opacity = "";
+  }
+  
   // Ignore mutation events because it's managed externally or read-only
   ignoreMutation() { return true; }
   stopEvent(e) { 
@@ -135,6 +150,7 @@ class MachineSegmentView {
       return true; 
   }
 }
+
 
 class ChunkBreakView {
     constructor(node) {
@@ -672,6 +688,23 @@ window.__bridge = {
             document.querySelectorAll(".seg-gutter").forEach(el => {
                 el.style.color = "";
                 el.title = "";
+            });
+            // Re-enable the audio icon on the segment that finished playing
+            document.querySelectorAll(".machine-segment").forEach(el => {
+                const icon = el.querySelector(".seg-audio-icon");
+                if (icon) {
+                    icon.style.opacity = "";
+                }
+            });
+            // Also reset _isPlaying on the NodeView instance via DOM lookup
+            view.state.doc.descendants((node, pos) => {
+                if (node.type.name === "machine_segment" && node.attrs.segId === msg.segId) {
+                    const nodeView = view.nodeViews && view.nodeViews[pos];
+                    if (nodeView && typeof nodeView.resetPlayState === "function") {
+                        nodeView.resetPlayState();
+                    }
+                    return false;
+                }
             });
         } else if (msg.type === "FLUSH_FREEFORM") {
             // Gap 7: Force flush all dirty freeform blocks immediately

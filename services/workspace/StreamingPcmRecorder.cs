@@ -328,15 +328,21 @@ public class StreamingPcmRecorder : IDisposable
     
     /// <summary>
     /// Gọi 1 lần duy nhất khi utterance đầu tiên commit để anchor hai timeline.
+    /// anchorAudioMs = start của utterance đầu trong file audio
+    ///               = _sessionOffsetMs (= END của utterance) - duration
     /// Sau khi gọi, dùng AudioOffsetForTs() thay vì GetCurrentReference().
     /// </summary>
-    public void SetFirstUtteranceAnchor(long tsStartMs)
+    public void SetFirstUtteranceAnchor(long tsStartMs, long tsEndMs)
     {
         if (_anchorAudioMs >= 0) return; // chỉ set 1 lần
-        _anchorAudioMs = _sessionOffsetMs;
+        
+        // _sessionOffsetMs tại thời điểm commit = END của utterance đầu trong audio.
+        // START = END - (tsEndMs - tsStartMs): đây là offset bắt đầu thực sự trong file PCM.
+        long utteranceDurationMs = Math.Max(0, tsEndMs - tsStartMs);
+        _anchorAudioMs = Math.Max(0, _sessionOffsetMs - utteranceDurationMs);
         _anchorTsMs = tsStartMs;
         System.Diagnostics.Debug.WriteLine(
-            $"[StreamingPcmRecorder] Anchor set: audioMs={_anchorAudioMs}, tsStartMs={_anchorTsMs}");
+            $"[StreamingPcmRecorder] Anchor set: sessionOffset={_sessionOffsetMs}ms, utteranceDur={utteranceDurationMs}ms -> anchorAudioMs={_anchorAudioMs}, anchorTsMs={_anchorTsMs}");
     }
     
     /// <summary>

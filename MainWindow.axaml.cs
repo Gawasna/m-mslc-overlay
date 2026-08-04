@@ -302,6 +302,9 @@ namespace m_mslc_overlay
                             avgSpeechSpeedMs: (int)_pipeService.AverageSpeechSpeed,
                             commitReason: meta.Reason
                         );
+                        // Stamp dbId directly on meta so OnTranslationCompleted can use it
+                        // without going through _segmentIdMap (which drifts on ShortSentenceBuffer merges)
+                        meta.WorkspaceDbId = dbId;
                         _segmentIdMap[segment.Id] = dbId;
                     }
 
@@ -359,7 +362,19 @@ namespace m_mslc_overlay
                         // Cập nhật bản dịch vào Workspace database và gửi sang WebView2 PaperSheet
                         if (linkedSeg != null && _workspaceVm.IsOpen && _workspaceVm.Service?.ActiveSegmentRepo != null)
                         {
-                            if (_segmentIdMap.TryGetValue(linkedSeg.Id, out long dbId))
+                            // Prefer WorkspaceDbId stamped directly on Source meta (immune to _segmentIdMap drift from ShortSentenceBuffer merges).
+                            // Fallback to _segmentIdMap for backward compat when Source is null.
+                            long dbId = -1;
+                            if (result.Source?.WorkspaceDbId >= 0)
+                            {
+                                dbId = result.Source.WorkspaceDbId;
+                            }
+                            else if (_segmentIdMap.TryGetValue(linkedSeg.Id, out long mappedId))
+                            {
+                                dbId = mappedId;
+                            }
+                            
+                            if (dbId >= 0)
                             {
                                 // FIX V6: Store per-segment translation (for subtitle export)
                                 // Translation is for THIS segment only, not accumulated
@@ -386,8 +401,8 @@ namespace m_mslc_overlay
                             else
                             {
                                 // ✅ FIX 2: Add logging for missing DB ID
-                                AppendLog($"[{timestamp}] ⚠️ WARNING: Segment ID {linkedSeg.Id} not found in _segmentIdMap. Translation lost!\n");
-                                System.Diagnostics.Debug.WriteLine($"[MainWindow] ⚠️ SegmentID {linkedSeg.Id} not in _segmentIdMap. DbId lookup failed.");
+                                AppendLog($"[{timestamp}] ⚠️ WARNING: No dbId found for translation. Translation lost!\n");
+                                System.Diagnostics.Debug.WriteLine($"[MainWindow] ⚠️ No dbId for translation. Source.WorkspaceDbId={result.Source?.WorkspaceDbId}, linkedSeg.Id={linkedSeg.Id}");
                             }
                         }
 

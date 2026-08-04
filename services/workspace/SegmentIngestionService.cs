@@ -58,7 +58,7 @@ public class SegmentIngestionService
             // All subsequent segments use: audioStart = anchorAudio + (tsStart - anchorTs)
             if (!_audioRecorder.HasAnchor)
             {
-                _audioRecorder.SetFirstUtteranceAnchor(tsStartMs);
+                _audioRecorder.SetFirstUtteranceAnchor(tsStartMs, tsEndMs);
             }
             
             long anchoredStart = _audioRecorder.AudioOffsetForTs(tsStartMs);
