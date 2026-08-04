@@ -7,6 +7,14 @@ using System.Threading.Tasks;
 
 namespace MMslcOverlay.Services
 {
+    public enum DiarizerState
+    {
+        Stopped,
+        Starting,
+        Ready,
+        Failed
+    }
+
     public class DiarizerProcessManager : IDisposable
     {
         private Process? _process;
@@ -17,12 +25,26 @@ namespace MMslcOverlay.Services
         public event Action<DiarizerEvent>? OnEvent;
         public event Action<string>? OnLog;
 
+        public static DiarizerState GlobalState { get; private set; } = DiarizerState.Stopped;
+        public static event Action<DiarizerState>? OnGlobalStateChanged;
+        
+        private static void UpdateGlobalState(DiarizerState newState)
+        {
+            if (GlobalState != newState)
+            {
+                GlobalState = newState;
+                OnGlobalStateChanged?.Invoke(newState);
+            }
+        }
+
         public async Task StartAsync(DiarizerConfig config, string pythonExePath, string scriptPath)
         {
             if (_process != null && !_process.HasExited)
             {
                 throw new InvalidOperationException("Diarizer process is already running.");
             }
+
+            UpdateGlobalState(DiarizerState.Starting);
 
             _cts = new CancellationTokenSource();
 
@@ -83,6 +105,10 @@ namespace MMslcOverlay.Services
                         var diarizerEvent = JsonSerializer.Deserialize<DiarizerEvent>(line, _jsonOptions);
                         if (diarizerEvent != null)
                         {
+                            if (diarizerEvent is ReadyEvent)
+                            {
+                                UpdateGlobalState(DiarizerState.Ready);
+                            }
                             OnEvent?.Invoke(diarizerEvent);
                         }
                     }
@@ -95,10 +121,12 @@ namespace MMslcOverlay.Services
             catch (OperationCanceledException)
             {
                 // Normal exit
+                UpdateGlobalState(DiarizerState.Stopped);
             }
             catch (Exception ex)
             {
                 OnLog?.Invoke($"[CLI_FATAL] Error reading stdout: {ex.Message}");
+                UpdateGlobalState(DiarizerState.Failed);
             }
         }
 
@@ -145,6 +173,7 @@ namespace MMslcOverlay.Services
             _process.Dispose();
             _process = null;
             _stdin = null;
+            UpdateGlobalState(DiarizerState.Stopped);
         }
 
         public void Dispose()
@@ -160,6 +189,7 @@ namespace MMslcOverlay.Services
                 _process.Kill();
                 _process.Dispose();
             }
+            UpdateGlobalState(DiarizerState.Stopped);
         }
     }
 }

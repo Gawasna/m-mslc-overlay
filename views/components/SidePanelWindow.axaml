@@ -145,7 +145,7 @@
                                 <materialIcons:MaterialIcon Kind="ContentCopy" Width="12" Height="12" Foreground="{StaticResource TextPrimaryBrush}"/>
                             </Button>
                             <!-- Auto Scroll (Toggle) -->
-                            <ToggleButton x:Name="AutoScrollToggle" IsChecked="True" Width="26" Height="26" Padding="0" ToolTip.Tip="Toggle Auto Scroll">
+                            <ToggleButton x:Name="AutoScrollToggle" Classes="IconToggle" IsChecked="True" Width="26" Height="26" Padding="0" ToolTip.Tip="Toggle Auto Scroll">
                                 <materialIcons:MaterialIcon Kind="ArrowDown" Width="12" Height="12"/>
                             </ToggleButton>
                             <!-- Clear History -->
@@ -184,12 +184,14 @@
                                 <!-- Language Selector EN | VI -->
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
                                     <ToggleButton x:Name="BtnLangEn" Content="EN" 
+                                                  Classes="IconToggle"
                                                   Click="BtnLangEn_Click"
                                                   IsChecked="False"
                                                   Width="34" Height="24" FontSize="10" Padding="0"
                                                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                                   CornerRadius="4,0,0,4" BorderThickness="1,1,0,1" BorderBrush="{StaticResource BorderLightBrush}"/>
                                     <ToggleButton x:Name="BtnLangVi" Content="VI" 
+                                                  Classes="IconToggle"
                                                   Click="BtnLangVi_Click"
                                                   IsChecked="True"
                                                   Width="34" Height="24" FontSize="10" Padding="0"

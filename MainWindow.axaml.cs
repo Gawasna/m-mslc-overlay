@@ -1506,6 +1506,8 @@ namespace m_mslc_overlay
                 _workspaceVm.StartRecording();
                 AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
                 
+                await InitializeDiarizerAsync();
+                
                 // Update button to "Pause Recording"
                 _sessionState = SessionState.Recording;
                 btn.IsEnabled = true;
@@ -1543,6 +1545,7 @@ namespace m_mslc_overlay
                 {
                     _workspaceVm.StopRecording();
                     AppendLog($"[{timestamp}] [SESSION] Audio recording stopped\n");
+                    await ShutdownDiarizerAsync();
                 }
                 
                 // Step 2: Flush pending edits
@@ -1701,8 +1704,15 @@ namespace m_mslc_overlay
             await _diarizerManager.StartAsync(config, pythonExe, scriptPath);
         }
 
-        private async System.Threading.Tasks.Task ShutdownDiarizerAsync()
+        private async System.Threading.Tasks.Task ShutdownDiarizerAsync(bool force = false)
         {
+            if (!force)
+            {
+                bool isOverlayOpen = _currentOverlay != null && _currentOverlay.IsVisible;
+                bool isRecording = _sessionState == SessionState.Recording;
+                if (isOverlayOpen || isRecording) return;
+            }
+
             if (_diarizerManager != null)
             {
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Stopping Speaker Diarizer Process...\n");

@@ -108,8 +108,8 @@
         <Setter Property="Foreground" Value="White"/>
     </Style>
 
-    <!-- ToggleButton Style (exclude CheckBox and RadioButton) -->
-    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton)">
+    <!-- Icon ToggleButton Style (for standalone icon buttons, explicitly not applied to RadioButton/CheckBox) -->
+    <Style Selector="ToggleButton.IconToggle">
         <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
@@ -118,42 +118,49 @@
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
-    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton.IconToggle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource SecondaryHoverBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
     </Style>
-    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton.IconToggle:checked /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
         <Setter Property="Foreground" Value="{StaticResource BgCardBrush}"/>
     </Style>
-    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked materialIcons|MaterialIcon">
+    <Style Selector="ToggleButton.IconToggle:checked materialIcons|MaterialIcon">
         <Setter Property="Foreground" Value="White"/>
     </Style>
-    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton.IconToggle:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}"/>
     </Style>
-    <Style Selector="ToggleButton:not(CheckBox):not(RadioButton):checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton.IconToggle:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/>
     </Style>
 
-    <!-- RadioButton Style (Clean without background highlight box around text) -->
-    <!-- Must override both PART_LayoutRoot AND ContentPresenter to fully suppress Fluent theme hover/checked highlight -->
+    <!-- RadioButton / CheckBox inherit ToggleButton in Avalonia Fluent. -->
+    <!-- Fluent VSM applies hover/checked background via Visual State Manager   -->
+    <!-- which fires AFTER named-part selectors. Must use broad /template/      -->
+    <!-- ContentPresenter (no ID filter) to override VSM-driven backgrounds.   -->
+
+    <!-- RadioButton: suppress background highlight states from Fluent theme -->
     <Style Selector="RadioButton">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Padding" Value="4,0"/>
     </Style>
-    <Style Selector="RadioButton /template/ Border#PART_LayoutRoot">
+    <Style Selector="RadioButton /template/ Border#RootBorder">
         <Setter Property="Background" Value="Transparent"/>
     </Style>
-    <Style Selector="RadioButton:pointerover /template/ Border#PART_LayoutRoot">
+    <Style Selector="RadioButton:pointerover /template/ Border#RootBorder">
         <Setter Property="Background" Value="Transparent"/>
     </Style>
-    <Style Selector="RadioButton:checked /template/ Border#PART_LayoutRoot">
+    <Style Selector="RadioButton:checked /template/ Border#RootBorder">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="RadioButton:pressed /template/ Border#RootBorder">
         <Setter Property="Background" Value="Transparent"/>
     </Style>
     <Style Selector="RadioButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -165,21 +172,23 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
 
-    <!-- CheckBox Style (Clean without background highlight box around text) -->
-    <!-- Must override both PART_LayoutRoot AND ContentPresenter to fully suppress Fluent theme hover/checked highlight -->
+    <!-- CheckBox: suppress background highlight states from Fluent theme -->
     <Style Selector="CheckBox">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Padding" Value="4,0"/>
     </Style>
-    <Style Selector="CheckBox /template/ Border#PART_LayoutRoot">
+    <Style Selector="CheckBox /template/ Border#RootBorder">
         <Setter Property="Background" Value="Transparent"/>
     </Style>
-    <Style Selector="CheckBox:pointerover /template/ Border#PART_LayoutRoot">
+    <Style Selector="CheckBox:pointerover /template/ Border#RootBorder">
         <Setter Property="Background" Value="Transparent"/>
     </Style>
-    <Style Selector="CheckBox:checked /template/ Border#PART_LayoutRoot">
+    <Style Selector="CheckBox:checked /template/ Border#RootBorder">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="CheckBox:pressed /template/ Border#RootBorder">
         <Setter Property="Background" Value="Transparent"/>
     </Style>
     <Style Selector="CheckBox:pointerover /template/ ContentPresenter#PART_ContentPresenter">
