@@ -25,6 +25,11 @@ public class StreamingPcmRecorder : IDisposable
     private long _sessionOffsetMs = 0;
     private bool _isRecording;
     
+    // Anchor for syncing audio timeline with STT SDK timeline.
+    // Set once on the first utterance commit to align both clocks.
+    private long _anchorAudioMs = -1;  // recorder offsetMs at anchor point
+    private long _anchorTsMs = -1;     // STT SDK TsStartMs at anchor point
+    
     // Chunk thresholds
     private const long MAX_CHUNK_SIZE_BYTES = 500_000_000;  // 500MB
     private const long BYTES_PER_MS = 32;  // 16kHz, 16-bit, Mono = 32 bytes/ms
@@ -320,6 +325,32 @@ public class StreamingPcmRecorder : IDisposable
     {
         return (SessionId, _sessionOffsetMs);
     }
+    
+    /// <summary>
+    /// Gọi 1 lần duy nhất khi utterance đầu tiên commit để anchor hai timeline.
+    /// Sau khi gọi, dùng AudioOffsetForTs() thay vì GetCurrentReference().
+    /// </summary>
+    public void SetFirstUtteranceAnchor(long tsStartMs)
+    {
+        if (_anchorAudioMs >= 0) return; // chỉ set 1 lần
+        _anchorAudioMs = _sessionOffsetMs;
+        _anchorTsMs = tsStartMs;
+        System.Diagnostics.Debug.WriteLine(
+            $"[StreamingPcmRecorder] Anchor set: audioMs={_anchorAudioMs}, tsStartMs={_anchorTsMs}");
+    }
+    
+    /// <summary>
+    /// Tính audioStartMs cho segment có tsStartMs bất kỳ, dựa vào anchor đã set.
+    /// Trả về -1 nếu anchor chưa được set.
+    /// </summary>
+    public long AudioOffsetForTs(long tsStartMs)
+    {
+        if (_anchorAudioMs < 0) return -1;
+        long computed = _anchorAudioMs + (tsStartMs - _anchorTsMs);
+        return Math.Max(0, computed);
+    }
+    
+    public bool HasAnchor => _anchorAudioMs >= 0;
     
     public void Dispose()
     {

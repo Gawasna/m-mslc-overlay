@@ -52,17 +52,35 @@ public class SegmentIngestionService
             var audioRef = _audioRecorder.GetCurrentReference();
             audioSessionId = audioRef.sessionId;
             
-            // Khi text commit đến từ atom32, lời nói của segment thực tế đã hoàn tất!
-            // Do đó offset âm thanh hiện tại chính là điểm kết thúc (AudioEndOffsetMs).
-            // Vị trí bắt đầu (AudioOffsetMs) bằng điểm kết thúc trừ đi thời lượng thực tế của lời nói.
-            long currentRefMs = audioRef.offsetMs;
-            long speechDurationMs = Math.Max(0, tsEndMs - tsStartMs);
-
-            audioEndMs = currentRefMs;
-            audioStartMs = Math.Max(0, currentRefMs - speechDurationMs);
+            // Set anchor on first utterance: align recorder clock with STT SDK clock.
+            // _anchorAudioMs = recorder ms at the moment STT first utterance commits.
+            // _anchorTsMs    = tsStartMs of that first utterance (from SDK timeline).
+            // All subsequent segments use: audioStart = anchorAudio + (tsStart - anchorTs)
+            if (!_audioRecorder.HasAnchor)
+            {
+                _audioRecorder.SetFirstUtteranceAnchor(tsStartMs);
+            }
             
-            SessionLogger.Log($"[SegmentIngestion] Received segment: ts=({tsStartMs}->{tsEndMs}, dur={speechDurationMs}ms) at recorder offset={currentRefMs}ms -> saved audioStart={audioStartMs}ms, audioEnd={audioEndMs}ms");
+            long anchoredStart = _audioRecorder.AudioOffsetForTs(tsStartMs);
+            long anchoredEnd   = _audioRecorder.AudioOffsetForTs(tsEndMs);
+            
+            if (anchoredStart >= 0)
+            {
+                audioStartMs = anchoredStart;
+                audioEndMs   = anchoredEnd >= anchoredStart ? anchoredEnd : anchoredStart + Math.Max(0, tsEndMs - tsStartMs);
+            }
+            else
+            {
+                // Fallback: anchor not yet set (should not happen after guard above)
+                long currentRefMs = audioRef.offsetMs;
+                long speechDurationMs = Math.Max(0, tsEndMs - tsStartMs);
+                audioEndMs   = currentRefMs;
+                audioStartMs = Math.Max(0, currentRefMs - speechDurationMs);
+            }
+            
+            SessionLogger.Log($"[SegmentIngestion] Received segment: ts=({tsStartMs}->{tsEndMs}) anchor={_audioRecorder.HasAnchor} -> audioStart={audioStartMs}ms, audioEnd={audioEndMs}ms");
         }
+
 
         var segment = new Segment
         {

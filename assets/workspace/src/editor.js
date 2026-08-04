@@ -550,6 +550,17 @@ window.__bridge = {
         } else if (msg.type === "INSERT_MACHINE_SEGMENT") {
             const { segId, tsStartMs, tsEndMs, speakerId, textSrc, textTrs } = msg;
             
+            // Guard: skip if segment already exists (prevents duplicates when
+            // LOAD_DOCUMENT and live SegmentAdded events overlap after workspace reopen)
+            let alreadyExists = false;
+            view.state.doc.descendants((node) => {
+                if (node.type.name === "machine_segment" && node.attrs.segId === segId) {
+                    alreadyExists = true;
+                    return false;
+                }
+            });
+            if (!alreadyExists) {
+            
             const textNode = schema.nodes.seg_text.create({}, schema.text(textSrc));
             let contentNodes = [textNode];
             if (textTrs) {
@@ -580,7 +591,9 @@ window.__bridge = {
             
             window.forceScrollMagic = true;
             view.dispatch(tr);
-            
+
+            } // end !alreadyExists
+
         } else if (msg.type === "SET_MAGIC_CURSOR") {
             const deco = DecorationSet.create(view.state.doc, [
                 Decoration.widget(msg.pos, () => {
