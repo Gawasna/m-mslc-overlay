@@ -6,6 +6,7 @@ namespace m_mslc_overlay.services
 {
     public class AppConfig
     {
+        public bool HasCompletedOnboarding { get; set; } = false;
         public bool RunAtStartup { get; set; } = false;
         public bool StartMinimizedToTray { get; set; } = true;
         public bool CheckForUpdates { get; set; } = true;

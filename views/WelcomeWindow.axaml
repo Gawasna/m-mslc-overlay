@@ -1,0 +1,413 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.WelcomeWindow"
+        Title="Welcome to M-MSLC Overlay"
+        Width="1200" Height="720"
+        MinWidth="1040" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="#F5F7FA"
+        FontFamily="Segoe UI, Cantarell, sans-serif">
+
+    <Window.Styles>
+        <!-- Primary Blue Button Style (#2563EB) -->
+        <Style Selector="Button.primaryBlue">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Padding" Value="28,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="Button.primaryBlue:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1D4ED8"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="Button.primaryBlue:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1E40AF"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <!-- Secondary Button Style -->
+        <Style Selector="Button.secondaryBtn">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="Button.secondaryBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+        </Style>
+        <Style Selector="Button.secondaryBtn:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="BorderBrush" Value="#F3F4F6"/>
+        </Style>
+
+        <!-- Text/Skip Button Style -->
+        <Style Selector="Button.textBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="Button.textBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E5E7EB"/>
+            <Setter Property="Foreground" Value="#111827"/>
+        </Style>
+
+        <!-- Feature Card Style -->
+        <Style Selector="Border.featureCard">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,12"/>
+        </Style>
+        
+        <!-- Pipeline Step Box Style -->
+        <Style Selector="Border.pipelineStep">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="32,24">
+
+        <!-- ================= TOP HEADER BAR ================= -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto, *" Margin="0,0,0,20">
+            <!-- App Logo Badge -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                <Border Width="44" Height="44" CornerRadius="10" Background="#2563EB">
+                    <PathIcon Data="{StaticResource IconSparkles}" Width="24" Height="24" Foreground="#FFFFFF"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="M-MSLC Overlay" FontSize="20" FontWeight="Bold" Foreground="#111827"/>
+                    <TextBlock Text="AI-Powered Live Caption Translation" FontSize="13" Foreground="#6B7280"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- ================= CENTER CONTENT (TWO COLUMNS) ================= -->
+        <Grid Grid.Row="1" ColumnDefinitions="42*, 58*">
+
+            <!-- LEFT COLUMN (42%): Workflow Pipeline Illustration -->
+            <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="24" Margin="0,0,16,0">
+                <Grid RowDefinitions="Auto, *">
+                    <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,16">
+                        <TextBlock Text="SYSTEM ARCHITECTURE" FontSize="11" FontWeight="Bold" Foreground="#2563EB" LetterSpacing="1"/>
+                        <TextBlock Text="Real-Time Data Pipeline" FontSize="16" FontWeight="SemiBold" Foreground="#111827"/>
+                    </StackPanel>
+
+                    <!-- Pipeline Steps Stack -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="6" VerticalAlignment="Center">
+
+                            <!-- Step 1: Microphone -->
+                            <Border Classes="pipelineStep">
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6" Background="#EFF6FF" Margin="0,0,12,0">
+                                        <PathIcon Data="{StaticResource IconMic}" Width="16" Height="16" Foreground="#2563EB"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Microphone Input" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Audio Capture / Live Stream" FontSize="11" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <PathIcon Data="{StaticResource IconArrowDown}" Width="14" Height="14" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
+
+                            <!-- Step 2: Live Captions -->
+                            <Border Classes="pipelineStep">
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6" Background="#F0FDF4" Margin="0,0,12,0">
+                                        <PathIcon Data="{StaticResource IconType}" Width="16" Height="16" Foreground="#16A34A"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Windows Live Caption" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Speech-to-Text Recognition" FontSize="11" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <PathIcon Data="{StaticResource IconArrowDown}" Width="14" Height="14" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
+
+                            <!-- Step 3: DLL Injection -->
+                            <Border Classes="pipelineStep">
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6" Background="#FEF3C7" Margin="0,0,12,0">
+                                        <PathIcon Data="{StaticResource IconZap}" Width="16" Height="16" Foreground="#D97706"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="DLL Injection" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Process Memory Extraction" FontSize="11" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <PathIcon Data="{StaticResource IconArrowDown}" Width="14" Height="14" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
+
+                            <!-- Step 4: Named Pipe -->
+                            <Border Classes="pipelineStep">
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6" Background="#F3E8FF" Margin="0,0,12,0">
+                                        <PathIcon Data="{StaticResource IconSliders}" Width="16" Height="16" Foreground="#9333EA"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Named Pipe IPC" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Low-latency IPC Stream" FontSize="11" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <PathIcon Data="{StaticResource IconArrowDown}" Width="14" Height="14" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
+
+                            <!-- Step 5: AI Translation -->
+                            <Border Classes="pipelineStep">
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6" Background="#EFF6FF" Margin="0,0,12,0">
+                                        <PathIcon Data="{StaticResource IconSparkles}" Width="16" Height="16" Foreground="#2563EB"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="AI Translation Engine" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Local CTranslate2 / Gemini AI" FontSize="11" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <PathIcon Data="{StaticResource IconArrowDown}" Width="14" Height="14" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
+
+                            <!-- Step 6: Floating Overlay -->
+                            <Border Classes="pipelineStep" Background="#2563EB" BorderBrush="#2563EB">
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6" Background="#FFFFFF" Margin="0,0,12,0">
+                                        <PathIcon Data="{StaticResource IconChat}" Width="16" Height="16" Foreground="#2563EB"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Floating Subtitle Overlay" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF"/>
+                                        <TextBlock Text="Real-time On-Screen Display" FontSize="11" Foreground="#DBEAFE"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- RIGHT COLUMN (58%): Onboarding Slide Deck -->
+            <Grid Grid.Column="1" Margin="16,0,0,0">
+                <TransitioningContentControl x:Name="SlideTransitionContainer">
+                    <Panel x:Name="SlidesContainer">
+
+                        <!-- SLIDE 1: Welcome & Feature Cards -->
+                        <Grid x:Name="Slide1" IsVisible="True" RowDefinitions="Auto, Auto, *, Auto">
+                            <TextBlock Grid.Row="0" Text="Welcome to M-MSLC Overlay" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="Translate live subtitles in real time using AI with a lightweight overlay and intelligent speech processing." FontSize="14" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,24"/>
+
+                            <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,0,0,16">
+                                <!-- Card 1: Live Caption Detection -->
+                                <Border Classes="featureCard" Margin="0,0,8,8">
+                                    <StackPanel Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Border Width="36" Height="36" CornerRadius="8" Background="#EFF6FF">
+                                                <PathIcon Data="{StaticResource IconMic}" Width="18" Height="18" Foreground="#2563EB"/>
+                                            </Border>
+                                            <TextBlock Text="Live Caption Detection" FontSize="14" FontWeight="SemiBold" Foreground="#111827" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Hooks into Windows Live Captions to capture raw subtitle text in real-time." FontSize="12" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="18"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Card 2: Fast AI Translation -->
+                                <Border Classes="featureCard" Margin="8,0,0,8">
+                                    <StackPanel Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Border Width="36" Height="36" CornerRadius="8" Background="#FEF3C7">
+                                                <PathIcon Data="{StaticResource IconZap}" Width="18" Height="18" Foreground="#D97706"/>
+                                            </Border>
+                                            <TextBlock Text="Fast AI Translation" FontSize="14" FontWeight="SemiBold" Foreground="#111827" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Powered by local neural models &amp; cloud AI engines for instant translation." FontSize="12" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="18"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Card 3: Floating Overlay -->
+                                <Border Classes="featureCard" Margin="0,8,8,0">
+                                    <StackPanel Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Border Width="36" Height="36" CornerRadius="8" Background="#F0FDF4">
+                                                <PathIcon Data="{StaticResource IconChat}" Width="18" Height="18" Foreground="#16A34A"/>
+                                            </Border>
+                                            <TextBlock Text="Floating Overlay" FontSize="14" FontWeight="SemiBold" Foreground="#111827" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Customizable, resizable, and semi-transparent subtitle window overlay." FontSize="12" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="18"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Card 4: Keyboard Shortcuts -->
+                                <Border Classes="featureCard" Margin="8,8,0,0">
+                                    <StackPanel Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Border Width="36" Height="36" CornerRadius="8" Background="#F3E8FF">
+                                                <PathIcon Data="{StaticResource IconKeyboard}" Width="18" Height="18" Foreground="#9333EA"/>
+                                            </Border>
+                                            <TextBlock Text="Keyboard Shortcuts" FontSize="14" FontWeight="SemiBold" Foreground="#111827" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Control overlay visibility, translation state, and font sizes with quick hotkeys." FontSize="12" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="18"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+
+                            <!-- Language Selector Box -->
+                            <Border Grid.Row="3" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="14,10">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{DynamicResource Welcome_Slide1_LangLabel}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Select default language for application UI" FontSize="11" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="1" x:Name="LanguageComboBox" Width="200" SelectedIndex="0" SelectionChanged="LanguageComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Tiếng Việt (vi-VN)"/>
+                                        <ComboBoxItem Content="English (en-US)"/>
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- SLIDE 2: DLL Injection & Memory Scan -->
+                        <Grid x:Name="Slide2" IsVisible="False" RowDefinitions="Auto, Auto, *">
+                            <TextBlock Grid.Row="0" Text="{DynamicResource Welcome_Slide2_Title}" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="{DynamicResource Welcome_Slide2_Desc}" FontSize="14" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,24"/>
+
+                            <StackPanel Grid.Row="2" Spacing="14">
+                                <Border Classes="featureCard">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="8" Background="#EFF6FF" Margin="0,0,14,0">
+                                            <TextBlock Text="1" FontSize="16" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{DynamicResource Welcome_Slide2_Step1}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                            <TextBlock Text="Select the live process ID or application executable name from Control Center." FontSize="12" Foreground="#6B7280"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Classes="featureCard">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="8" Background="#FEF3C7" Margin="0,0,14,0">
+                                            <TextBlock Text="2" FontSize="16" FontWeight="Bold" Foreground="#D97706" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{DynamicResource Welcome_Slide2_Step2}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                            <TextBlock Text="Inject target DLL to capture subtitle text directly from memory structures." FontSize="12" Foreground="#6B7280"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Classes="featureCard">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="8" Background="#F0FDF4" Margin="0,0,14,0">
+                                            <TextBlock Text="3" FontSize="16" FontWeight="Bold" Foreground="#16A34A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{DynamicResource Welcome_Slide2_Step3}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                            <TextBlock Text="Stream subtitle text directly through Named Pipe IPC for instant translation." FontSize="12" Foreground="#6B7280"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- SLIDE 3: Floating Caption Overlay -->
+                        <Grid x:Name="Slide3" IsVisible="False" RowDefinitions="Auto, Auto, *">
+                            <TextBlock Grid.Row="0" Text="{DynamicResource Welcome_Slide3_Title}" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="{DynamicResource Welcome_Slide3_Desc}" FontSize="14" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,24"/>
+
+                            <StackPanel Grid.Row="2" Spacing="14">
+                                <Border Classes="featureCard">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{DynamicResource Welcome_Slide3_Feature1}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Click and hold the header bar to reposition the overlay anywhere on your screens." FontSize="12" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="featureCard">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{DynamicResource Welcome_Slide3_Feature2}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Drag the bottom-right corner handle to resize text area and paragraph wrapping." FontSize="12" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="featureCard">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{DynamicResource Welcome_Slide3_Feature3}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock Text="Configure font size, background opacity, target language, and typewriter animation." FontSize="12" Foreground="#6B7280"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- SLIDE 4: Control Center & Hotkeys -->
+                        <Grid x:Name="Slide4" IsVisible="False" RowDefinitions="Auto, Auto, *">
+                            <TextBlock Grid.Row="0" Text="{DynamicResource Welcome_Slide4_Title}" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="{DynamicResource Welcome_Slide4_Desc}" FontSize="14" Foreground="#6B7280" TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,24"/>
+
+                            <UniformGrid Grid.Row="2" Columns="2" Rows="3">
+                                <Border Classes="featureCard" Margin="4">
+                                    <TextBlock Text="{DynamicResource Welcome_Slide4_Hotkey1}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                </Border>
+                                <Border Classes="featureCard" Margin="4">
+                                    <TextBlock Text="{DynamicResource Welcome_Slide4_Hotkey2}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                </Border>
+                                <Border Classes="featureCard" Margin="4">
+                                    <TextBlock Text="{DynamicResource Welcome_Slide4_Hotkey3}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                </Border>
+                                <Border Classes="featureCard" Margin="4">
+                                    <TextBlock Text="{DynamicResource Welcome_Slide4_Hotkey4}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                </Border>
+                                <Border Classes="featureCard" Margin="4">
+                                    <TextBlock Text="{DynamicResource Welcome_Slide4_Hotkey5}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                </Border>
+                                <Border Classes="featureCard" Margin="4">
+                                    <TextBlock Text="{DynamicResource Welcome_Slide4_Hotkey6}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"/>
+                                </Border>
+                            </UniformGrid>
+                        </Grid>
+
+                    </Panel>
+                </TransitioningContentControl>
+            </Grid>
+        </Grid>
+
+        <!-- ================= BOTTOM NAVIGATION BAR ================= -->
+        <Border Grid.Row="2" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,16,0,0">
+            <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                <!-- Left: Skip Button -->
+                <Button Grid.Column="0" x:Name="SkipButton" Content="{DynamicResource Welcome_Skip}" Classes="textBtn" Click="SkipButton_Click"/>
+
+                <!-- Center: Progress Dots Indicator (● ○ ○ ○) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                    <Border x:Name="Dot0" Width="20" Height="8" CornerRadius="4" Background="#2563EB" PointerPressed="Dot_PointerPressed" Tag="0" Cursor="Hand"/>
+                    <Border x:Name="Dot1" Width="8" Height="8" CornerRadius="4" Background="#D1D5DB" PointerPressed="Dot_PointerPressed" Tag="1" Cursor="Hand"/>
+                    <Border x:Name="Dot2" Width="8" Height="8" CornerRadius="4" Background="#D1D5DB" PointerPressed="Dot_PointerPressed" Tag="2" Cursor="Hand"/>
+                    <Border x:Name="Dot3" Width="8" Height="8" CornerRadius="4" Background="#D1D5DB" PointerPressed="Dot_PointerPressed" Tag="3" Cursor="Hand"/>
+                </StackPanel>
+
+                <!-- Right: Back & Next / Get Started Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="BackButton" Content="Back" Classes="secondaryBtn" IsEnabled="False" Click="BackButton_Click"/>
+                    <Button x:Name="NextButton" Content="{DynamicResource Welcome_Next}" Classes="primaryBlue" Click="NextButton_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

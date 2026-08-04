@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using m_mslc_overlay.views;
 
 namespace m_mslc_overlay
 {
@@ -23,7 +24,14 @@ namespace m_mslc_overlay
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                desktop.MainWindow = new MainWindow();
+                if (!m_mslc_overlay.services.ConfigManager.Current.HasCompletedOnboarding)
+                {
+                    desktop.MainWindow = new WelcomeWindow();
+                }
+                else
+                {
+                    desktop.MainWindow = new MainWindow();
+                }
             }
 
             base.OnFrameworkInitializationCompleted();
