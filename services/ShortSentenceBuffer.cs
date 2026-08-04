@@ -26,7 +26,7 @@ namespace m_mslc_overlay.services
         public int WordThreshold { get; set; } = 3;
 
         /// If no long sentence arrives within this window, pending is flushed anyway.
-        public int FlushTimeoutMs { get; set; } = 1500;
+        public int FlushTimeoutMs { get; set; } = 400;
 
         /// Maximum pending word count before forcing a flush of the pending alone.
         /// Prevents unbounded accumulation when several short commits arrive without

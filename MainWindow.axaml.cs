@@ -103,6 +103,16 @@ namespace m_mslc_overlay
                 _isPartialCaptionDirty = true;
             };
 
+            // 1.1 Cập nhật tốc độ gõ chữ động (Adaptive Pacing) cho Floating Overlay
+            _pipeService.OnPacingChanged += (pacingMs) => {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    if (_currentOverlay != null && _currentOverlay.IsVisible)
+                    {
+                        _currentOverlay.SetPacing(pacingMs);
+                    }
+                });
+            };
+
             // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
             _pipeService.OnFinalSentenceReceived += (meta) => {
                 if (string.IsNullOrWhiteSpace(meta.Text)) return;

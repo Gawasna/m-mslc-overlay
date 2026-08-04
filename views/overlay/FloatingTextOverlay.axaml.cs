@@ -361,6 +361,16 @@ public partial class FloatingTextOverlay : Window
         });
     }
 
+    private double _currentPacingMs = 330.0;
+
+    public void SetPacing(double pacingMs)
+    {
+        if (pacingMs >= 50.0 && pacingMs <= 1500.0)
+        {
+            _currentPacingMs = pacingMs;
+        }
+    }
+
     public void StartTypewriterPump()
     {
         if (_typewriterTimer != null && _typewriterTimer.IsEnabled) return;
@@ -375,26 +385,55 @@ public partial class FloatingTextOverlay : Window
 
     private void OnTypewriterTick(object? sender, EventArgs e)
     {
-        if (_delayTicks > 0)
+        int queueLength = _sentenceQueue.Count;
+
+        if (_delayTicks > 0 && queueLength == 0)
         {
             _delayTicks--;
             return;
         }
-
-        int queueLength = _sentenceQueue.Count;
+        else
+        {
+            _delayTicks = 0;
+        }
 
         if (_typewriterIndex < _currentSentence.Length)
         {
-            if (queueLength > 6)
+            // Dynamic pacing calculation: base character delay from ms/word (assume 5 chars/word)
+            double baseCharMs = Math.Clamp(_currentPacingMs / 5.0, 5.0, 50.0);
+
+            // Compute total backlog characters
+            int remainingInCurrent = _currentSentence.Length - _typewriterIndex;
+            int totalBacklogChars = remainingInCurrent;
+            foreach (var qItem in _sentenceQueue)
             {
+                totalBacklogChars += qItem.Length;
+            }
+
+            int charStep = 1;
+            if (totalBacklogChars > 30 || queueLength >= 2)
+            {
+                // Instant flush when backlog or queue is building up
                 _typewriterIndex = _currentSentence.Length;
+            }
+            else if (totalBacklogChars > 12 || queueLength == 1)
+            {
+                charStep = 4;
             }
             else
             {
-                int charStep = 1;
-                if (queueLength > 4) charStep = 3;
-                else if (queueLength > 1) charStep = 2;
-                _typewriterIndex = Math.Min(_typewriterIndex + charStep, _currentSentence.Length);
+                charStep = 2;
+            }
+
+            _typewriterIndex = Math.Min(_typewriterIndex + charStep, _currentSentence.Length);
+
+            // Adjust timer interval dynamically based on speech pacing and step acceleration
+            double targetIntervalMs = baseCharMs / charStep;
+            targetIntervalMs = Math.Clamp(targetIntervalMs, 5.0, 40.0);
+
+            if (_typewriterTimer != null && Math.Abs(_typewriterTimer.Interval.TotalMilliseconds - targetIntervalMs) > 2.0)
+            {
+                _typewriterTimer.Interval = TimeSpan.FromMilliseconds(targetIntervalMs);
             }
 
             DisplayTextBlock.Text = _baseText + _currentSentence.Substring(0, _typewriterIndex);
@@ -406,7 +445,7 @@ public partial class FloatingTextOverlay : Window
 
             if (_typewriterIndex == _currentSentence.Length)
             {
-                _delayTicks = queueLength > 0 ? 5 : 15; // 150ms vs 450ms
+                _delayTicks = queueLength > 0 ? 0 : 3;
             }
             return;
         }

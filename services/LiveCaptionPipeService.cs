@@ -33,6 +33,7 @@ namespace m_mslc_overlay.services
 
         public event Action<string>? OnPartialCaptionReceived;
         public event Action<CommitMetadata>? OnFinalSentenceReceived;
+        public event Action<double>? OnPacingChanged;
         public event Action<string>? OnStatusChanged;
         public event Action<string>? OnError;
 
@@ -173,7 +174,16 @@ namespace m_mslc_overlay.services
                 if (offset != 0) _lastOffset = offset;
 
                 // Pacing computation
-                if (!isFinal && duration > 0 && !string.IsNullOrWhiteSpace(text))
+                if (root.TryGetProperty("pacing_ms", out var pacingProp) && pacingProp.TryGetDouble(out var pMs) && pMs >= 50.0 && pMs <= 1500.0)
+                {
+                    lock (_speechSpeedHistory)
+                    {
+                        _speechSpeedHistory.Add(pMs);
+                        if (_speechSpeedHistory.Count > 15) _speechSpeedHistory.RemoveAt(0);
+                    }
+                    OnPacingChanged?.Invoke(AverageSpeechSpeed);
+                }
+                else if (!isFinal && duration > 0 && !string.IsNullOrWhiteSpace(text))
                 {
                     double ms = duration / 10000.0;
                     int wordCount = text.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length;
@@ -187,6 +197,7 @@ namespace m_mslc_overlay.services
                                 _speechSpeedHistory.Add(msPerWord);
                                 if (_speechSpeedHistory.Count > 15) _speechSpeedHistory.RemoveAt(0);
                             }
+                            OnPacingChanged?.Invoke(AverageSpeechSpeed);
                         }
                     }
                 }
