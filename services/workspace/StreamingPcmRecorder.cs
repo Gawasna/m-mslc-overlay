@@ -3,11 +3,12 @@ using System.IO;
 using System.Text.Json;
 using MMslcOverlay.Core.Workspace.Models;
 using NAudio.Wave;
+using NAudio.CoreAudioApi;
 
 namespace MMslcOverlay.Services.Workspace;
 
 /// <summary>
-/// Ghi audio streaming thành PCM chunks (crash-safe, append-only)
+/// Ghi audio streaming từ Output Device (WASAPI Loopback) thành PCM chunks (crash-safe, append-only, 16kHz Mono 16-bit)
 /// </summary>
 public class StreamingPcmRecorder : IDisposable
 {
@@ -15,11 +16,19 @@ public class StreamingPcmRecorder : IDisposable
     private readonly SessionMetadata _metadata;
     private FileStream? _currentChunkStream;
     private BinaryWriter? _currentChunkWriter;
-    private WaveInEvent? _waveIn;
+    private WasapiLoopbackCapture? _capture;
+    private WasapiOut? _silencePlayer;
+    private double _resamplePos = 0;
+    private long _lastSavedOffsetMs = 0;
     private int _currentChunkId = 0;
     private long _currentChunkBytes = 0;
     private long _sessionOffsetMs = 0;
     private bool _isRecording;
+    
+    // Anchor for syncing audio timeline with STT SDK timeline.
+    // Set once on the first utterance commit to align both clocks.
+    private long _anchorAudioMs = -1;  // recorder offsetMs at anchor point
+    private long _anchorTsMs = -1;     // STT SDK TsStartMs at anchor point
     
     // Chunk thresholds
     private const long MAX_CHUNK_SIZE_BYTES = 500_000_000;  // 500MB
@@ -65,7 +74,7 @@ public class StreamingPcmRecorder : IDisposable
             filePath, 
             FileMode.Create, 
             FileAccess.Write, 
-            FileShare.Read,
+            FileShare.ReadWrite,
             bufferSize: 4096,
             FileOptions.WriteThrough  // Bypass OS cache for immediate flush
         );
@@ -80,6 +89,7 @@ public class StreamingPcmRecorder : IDisposable
             Status = "active"
         });
         
+        SaveMetadata();
         System.Diagnostics.Debug.WriteLine($"[StreamingPcmRecorder] Started chunk {_currentChunkId}: {fileName}");
     }
     
@@ -89,21 +99,34 @@ public class StreamingPcmRecorder : IDisposable
         
         try
         {
-            _waveIn?.Dispose();
+            _capture?.Dispose();
+            _silencePlayer?.Dispose();
+            _resamplePos = 0;
             
-            _waveIn = new WaveInEvent
+            _capture = new WasapiLoopbackCapture();
+            
+            // Mở luồng âm thanh câm (silence) ở shared mode để đảm bảo WASAPI Loopback tiếp tục trả về PCM silence liên tục khi system audio im lặng
+            try
             {
-                WaveFormat = new WaveFormat(_metadata.SampleRate, _metadata.BitsPerSample, _metadata.Channels)
-            };
+                _silencePlayer = new WasapiOut(AudioClientShareMode.Shared, 100);
+                _silencePlayer.Init(new SilentWaveProvider(_capture.WaveFormat));
+                _silencePlayer.Play();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[StreamingPcmRecorder] Note: Could not start silent generator: {ex.Message}");
+            }
             
-            _waveIn.DataAvailable += OnDataAvailable;
-            _waveIn.StartRecording();
+            _capture.DataAvailable += OnDataAvailable;
+            _capture.StartRecording();
             
             _isRecording = true;
+            Console.WriteLine($"[StreamingPcmRecorder] ✅ Recording started via WASAPI Loopback (Output Device) for session {SessionId} -> {_capture.WaveFormat}");
             System.Diagnostics.Debug.WriteLine($"[StreamingPcmRecorder] Recording started for session {SessionId}");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[StreamingPcmRecorder] ❌ Failed to start recording: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"[StreamingPcmRecorder] Failed to start recording: {ex.Message}");
             throw;
         }
@@ -111,32 +134,131 @@ public class StreamingPcmRecorder : IDisposable
     
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
-        if (!_isRecording || _currentChunkWriter == null) return;
+        if (!_isRecording || _currentChunkWriter == null || _capture == null || e.BytesRecorded <= 0) return;
         
-        // Check if need to start new chunk
-        if (_currentChunkBytes + e.BytesRecorded > MAX_CHUNK_SIZE_BYTES)
+        try
         {
-            StartNewChunk();
+            byte[] pcm16kMono = ResampleTo16kMonoPcm16(e.Buffer, e.BytesRecorded, _capture.WaveFormat);
+            if (pcm16kMono.Length == 0) return;
+
+            // Check if need to start new chunk
+            if (_currentChunkBytes + pcm16kMono.Length > MAX_CHUNK_SIZE_BYTES)
+            {
+                StartNewChunk();
+            }
+            
+            // Write PCM data (append-only, immediate flush)
+            _currentChunkWriter.Write(pcm16kMono, 0, pcm16kMono.Length);
+            _currentChunkWriter.Flush();
+            _currentChunkStream?.Flush(flushToDisk: true);  // Force physical write
+            
+            _currentChunkBytes += pcm16kMono.Length;
+            _sessionOffsetMs += pcm16kMono.Length / BYTES_PER_MS;
+
+            if (_sessionOffsetMs - _lastSavedOffsetMs >= 1000)
+            {
+                if (_metadata.Chunks.Count > 0)
+                {
+                    var activeChunk = _metadata.Chunks[_metadata.Chunks.Count - 1];
+                    activeChunk.SizeBytes = _currentChunkBytes;
+                    activeChunk.DurationMs = _currentChunkBytes / BYTES_PER_MS;
+                }
+                _metadata.TotalDurationMs = _sessionOffsetMs;
+                SaveMetadata();
+                _lastSavedOffsetMs = _sessionOffsetMs;
+            }
         }
-        
-        // Write PCM data (append-only, immediate flush)
-        _currentChunkWriter.Write(e.Buffer, 0, e.BytesRecorded);
-        _currentChunkWriter.Flush();
-        _currentChunkStream?.Flush(flushToDisk: true);  // Force physical write
-        
-        _currentChunkBytes += e.BytesRecorded;
-        _sessionOffsetMs += e.BytesRecorded / BYTES_PER_MS;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[StreamingPcmRecorder] Error in OnDataAvailable: {ex.Message}");
+        }
     }
     
+    private byte[] ResampleTo16kMonoPcm16(byte[] buffer, int bytesRecorded, WaveFormat inputFormat)
+    {
+        int channels = inputFormat.Channels;
+        bool isFloat = (inputFormat.Encoding == WaveFormatEncoding.IeeeFloat || inputFormat.BitsPerSample == 32);
+        bool isPcm16 = (inputFormat.Encoding == WaveFormatEncoding.Pcm && inputFormat.BitsPerSample == 16);
+        
+        int bytesPerFrame = isFloat ? (4 * channels) : (isPcm16 ? (2 * channels) : 0);
+        if (bytesPerFrame == 0 || bytesRecorded < bytesPerFrame) return Array.Empty<byte>();
+        
+        int totalFrames = bytesRecorded / bytesPerFrame;
+        float[] monoBuffer = new float[totalFrames];
+        int offset = 0;
+        
+        if (isFloat)
+        {
+            for (int i = 0; i < totalFrames; i++)
+            {
+                float sum = 0f;
+                for (int c = 0; c < channels; c++)
+                {
+                    sum += BitConverter.ToSingle(buffer, offset);
+                    offset += 4;
+                }
+                monoBuffer[i] = sum / channels;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < totalFrames; i++)
+            {
+                float sum = 0f;
+                for (int c = 0; c < channels; c++)
+                {
+                    short val = BitConverter.ToInt16(buffer, offset);
+                    sum += val / 32768f;
+                    offset += 2;
+                }
+                monoBuffer[i] = sum / channels;
+            }
+        }
+        
+        double ratio = (double)inputFormat.SampleRate / 16000.0;
+        int maxOutSamples = (int)Math.Ceiling(totalFrames / ratio) + 2;
+        byte[] outBytes = new byte[maxOutSamples * 2];
+        int outIndex = 0;
+
+        while (_resamplePos < totalFrames)
+        {
+            int idx1 = (int)_resamplePos;
+            int idx2 = Math.Min(idx1 + 1, totalFrames - 1);
+            double frac = _resamplePos - idx1;
+            
+            float sample = (float)(monoBuffer[idx1] * (1.0 - frac) + monoBuffer[idx2] * frac);
+            short shortVal = (short)Math.Clamp(Math.Round(sample * 32767.0f), -32768, 32767);
+            
+            if (outIndex + 1 < outBytes.Length)
+            {
+                outBytes[outIndex++] = (byte)(shortVal & 0xFF);
+                outBytes[outIndex++] = (byte)((shortVal >> 8) & 0xFF);
+            }
+            
+            _resamplePos += ratio;
+        }
+
+        _resamplePos -= totalFrames;
+
+        if (outIndex == outBytes.Length) return outBytes;
+        byte[] trimmed = new byte[outIndex];
+        Array.Copy(outBytes, 0, trimmed, 0, outIndex);
+        return trimmed;
+    }
+
     public void StopRecording()
     {
         if (!_isRecording) return;
         
         try
         {
-            _waveIn?.StopRecording();
-            _waveIn?.Dispose();
-            _waveIn = null;
+            _capture?.StopRecording();
+            _capture?.Dispose();
+            _capture = null;
+
+            _silencePlayer?.Stop();
+            _silencePlayer?.Dispose();
+            _silencePlayer = null;
             
             _isRecording = false;
             
@@ -156,6 +278,17 @@ public class StreamingPcmRecorder : IDisposable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[StreamingPcmRecorder] Error stopping recording: {ex.Message}");
+        }
+    }
+    
+    private class SilentWaveProvider : IWaveProvider
+    {
+        public WaveFormat WaveFormat { get; private set; }
+        public SilentWaveProvider(WaveFormat format) { WaveFormat = format; }
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            Array.Clear(buffer, offset, count);
+            return count;
         }
     }
     
@@ -192,6 +325,38 @@ public class StreamingPcmRecorder : IDisposable
     {
         return (SessionId, _sessionOffsetMs);
     }
+    
+    /// <summary>
+    /// Gọi 1 lần duy nhất khi utterance đầu tiên commit để anchor hai timeline.
+    /// anchorAudioMs = start của utterance đầu trong file audio
+    ///               = _sessionOffsetMs (= END của utterance) - duration
+    /// Sau khi gọi, dùng AudioOffsetForTs() thay vì GetCurrentReference().
+    /// </summary>
+    public void SetFirstUtteranceAnchor(long tsStartMs, long tsEndMs)
+    {
+        if (_anchorAudioMs >= 0) return; // chỉ set 1 lần
+        
+        // _sessionOffsetMs tại thời điểm commit = END của utterance đầu trong audio.
+        // START = END - (tsEndMs - tsStartMs): đây là offset bắt đầu thực sự trong file PCM.
+        long utteranceDurationMs = Math.Max(0, tsEndMs - tsStartMs);
+        _anchorAudioMs = Math.Max(0, _sessionOffsetMs - utteranceDurationMs);
+        _anchorTsMs = tsStartMs;
+        System.Diagnostics.Debug.WriteLine(
+            $"[StreamingPcmRecorder] Anchor set: sessionOffset={_sessionOffsetMs}ms, utteranceDur={utteranceDurationMs}ms -> anchorAudioMs={_anchorAudioMs}, anchorTsMs={_anchorTsMs}");
+    }
+    
+    /// <summary>
+    /// Tính audioStartMs cho segment có tsStartMs bất kỳ, dựa vào anchor đã set.
+    /// Trả về -1 nếu anchor chưa được set.
+    /// </summary>
+    public long AudioOffsetForTs(long tsStartMs)
+    {
+        if (_anchorAudioMs < 0) return -1;
+        long computed = _anchorAudioMs + (tsStartMs - _anchorTsMs);
+        return Math.Max(0, computed);
+    }
+    
+    public bool HasAnchor => _anchorAudioMs >= 0;
     
     public void Dispose()
     {

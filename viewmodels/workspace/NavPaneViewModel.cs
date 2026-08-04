@@ -364,6 +364,16 @@ namespace MMslcOverlay.ViewModels.Workspace
             DiarizerUnavailableReason = reason;
         }
 
+        /// <summary>
+        /// Mark diarization as available (engine ready).
+        /// Called from MainWindow when atom32 fires ReadyEvent.
+        /// </summary>
+        public void SetDiarizerAvailable()
+        {
+            IsDiarizerAvailable = true;
+            DiarizerUnavailableReason = string.Empty;
+        }
+
         // ─── INotifyPropertyChanged ──────────────────────────────────────
 
         public event PropertyChangedEventHandler? PropertyChanged;

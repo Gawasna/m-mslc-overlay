@@ -112,6 +112,11 @@ namespace m_mslc_overlay
                         // Vì PaperSheetView giờ đây là Composite Root bao gồm cả Toolbars (cần WorkspaceViewModel)
                         if (_workspaceVm.IsOpen) paperSheet.DataContext = _workspaceVm;
                     }
+
+                    // Bug 2 fix: Khi workspace vừa open, sync trạng thái diarizer vào NavPane ngay.
+                    // Nếu diarizer chưa start → hiện fallback panel thay vì blank speaker list.
+                    if (_workspaceVm.IsOpen)
+                        SyncNavPaneDiarizerState();
                 }
                 else if (e.PropertyName == nameof(WorkspaceViewModel.DisplayName) ||
                          e.PropertyName == nameof(WorkspaceViewModel.WorkspacePath) ||
@@ -120,6 +125,7 @@ namespace m_mslc_overlay
                     UpdateSessionDisplay();
                 }
             };
+
 
             _hiderService = new AppContainerHiderService();
             _pipeService = new LiveCaptionPipeService();
@@ -269,9 +275,10 @@ namespace m_mslc_overlay
                         }
                         
                         // CRITICAL-TEXT-001 FIX: Use previous segment's end as this segment's start
-                        // This creates a continuous timeline and eliminates accumulating drift.
-                        // First segment: Use 0 as start
-                        long tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : 0;
+                        // If it's the very first segment, use its actual UtteranceOffset instead of 0 to skip the initial silence.
+                        // If there's a huge gap between utterances (e.g. user pauses for a long time), skip the gap.
+                        long startOffsetMs = (long)(meta.UtteranceOffset / 10000);
+                        long tsStartMs = _lastSegmentEndMs > 0 ? Math.Max(_lastSegmentEndMs, startOffsetMs) : startOffsetMs;
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
                         // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav
@@ -296,6 +303,9 @@ namespace m_mslc_overlay
                             avgSpeechSpeedMs: (int)_pipeService.AverageSpeechSpeed,
                             commitReason: meta.Reason
                         );
+                        // Stamp dbId directly on meta so OnTranslationCompleted can use it
+                        // without going through _segmentIdMap (which drifts on ShortSentenceBuffer merges)
+                        meta.WorkspaceDbId = dbId;
                         _segmentIdMap[segment.Id] = dbId;
                     }
 
@@ -353,7 +363,19 @@ namespace m_mslc_overlay
                         // Cập nhật bản dịch vào Workspace database và gửi sang WebView2 PaperSheet
                         if (linkedSeg != null && _workspaceVm.IsOpen && _workspaceVm.Service?.ActiveSegmentRepo != null)
                         {
-                            if (_segmentIdMap.TryGetValue(linkedSeg.Id, out long dbId))
+                            // Prefer WorkspaceDbId stamped directly on Source meta (immune to _segmentIdMap drift from ShortSentenceBuffer merges).
+                            // Fallback to _segmentIdMap for backward compat when Source is null.
+                            long dbId = -1;
+                            if (result.Source?.WorkspaceDbId >= 0)
+                            {
+                                dbId = result.Source.WorkspaceDbId;
+                            }
+                            else if (_segmentIdMap.TryGetValue(linkedSeg.Id, out long mappedId))
+                            {
+                                dbId = mappedId;
+                            }
+                            
+                            if (dbId >= 0)
                             {
                                 // FIX V6: Store per-segment translation (for subtitle export)
                                 // Translation is for THIS segment only, not accumulated
@@ -380,8 +402,8 @@ namespace m_mslc_overlay
                             else
                             {
                                 // ✅ FIX 2: Add logging for missing DB ID
-                                AppendLog($"[{timestamp}] ⚠️ WARNING: Segment ID {linkedSeg.Id} not found in _segmentIdMap. Translation lost!\n");
-                                System.Diagnostics.Debug.WriteLine($"[MainWindow] ⚠️ SegmentID {linkedSeg.Id} not in _segmentIdMap. DbId lookup failed.");
+                                AppendLog($"[{timestamp}] ⚠️ WARNING: No dbId found for translation. Translation lost!\n");
+                                System.Diagnostics.Debug.WriteLine($"[MainWindow] ⚠️ No dbId for translation. Source.WorkspaceDbId={result.Source?.WorkspaceDbId}, linkedSeg.Id={linkedSeg.Id}");
                             }
                         }
 
@@ -1688,8 +1710,35 @@ namespace m_mslc_overlay
                 
                 // P3.4: Clear speakers on shutdown
                 _workspaceVm.NavPane?.Speakers.Clear();
+
+                // Sync: sau khi shutdown, cập nhật lại NavPane state
+                SyncNavPaneDiarizerState();
             }
         }
+
+        /// <summary>
+        /// Cập nhật trạng thái khả dụng của diarizer vào NavPane.
+        /// Gọi sau mỗi workspace open, sau khi diarizer start/stop.
+        /// Bug 2 fix: DocNav Speaker panel không hiển thị vì NavPane không biết diarizer chưa chạy
+        /// (IsDiarizerAvailable mặc định là true → UI hiện blank list thay vì fallback message).
+        /// </summary>
+        private void SyncNavPaneDiarizerState()
+        {
+            if (_diarizerManager != null)
+            {
+                // Diarizer đang chạy → NavPane biết speakers sẽ đến
+                // Không reset IsDiarizerAvailable để tránh flicker nếu đã có speakers
+                return;
+            }
+
+            // Diarizer chưa start → hiện fallback message trong Speaker panel
+            string reason = !ConfigManager.Current.EnableDiarizer
+                ? "Tính năng Speaker Diarization bị tắt trong Preferences. Bật để sử dụng."
+                : "Speaker Diarization chưa được khởi động.\nMở Overlay (nút phía trên) để kích hoạt tự động.";
+
+            _workspaceVm.NavPane?.SetDiarizerUnavailable(reason);
+        }
+
 
         /// <summary>
         /// Handle diarization events from atom32 process.
@@ -1720,7 +1769,13 @@ namespace m_mslc_overlay
 
                 case ReadyEvent:
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Engine ready.\n");
+                    // Bug 2 fix: Mark NavPane available khi diarizer lên sóng
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _workspaceVm.NavPane?.SetDiarizerAvailable();
+                    });
                     break;
+
 
                 case ErrorEvent err:
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] {err.Message}\n");

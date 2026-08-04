@@ -37,6 +37,11 @@ namespace m_mslc_overlay.core
         /// Speaker display name from diarization (empty if unavailable).
         public string SpeakerDisplayName { get; init; } = string.Empty;
 
+        /// SQLite row ID of the segment in active.db, set immediately after IngestSttPayload.
+        /// Used by OnTranslationCompleted to link translation to the correct DB row
+        /// without relying on _segmentIdMap which can drift when ShortSentenceBuffer merges.
+        public long WorkspaceDbId { get; set; } = -1;
+
         // Convenience factory
         public static CommitMetadata From(string text, string reason,
             double acousticEndMs = -1, ulong utteranceOffset = 0,

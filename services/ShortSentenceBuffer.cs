@@ -215,7 +215,7 @@ namespace m_mslc_overlay.services
             {
                 // No pending — return incoming as-is
                 mergedText = incomingText.Trim();
-                return m_mslc_overlay.core.CommitMetadata.From(
+                var result = m_mslc_overlay.core.CommitMetadata.From(
                     mergedText,
                     incomingMeta.Reason,
                     incomingMeta.AcousticEndMs,
@@ -225,6 +225,8 @@ namespace m_mslc_overlay.services
                     incomingMeta.SpeakerId,
                     incomingMeta.SpeakerDisplayName
                 );
+                result.WorkspaceDbId = incomingMeta.WorkspaceDbId;
+                return result;
             }
 
             // S18 guard — check if 'incoming' already begins with 'pending'
@@ -238,7 +240,7 @@ namespace m_mslc_overlay.services
                 {
                     // Pending already absorbed — return incoming as-is but mark as merged
                     mergedText = incomingText.Trim();
-                    return m_mslc_overlay.core.CommitMetadata.From(
+                    var result = m_mslc_overlay.core.CommitMetadata.From(
                         mergedText,
                         incomingMeta.Reason,
                         incomingMeta.AcousticEndMs,
@@ -248,6 +250,9 @@ namespace m_mslc_overlay.services
                         pendingMeta?.SpeakerId ?? incomingMeta.SpeakerId,
                         pendingMeta?.SpeakerDisplayName ?? incomingMeta.SpeakerDisplayName
                     );
+                    // Propagate WorkspaceDbId from the FIRST segment in the merge chain
+                    result.WorkspaceDbId = pendingMeta?.WorkspaceDbId >= 0 ? pendingMeta.WorkspaceDbId : incomingMeta.WorkspaceDbId;
+                    return result;
                 }
             }
 
@@ -256,7 +261,7 @@ namespace m_mslc_overlay.services
             
             // FIX V3: Preserve metadata from FIRST segment (pendingMeta or incomingMeta)
             var baseMeta = pendingMeta ?? incomingMeta;
-            return m_mslc_overlay.core.CommitMetadata.From(
+            var merged = m_mslc_overlay.core.CommitMetadata.From(
                 mergedText,
                 incomingMeta.Reason,  // Use incoming reason (more recent)
                 incomingMeta.AcousticEndMs,  // Use incoming acoustic end (more recent)
@@ -266,6 +271,10 @@ namespace m_mslc_overlay.services
                 baseMeta.SpeakerId,  // Use first speaker ID
                 baseMeta.SpeakerDisplayName  // Use first speaker name
             );
+            // Propagate WorkspaceDbId from the FIRST segment (baseMeta) so translation
+            // is linked to the segment that was ingested first (not the short fragment).
+            merged.WorkspaceDbId = baseMeta.WorkspaceDbId >= 0 ? baseMeta.WorkspaceDbId : incomingMeta.WorkspaceDbId;
+            return merged;
         }
 
         private void StartTimer()

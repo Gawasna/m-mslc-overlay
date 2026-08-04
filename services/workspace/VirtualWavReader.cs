@@ -47,6 +47,20 @@ public class VirtualWavReader : WaveStream
         if (metadata == null)
             throw new InvalidDataException("Failed to deserialize metadata.json");
         
+        // Check actual disk file size in case session is actively being recorded
+        foreach (var chunk in metadata.Chunks)
+        {
+            string chunkPath = Path.Combine(sessionDir, chunk.FileName);
+            if (File.Exists(chunkPath))
+            {
+                var fi = new FileInfo(chunkPath);
+                if (fi.Length > chunk.SizeBytes)
+                {
+                    chunk.SizeBytes = fi.Length;
+                }
+            }
+        }
+        
         return new VirtualWavReader(sessionDir, metadata);
     }
     
@@ -136,6 +150,7 @@ public class VirtualWavReader : WaveStream
         
         if (!File.Exists(path))
         {
+            Console.WriteLine($"[VirtualWavReader] ❌ Chunk file not found: {path}");
             System.Diagnostics.Debug.WriteLine($"[VirtualWavReader] Chunk file not found: {path}");
             _currentStream = null;
             return;
@@ -147,7 +162,7 @@ public class VirtualWavReader : WaveStream
                 path, 
                 FileMode.Open, 
                 FileAccess.Read, 
-                FileShare.Read,
+                FileShare.ReadWrite,
                 bufferSize: 8192
             );
             
@@ -155,6 +170,7 @@ public class VirtualWavReader : WaveStream
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[VirtualWavReader] ❌ Error opening chunk '{path}': {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"[VirtualWavReader] Error opening chunk: {ex.Message}");
             _currentStream = null;
         }

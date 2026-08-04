@@ -79,7 +79,12 @@ public partial class PaperSheetView : UserControl
         if (e.PropertyName == nameof(WorkspaceViewModel.Sheet))
         {
             WireSheet();
-            // REMOVED: Synthetic DOCUMENT_READY call — only JS can trigger it
+            // Bug 1 fix: nếu WebView2 đã sẵn sàng từ trước (workspace được reopen trong cùng window),
+            // JS sẽ không fire DOCUMENT_READY nữa → phải inject synthetic để LoadInitialState chạy.
+            if (_isWebReady && _boundVm?.Sheet is PaperSheetViewModel sheetVm)
+            {
+                sheetVm.HandleWebMessage("{\"type\":\"DOCUMENT_READY\"}");
+            }
         }
     }
 

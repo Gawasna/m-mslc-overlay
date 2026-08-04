@@ -18,6 +18,7 @@ namespace m_mslc_overlay.core
         public string UncommittedText { get; set; } = string.Empty;
         /// ATOM77: true if the last committed word is a dangling open-ended token.
         public bool IsDangling { get; set; } = false;
+        public double AcousticEndMs { get; set; } = -1.0;
     }
 
     public class AdaptiveCommitEngine
@@ -35,6 +36,7 @@ namespace m_mslc_overlay.core
         private double _lastWordTimestampMs = -1.0;
         private double _runningMeanGap = 350.0; // Default empirical baseline (EN: ~330-360ms)
         private double _runningStDevGap = 200.0;
+        private readonly List<double> _wordTimestampsMs = new();
 
         // Pending Commit State (Debounce)
         private bool _isPendingCommit = false;
@@ -79,15 +81,40 @@ namespace m_mslc_overlay.core
             if (isFinalFromSdk)
             {
                 string committed = ExtractRemaining(currentText);
+                
+                var currWordsFinal = Tokenize(currentText);
+                double finalEndMs = acousticEndMs;
+                // If we have tracked word timestamps, use the timestamp of the last word
+                if (currWordsFinal.Count > 0 && currWordsFinal.Count <= _wordTimestampsMs.Count)
+                {
+                    finalEndMs = _wordTimestampsMs[currWordsFinal.Count - 1];
+                }
+                // Fallback to passed acousticEndMs if words were empty or not tracked
+
                 ResetState();
                 result.Type = CommitType.Hard;
                 result.CommittedText = committed;
                 result.IsDangling = false; // SDK FINAL is a clean boundary
+                result.AcousticEndMs = finalEndMs;
                 return result;
             }
 
             var prevWords = Tokenize(_lastProcessedText);
             var currWords = Tokenize(currentText);
+            
+            // Sync word timestamps with the new word count
+            if (currWords.Count > _wordTimestampsMs.Count)
+            {
+                int added = currWords.Count - _wordTimestampsMs.Count;
+                for (int k = 0; k < added; k++)
+                {
+                    _wordTimestampsMs.Add(acousticEndMs);
+                }
+            }
+            else if (currWords.Count < _wordTimestampsMs.Count)
+            {
+                _wordTimestampsMs.RemoveRange(currWords.Count, _wordTimestampsMs.Count - currWords.Count);
+            }
             
             _lastProcessedText = currentText;
 
@@ -207,6 +234,7 @@ namespace m_mslc_overlay.core
                 var committedWords = currWords.Take(commitBoundary).Skip(_lastCommittedWordIndex);
                 result.CommittedText = ReconstructText(committedWords);
                 result.UncommittedText = ReconstructText(currWords.Skip(commitBoundary));
+                result.AcousticEndMs = _wordTimestampsMs[commitBoundary - 1];
                 _lastCommittedWordIndex = commitBoundary;
                 result.Type = CommitType.Soft;
                 // ATOM77: flag if last committed word is dangling (for metadata downstream)
@@ -238,6 +266,7 @@ namespace m_mslc_overlay.core
                     var committedWords = currWords.Take(commitBoundary).Skip(_lastCommittedWordIndex);
                     result.CommittedText = ReconstructText(committedWords);
                     result.UncommittedText = ReconstructText(currWords.Skip(commitBoundary));
+                    result.AcousticEndMs = _wordTimestampsMs[commitBoundary - 1];
                     _lastCommittedWordIndex = commitBoundary;
                     result.Type = CommitType.Soft;
                 }
@@ -329,6 +358,7 @@ namespace m_mslc_overlay.core
             _isPendingCommit = false;
             _danglingDelayConsumed = false;
             _wordGaps.Clear();
+            _wordTimestampsMs.Clear();
         }
     }
 }
