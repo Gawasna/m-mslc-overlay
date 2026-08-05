@@ -106,6 +106,9 @@ public class WorkspaceService : IDisposable
         AudioRecorder?.Dispose();  // ✅ Dispose recorder first (stops recording)
         AudioService?.Dispose();
         
+        // Ensure UserData WAL checkpoint completes before disposing segment repositories
+        UserDataRepo?.FlushWal();
+
         // ✅ FIX: Force WAL checkpoint before closing workspace
         // This ensures all pending writes in WAL are flushed to main DB
         if (ActiveSegmentRepo != null)

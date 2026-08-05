@@ -301,9 +301,7 @@ namespace m_mslc_overlay
                             utteranceOffset: meta.UtteranceOffset,
                             isDangling: meta.IsDangling,
                             avgSpeechSpeedMs: (int)_pipeService.AverageSpeechSpeed,
-                            commitReason: meta.Reason,
-                            // SDK utterance start: used to anchor recorder timeline at exact speech boundary
-                            utteranceStartMs: meta.UtteranceOffset > 0 ? (long)(meta.UtteranceOffset / 10000UL) : (long?)null
+                            commitReason: meta.Reason
                         );
                         // Stamp dbId directly on meta so OnTranslationCompleted can use it
                         // without going through _segmentIdMap (which drifts on ShortSentenceBuffer merges)
@@ -1506,8 +1504,6 @@ namespace m_mslc_overlay
                 _workspaceVm.StartRecording();
                 AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
                 
-                await InitializeDiarizerAsync();
-                
                 // Update button to "Pause Recording"
                 _sessionState = SessionState.Recording;
                 btn.IsEnabled = true;
@@ -1545,7 +1541,6 @@ namespace m_mslc_overlay
                 {
                     _workspaceVm.StopRecording();
                     AppendLog($"[{timestamp}] [SESSION] Audio recording stopped\n");
-                    await ShutdownDiarizerAsync();
                 }
                 
                 // Step 2: Flush pending edits
@@ -1704,15 +1699,8 @@ namespace m_mslc_overlay
             await _diarizerManager.StartAsync(config, pythonExe, scriptPath);
         }
 
-        private async System.Threading.Tasks.Task ShutdownDiarizerAsync(bool force = false)
+        private async System.Threading.Tasks.Task ShutdownDiarizerAsync()
         {
-            if (!force)
-            {
-                bool isOverlayOpen = _currentOverlay != null && _currentOverlay.IsVisible;
-                bool isRecording = _sessionState == SessionState.Recording;
-                if (isOverlayOpen || isRecording) return;
-            }
-
             if (_diarizerManager != null)
             {
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Stopping Speaker Diarizer Process...\n");
@@ -1928,14 +1916,6 @@ namespace m_mslc_overlay
         {
             var preferencesDialog = new m_mslc_overlay.views.dialogs.PreferencesDialog();
             preferencesDialog.ShowDialog(this);
-        }
-
-        private async void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
-        {
-            var exportDialog = new m_mslc_overlay.views.dialogs.ExportDialog((jsonPayload) => {
-                services.LoggerService.Log($"[MainWindow] Export callback triggered with JSON payload:\n{jsonPayload}");
-            });
-            await exportDialog.ShowDialog(this);
         }
 
         private void ActiveExtractorCheckout_Click(object? sender, RoutedEventArgs e)

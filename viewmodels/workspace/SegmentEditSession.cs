@@ -29,7 +29,8 @@ public class SegmentEditSession
             var patch = new PatchEvent
             {
                 EventType = "EDIT",
-                SegmentRef = Segment.BaseSegment.Id.ToString(),
+                // Use canonical SegmentRef (ChunkId:Id) per Two-Source-of-Truth specification
+                SegmentRef = Segment.SegmentRef,
                 Field = "TextSrc",
                 ValueOld = Segment.TextSrc,
                 ValueNew = newTextSrc,
@@ -43,7 +44,8 @@ public class SegmentEditSession
             var patchTrs = new PatchEvent
             {
                 EventType = "EDIT",
-                SegmentRef = Segment.BaseSegment.Id.ToString(),
+                // Use canonical SegmentRef (ChunkId:Id) per Two-Source-of-Truth specification
+                SegmentRef = Segment.SegmentRef,
                 Field = "TextTrs",
                 ValueOld = Segment.TextTrs,
                 ValueNew = newTextTrs,

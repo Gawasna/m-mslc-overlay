@@ -34,12 +34,14 @@ public class SegmentRepository
 
         // Tạo map để apply patches
         var mergedMap = new Dictionary<string, MergedSegment>();
+        var byIdMap = new Dictionary<string, MergedSegment>();
         var mergedList = new List<MergedSegment>();
 
         foreach (var baseSeg in allBaseSegments)
         {
             var merged = new MergedSegment(baseSeg);
             mergedMap[merged.SegmentRef] = merged;
+            byIdMap[baseSeg.Id.ToString()] = merged;
             mergedList.Add(merged);
         }
 
@@ -52,9 +54,19 @@ public class SegmentRepository
             // Hiện tại apply trực tiếp PATCH. 
             // Khi có UNDO, event UNDO sẽ mang value_new là giá trị value_old của event bị đảo ngược.
             
-            if (mergedMap.TryGetValue(evt.SegmentRef, out var target))
+            // Support both full SegmentRef (chunkId:id) and legacy/raw ID format (id)
+            string lookupKey = evt.SegmentRef;
+            if (mergedMap.TryGetValue(lookupKey, out var target) || byIdMap.TryGetValue(lookupKey, out target))
             {
                 ApplyFieldChange(target, evt.Field, evt.ValueNew);
+            }
+            else if (lookupKey.Contains(':'))
+            {
+                var parts = lookupKey.Split(':');
+                if (parts.Length == 2 && byIdMap.TryGetValue(parts[1], out target))
+                {
+                    ApplyFieldChange(target, evt.Field, evt.ValueNew);
+                }
             }
         }
 
