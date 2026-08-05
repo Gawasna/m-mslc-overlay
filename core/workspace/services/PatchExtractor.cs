@@ -17,7 +17,8 @@ public class PatchExtractor
         return new PatchEvent
         {
             EventType = "EDIT",
-            SegmentRef = original.BaseSegment.Id.ToString(),
+            // Ensure canonical SegmentRef (ChunkId:Id) per Two-Source-of-Truth specification
+            SegmentRef = original.SegmentRef,
             Field = field,
             ValueOld = oldText,
             ValueNew = newText,

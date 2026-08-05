@@ -382,7 +382,8 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                     if (msg.SegId != null)
                     {
                         var segments = _workspace.SegmentRepo?.GetMergedSegments();
-                        var seg = segments?.FirstOrDefault(s => s.BaseSegment.Id.ToString() == msg.SegId);
+                        // Match both numerical ID string from JS DOM and full canonical SegmentRef
+                        var seg = segments?.FirstOrDefault(s => s.BaseSegment.Id.ToString() == msg.SegId || s.SegmentRef == msg.SegId);
                         if (seg != null)
                         {
                             OpenEditDialogAction?.Invoke(seg);

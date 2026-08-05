@@ -301,4 +301,27 @@ public class UserDataRepository
         }
         return list;
     }
+
+    /// <summary>
+    /// Force checkpoint WAL to main userdata.db file.
+    /// Ensures all pending human edit events are safely persisted before workspace closure.
+    /// </summary>
+    public void FlushWal()
+    {
+        try
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+            command.ExecuteNonQuery();
+
+            System.Diagnostics.Debug.WriteLine($"[UserDataRepository] WAL checkpoint completed for {_connectionString}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[UserDataRepository] WAL checkpoint failed: {ex.Message}");
+        }
+    }
 }
