@@ -34,24 +34,25 @@ namespace m_mslc_overlay
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // FL1: Check if first run
-                bool isFirstRun = !m_mslc_overlay.services.ConfigManager.Current.HasCompletedFirstRun;
+                // Set to true to always show Welcome window during testing
+                bool needsOnboarding = true;
                 
-                if (isFirstRun && !m_mslc_overlay.services.AppPathHelper.IsDevMode)
+                if (needsOnboarding)
                 {
-                    // Production mode first run - show wizard
-                    var wizardWindow = new m_mslc_overlay.views.dialogs.FirstRunWizardWindow();
-                    desktop.MainWindow = wizardWindow;
+                    // Show Welcome / Onboarding Carousel window first
+                    var welcomeWindow = new m_mslc_overlay.views.dialogs.WelcomeWindow();
+                    desktop.MainWindow = welcomeWindow;
                     
-                    // When wizard closes, open main window
-                    wizardWindow.Closed += (s, e) => {
-                        desktop.MainWindow = new MainWindow();
-                        desktop.MainWindow.Show();
+                    // When Welcome window closes, open main window
+                    welcomeWindow.Closed += (s, e) => {
+                        var mainWin = new MainWindow();
+                        desktop.MainWindow = mainWin;
+                        mainWin.Show();
                     };
                 }
                 else
                 {
-                    // Dev mode or already completed first run - go straight to main window
+                    // Already completed onboarding - go straight to main window
                     desktop.MainWindow = new MainWindow();
                 }
             }

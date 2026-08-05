@@ -8,6 +8,7 @@ namespace m_mslc_overlay.services
     {
         // First-run wizard tracking
         public bool HasCompletedFirstRun { get; set; } = false;
+        public bool HasCompletedOnboarding { get; set; } = false;
         
         public bool RunAtStartup { get; set; } = false;
         public bool StartMinimizedToTray { get; set; } = true;
