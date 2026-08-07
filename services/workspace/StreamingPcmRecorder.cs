@@ -25,10 +25,7 @@ public class StreamingPcmRecorder : IDisposable
     private long _sessionOffsetMs = 0;
     private bool _isRecording;
     
-    // Anchor for syncing audio timeline with STT SDK timeline.
-    // Set once on the first utterance commit to align both clocks.
-    private long _anchorAudioMs = -1;  // recorder offsetMs at anchor point
-    private long _anchorTsMs = -1;     // STT SDK TsStartMs at anchor point
+    // Anchor logic has been moved to ClockSyncHelper
     
     // Chunk thresholds
     private const long MAX_CHUNK_SIZE_BYTES = 500_000_000;  // 500MB
@@ -326,37 +323,7 @@ public class StreamingPcmRecorder : IDisposable
         return (SessionId, _sessionOffsetMs);
     }
     
-    /// <summary>
-    /// Gọi 1 lần duy nhất khi utterance đầu tiên commit để anchor hai timeline.
-    /// anchorAudioMs = start của utterance đầu trong file audio
-    ///               = _sessionOffsetMs (= END của utterance) - duration
-    /// Sau khi gọi, dùng AudioOffsetForTs() thay vì GetCurrentReference().
-    /// </summary>
-    public void SetFirstUtteranceAnchor(long tsStartMs, long tsEndMs)
-    {
-        if (_anchorAudioMs >= 0) return; // chỉ set 1 lần
-        
-        // _sessionOffsetMs tại thời điểm commit = END của utterance đầu trong audio.
-        // START = END - (tsEndMs - tsStartMs): đây là offset bắt đầu thực sự trong file PCM.
-        long utteranceDurationMs = Math.Max(0, tsEndMs - tsStartMs);
-        _anchorAudioMs = Math.Max(0, _sessionOffsetMs - utteranceDurationMs);
-        _anchorTsMs = tsStartMs;
-        System.Diagnostics.Debug.WriteLine(
-            $"[StreamingPcmRecorder] Anchor set: sessionOffset={_sessionOffsetMs}ms, utteranceDur={utteranceDurationMs}ms -> anchorAudioMs={_anchorAudioMs}, anchorTsMs={_anchorTsMs}");
-    }
-    
-    /// <summary>
-    /// Tính audioStartMs cho segment có tsStartMs bất kỳ, dựa vào anchor đã set.
-    /// Trả về -1 nếu anchor chưa được set.
-    /// </summary>
-    public long AudioOffsetForTs(long tsStartMs)
-    {
-        if (_anchorAudioMs < 0) return -1;
-        long computed = _anchorAudioMs + (tsStartMs - _anchorTsMs);
-        return Math.Max(0, computed);
-    }
-    
-    public bool HasAnchor => _anchorAudioMs >= 0;
+
     
     public void Dispose()
     {
