@@ -2085,6 +2085,7 @@ namespace m_mslc_overlay
                 _focusKeyController.Register(Key.T, KeyModifiers.Control, ToggleTranslation);
                 _focusKeyController.Register(Key.L, KeyModifiers.Control, CycleLanguage);
                 _focusKeyController.Register(Key.C, KeyModifiers.Control, ClearOverlayText);
+                _focusKeyController.Register(Key.S, KeyModifiers.Control, () => _ = SaveWorkspaceSessionAsync());
                 _focusKeyController.Register(Key.Up, KeyModifiers.Control, () => ChangeOverlayFontSize(2.0));
                 _focusKeyController.Register(Key.Down, KeyModifiers.Control, () => ChangeOverlayFontSize(-2.0));
 
@@ -2103,11 +2104,20 @@ namespace m_mslc_overlay
                 _focusKeyController.RegisterFallbackKey(Key.L, CycleLanguage);
                 _focusKeyController.RegisterFallbackKey(Key.C, ClearOverlayText);
 
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Focused window key controller initialized.\n");
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Focused window key controller initialized (Ctrl+S enabled).\n");
             }
             catch (Exception ex)
             {
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize focused key controller: {ex.Message}\n");
+            }
+        }
+
+        private async System.Threading.Tasks.Task SaveWorkspaceSessionAsync()
+        {
+            if (_workspaceVm != null && _workspaceVm.IsOpen)
+            {
+                await _workspaceVm.FlushPendingAsync();
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Workspace session saved (Ctrl+S).\n");
             }
         }
 

@@ -28,7 +28,7 @@ public partial class SegmentEditDialog : Window
         KeyDown += (s, e) =>
         {
             if (e.Key == Key.Escape) OnCancel(s, e);
-            if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Control)) OnConfirm(s, e);
+            if ((e.Key == Key.Enter || e.Key == Key.S) && e.KeyModifiers.HasFlag(KeyModifiers.Control)) OnConfirm(s, e);
         };
     }
 
