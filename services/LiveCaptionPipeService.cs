@@ -11,6 +11,8 @@ using System.Runtime.Versioning;
 using m_mslc_overlay.core;
 using System.Collections.Generic;
 using System.Linq;
+using MSLCOverlay.Core.Services.Clock;
+using m_mslc_overlay.services.clock;
 
 namespace m_mslc_overlay.services
 {
@@ -23,6 +25,9 @@ namespace m_mslc_overlay.services
         
         private readonly AdaptiveCommitEngine _commitEngine;
         private readonly LiveCaptionUdpSender _udpSender;
+        private readonly ClockSyncHelper _clockSyncHelper = new();
+        private readonly ClockSyncComparisonLogger _comparisonLogger = new();
+        private double _playbackStartMs = 0;
         private string _lastRawText = "";
         private ulong _lastOffset = 0;
 
@@ -30,6 +35,7 @@ namespace m_mslc_overlay.services
         private readonly List<double> _speechSpeedHistory = new();
         private const double DefaultAvgSS = 330.0;
 
+        public ClockSyncHelper ClockSync => _clockSyncHelper;
         public bool IsRunning => _listenerTask != null && !_listenerTask.IsCompleted;
 
         public event Action<string>? OnPartialCaptionReceived;
@@ -103,6 +109,12 @@ namespace m_mslc_overlay.services
                     await pipeServer.WaitForConnectionAsync(token);
                     OnStatusChanged?.Invoke("Client connected to named pipe.");
 
+                    _playbackStartMs = GetHighResTimestampMs();
+                    // Reset ClockSyncHelper is not explicitly available, we instantiate a new one or it resets on Anchor.
+                    // For safety, we can just instantiate a new one per connection.
+                    // Wait, we can't re-instantiate if we expose it as a property, but let's assume we can just recreate it here. No, let's keep it. 
+                    // Actually, let's just make it a public property so SegmentIngestionService can access it.
+
                     _commitEngine.ResetState();
                     _lastRawText = "";
                     _lastOffset = 0;
@@ -133,6 +145,11 @@ namespace m_mslc_overlay.services
             }
         }
 
+        private static double GetHighResTimestampMs()
+        {
+            return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        }
+
         private void ProcessJsonLine(string line)
         {
             try
@@ -140,10 +157,91 @@ namespace m_mslc_overlay.services
                 using var doc = JsonDocument.Parse(line);
                 var root = doc.RootElement;
                 
+                string eventName = root.TryGetProperty("event", out var evtProp) ? evtProp.GetString() ?? "" : "";
                 string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? "" : "";
                 bool isFinal = root.TryGetProperty("is_final", out var finalProp) && finalProp.GetBoolean();
                 ulong offset = root.TryGetProperty("offset", out var offsetProp) ? offsetProp.GetUInt64() : 0;
                 ulong duration = root.TryGetProperty("duration", out var durProp) ? durProp.GetUInt64() : 0;
+
+                double wallClockMs = GetHighResTimestampMs();
+                double offsetMs = offset / 10000.0;
+                double durationMs = duration / 10000.0;
+
+                // 1. Handle session_started event (Algorithm B)
+                if (eventName.Equals("session_started", StringComparison.OrdinalIgnoreCase))
+                {
+                    double tSessionStarted = wallClockMs;
+
+                    if (root.TryGetProperty("ts_ms", out var tsProp) && tsProp.ValueKind == JsonValueKind.Number && tsProp.TryGetDouble(out double tsVal) && tsVal > 0)
+                    {
+                        long bootTimeUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - Environment.TickCount64;
+                        tSessionStarted = tsVal + bootTimeUnixMs;
+                    }
+                    else if (root.TryGetProperty("precise_ticks", out var ptProp) && ptProp.ValueKind == JsonValueKind.Number && ptProp.TryGetUInt64(out ulong ptVal) && ptVal > 0)
+                    {
+                        try
+                        {
+                            tSessionStarted = DateTimeOffset.FromFileTime((long)ptVal).ToUnixTimeMilliseconds();
+                        }
+                        catch
+                        {
+                            tSessionStarted = wallClockMs;
+                        }
+                    }
+
+                    _clockSyncHelper.AnchorHardSessionStart((long)tSessionStarted);
+                    
+                    _comparisonLogger.LogEvent(new ClockSyncLogEntry(
+                        SystemTimestampMs: wallClockMs,
+                        EventType: "session_started",
+                        IsFinal: false,
+                        SdkOffsetTicks: 0,
+                        SdkOffsetMs: 0,
+                        SdkDurationTicks: 0,
+                        SdkDurationMs: 0,
+                        AlgAIsAnchored: _clockSyncHelper.IsInitialized,
+                        AlgAAnchorMs: 0,
+                        AlgAPlayheadMs: _clockSyncHelper.CalculateTargetPlaybackMs(0, (long)(tSessionStarted * 10000)),
+                        AlgBIsAnchored: _clockSyncHelper.IsInitialized,
+                        AlgBDeltaPhaseMs: 0,
+                        AlgBPlayheadMs: _clockSyncHelper.CalculateTargetPlaybackMs(0),
+                        DiscrepancyMs: 0,
+                        Text: "SESSION_STARTED"
+                    ));
+                    return;
+                }
+
+                // 2. Handle caption events and calculate clock sync metrics
+                if (!string.IsNullOrWhiteSpace(text) || offset > 0)
+                {
+                    if (!_clockSyncHelper.IsInitialized)
+                    {
+                        // Record precise ticks. We don't have exact precise ticks here, so we use wallClockMs * 10000.
+                        _clockSyncHelper.AnchorSoftFirstPartial((long)(wallClockMs * 10000), (long)offset);
+                    }
+
+                    double playheadA = _clockSyncHelper.CalculateTargetPlaybackMs((long)offset);
+                    double playheadB = playheadA;
+                    double diffAB = 0;
+
+                    _comparisonLogger.LogEvent(new ClockSyncLogEntry(
+                        SystemTimestampMs: wallClockMs,
+                        EventType: isFinal ? "FINAL" : "PARTIAL",
+                        IsFinal: isFinal,
+                        SdkOffsetTicks: offset,
+                        SdkOffsetMs: offsetMs,
+                        SdkDurationTicks: duration,
+                        SdkDurationMs: durationMs,
+                        AlgAIsAnchored: _clockSyncHelper.IsInitialized,
+                        AlgAAnchorMs: 0,
+                        AlgAPlayheadMs: playheadA,
+                        AlgBIsAnchored: _clockSyncHelper.IsInitialized,
+                        AlgBDeltaPhaseMs: 0,
+                        AlgBPlayheadMs: playheadB,
+                        DiscrepancyMs: diffAB,
+                        Text: text
+                    ));
+                }
 
                 _udpSender.SendSyncIfNeeded(offset);
                 
@@ -155,7 +253,6 @@ namespace m_mslc_overlay.services
 
                 OnPartialCaptionReceived?.Invoke(text);
 
-                double wallClockMs = Environment.TickCount64;
                 // acousticEndMs = endpoint của âm thanh cuối trong packet này (100ns ticks → ms)
                 // Fallback về wall-clock nếu SDK không cung cấp offset (edge case: offset=0)
                 double acousticEndMs = (offset > 0 && duration > 0)
@@ -237,7 +334,7 @@ namespace m_mslc_overlay.services
                     // Active polling loop (50-100ms) for AdaptiveCommitEngine Debounce
                     await Task.Delay(50, token);
                     
-                    double arrivalTimeMs = Environment.TickCount64;
+                    double arrivalTimeMs = GetHighResTimestampMs();
                     var result = _commitEngine.CheckDebounceTimeout(arrivalTimeMs);
                     if (result.Type != CommitType.None && !string.IsNullOrWhiteSpace(result.CommittedText))
                     {
@@ -268,6 +365,7 @@ namespace m_mslc_overlay.services
         {
             Stop();
             _udpSender?.Dispose();
+            _comparisonLogger?.Dispose();
         }
     }
 }

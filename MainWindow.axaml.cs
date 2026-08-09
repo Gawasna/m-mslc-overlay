@@ -288,6 +288,8 @@ namespace m_mslc_overlay
                             string dispName = (resolvedSpeaker == _latestSpeakerUid && !string.IsNullOrEmpty(_latestSpeakerDisplayName)) ? _latestSpeakerDisplayName : resolvedSpeaker;
                             _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
                         }
+                        
+                        _workspaceVm.Service.IngestionService.ClockSync = _pipeService.ClockSync;
 
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
@@ -628,6 +630,11 @@ namespace m_mslc_overlay
         private void OnNewWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
             _ = NewWorkspaceFlowAsync();
+        }
+
+        private void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
+        {
+            // Placeholder for advanced export options dialog
         }
 
         private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()

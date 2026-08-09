@@ -2,6 +2,7 @@ using System;
 using MMslcOverlay.Core.Workspace.Models;
 using MMslcOverlay.Core.Workspace.Repositories;
 using MMslcOverlay.Core.Workspace.Storage;
+using MSLCOverlay.Core.Services.Clock;
 
 namespace MMslcOverlay.Services.Workspace;
 
@@ -11,6 +12,8 @@ public class SegmentIngestionService
     private readonly string _activeChunkId;
     private readonly StreamingPcmRecorder? _audioRecorder;
     private readonly AudioOffsetIndex? _offsetIndex;
+
+    public ClockSyncHelper? ClockSync { get; set; }
 
     public event Action<Segment>? SegmentAdded;
 
@@ -52,33 +55,26 @@ public class SegmentIngestionService
             var audioRef = _audioRecorder.GetCurrentReference();
             audioSessionId = audioRef.sessionId;
             
-            // Set anchor on first utterance: align recorder clock with STT SDK clock.
-            // _anchorAudioMs = recorder ms at the moment STT first utterance commits.
-            // _anchorTsMs    = tsStartMs of that first utterance (from SDK timeline).
-            // All subsequent segments use: audioStart = anchorAudio + (tsStart - anchorTs)
-            if (!_audioRecorder.HasAnchor)
+            if (ClockSync != null && ClockSync.IsInitialized)
             {
-                _audioRecorder.SetFirstUtteranceAnchor(tsStartMs, tsEndMs);
-            }
-            
-            long anchoredStart = _audioRecorder.AudioOffsetForTs(tsStartMs);
-            long anchoredEnd   = _audioRecorder.AudioOffsetForTs(tsEndMs);
-            
-            if (anchoredStart >= 0)
-            {
-                audioStartMs = anchoredStart;
-                audioEndMs   = anchoredEnd >= anchoredStart ? anchoredEnd : anchoredStart + Math.Max(0, tsEndMs - tsStartMs);
+                // tsStartMs and tsEndMs are essentially offsets in ms. Wait, tsStartMs in IngestSttPayload is already in MS!
+                // CalculateTargetPlaybackMs takes wordOffsetSdkTicks.
+                long offsetTicks = tsStartMs * 10000;
+                long endTicks = tsEndMs * 10000;
+                
+                audioStartMs = (long)Math.Round(ClockSync.CalculateTargetPlaybackMs(offsetTicks));
+                audioEndMs = (long)Math.Round(ClockSync.CalculateTargetPlaybackMs(endTicks));
             }
             else
             {
-                // Fallback: anchor not yet set (should not happen after guard above)
+                // Fallback if not anchored
                 long currentRefMs = audioRef.offsetMs;
                 long speechDurationMs = Math.Max(0, tsEndMs - tsStartMs);
                 audioEndMs   = currentRefMs;
                 audioStartMs = Math.Max(0, currentRefMs - speechDurationMs);
             }
             
-            SessionLogger.Log($"[SegmentIngestion] Received segment: ts=({tsStartMs}->{tsEndMs}) anchor={_audioRecorder.HasAnchor} -> audioStart={audioStartMs}ms, audioEnd={audioEndMs}ms");
+            SessionLogger.Log($"[SegmentIngestion] Received segment: ts=({tsStartMs}->{tsEndMs}) synced -> audioStart={audioStartMs}ms, audioEnd={audioEndMs}ms");
         }
 
 
