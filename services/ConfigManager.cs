@@ -56,6 +56,11 @@ namespace m_mslc_overlay.services
         /// Filter bỏ micro-segment nhiễu.
         /// </summary>
         public float DiarizerMinSpeechDuration { get; set; } = 1.2f;
+
+        /// <summary>
+        /// Danh sách đường dẫn các Workspace gần đây (Item 16).
+        /// </summary>
+        public System.Collections.Generic.List<string> RecentWorkspaces { get; set; } = new();
     }
 
     public static class ConfigManager
@@ -74,12 +79,35 @@ namespace m_mslc_overlay.services
                     if (config != null)
                     {
                         Current = config;
+                        Current.RecentWorkspaces ??= new System.Collections.Generic.List<string>();
                     }
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to load config: {ex.Message}");
+            }
+        }
+
+        public static void AddRecentWorkspace(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return;
+            try
+            {
+                string fullPath = Path.GetFullPath(path);
+                Current.RecentWorkspaces ??= new System.Collections.Generic.List<string>();
+                Current.RecentWorkspaces.RemoveAll(p => string.Equals(p, fullPath, StringComparison.OrdinalIgnoreCase));
+                Current.RecentWorkspaces.Insert(0, fullPath);
+
+                if (Current.RecentWorkspaces.Count > 10)
+                {
+                    Current.RecentWorkspaces = Current.RecentWorkspaces.GetRange(0, 10);
+                }
+                Save();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to add recent workspace: {ex.Message}");
             }
         }
 

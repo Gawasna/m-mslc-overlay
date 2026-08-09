@@ -522,6 +522,7 @@ namespace m_mslc_overlay
             this.Opened += (s, e) => {
                 InitializeHotkeys();
                 InitializeFocusKeys();
+                RefreshRecentWorkspacesMenu();
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
@@ -555,6 +556,7 @@ namespace m_mslc_overlay
         public MainWindow(string workspacePath) : this()
         {
             _workspaceVm.OpenOrCreate(workspacePath);
+            ConfigManager.AddRecentWorkspace(workspacePath);
         }
 
         /// <summary>
@@ -657,6 +659,8 @@ namespace m_mslc_overlay
             try
             {
                 _workspaceVm.OpenOrCreate(newPath);
+                ConfigManager.AddRecentWorkspace(newPath);
+                RefreshRecentWorkspacesMenu();
             }
             catch (Exception ex)
             {
@@ -935,6 +939,87 @@ namespace m_mslc_overlay
             try
             {
                 _workspaceVm.OpenOrCreate(selectedPath);
+                ConfigManager.AddRecentWorkspace(selectedPath);
+                RefreshRecentWorkspacesMenu();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync("Lỗi mở workspace", ex.Message);
+            }
+        }
+
+        private void RefreshRecentWorkspacesMenu()
+        {
+            var recentMenu = this.FindControl<MenuItem>("RecentWorkspacesMenuItem");
+            if (recentMenu == null) return;
+
+            recentMenu.Items.Clear();
+
+            var recents = ConfigManager.Current.RecentWorkspaces;
+            if (recents == null || recents.Count == 0)
+            {
+                recentMenu.Items.Add(new MenuItem { Header = "(Không có workspace gần đây)", IsEnabled = false });
+                return;
+            }
+
+            int idx = 1;
+            foreach (var path in recents)
+            {
+                string folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                if (string.IsNullOrEmpty(folderName)) folderName = path;
+
+                var menuItem = new MenuItem
+                {
+                    Header = $"_{idx++}. {folderName}"
+                };
+                ToolTip.SetTip(menuItem, path);
+
+                string localPath = path;
+                menuItem.Click += async (s, e) =>
+                {
+                    await OpenRecentWorkspaceAsync(localPath);
+                };
+
+                recentMenu.Items.Add(menuItem);
+            }
+
+            recentMenu.Items.Add(new Separator());
+            var clearMenu = new MenuItem { Header = "Clear _History" };
+            clearMenu.Click += (s, e) =>
+            {
+                ConfigManager.Current.RecentWorkspaces.Clear();
+                ConfigManager.Save();
+                RefreshRecentWorkspacesMenu();
+            };
+            recentMenu.Items.Add(clearMenu);
+        }
+
+        private async System.Threading.Tasks.Task OpenRecentWorkspaceAsync(string selectedPath)
+        {
+            if (_workspaceVm.IsOpen && _workspaceVm.IsDirty)
+            {
+                var choice = await ShowUnsavedChangesDialogAsync();
+                if (choice == UnsavedChoice.Cancel) return;
+                if (choice == UnsavedChoice.Save) await _workspaceVm.FlushPendingAsync();
+            }
+
+            var storage = new MMslcOverlay.Core.Workspace.Storage.WorkspaceStorage(selectedPath);
+            if (!storage.IsValidWorkspace())
+            {
+                await ShowErrorMessageAsync("Không tìm thấy Workspace",
+                    $"Thư mục '{selectedPath}' không tồn tại hoặc không còn hợp lệ.\n" +
+                    "Đã tự động xóa khỏi danh sách Recent.");
+                ConfigManager.Current.RecentWorkspaces.RemoveAll(p => string.Equals(p, selectedPath, StringComparison.OrdinalIgnoreCase));
+                ConfigManager.Save();
+                RefreshRecentWorkspacesMenu();
+                return;
+            }
+
+            try
+            {
+                _workspaceVm.OpenOrCreate(selectedPath);
+                ConfigManager.AddRecentWorkspace(selectedPath);
+                RefreshRecentWorkspacesMenu();
             }
             catch (Exception ex)
             {
@@ -976,7 +1061,7 @@ namespace m_mslc_overlay
             await dialog.ShowDialog(this);
         }
 
-        // Gap 7: Close Workspace menu handler — với dirty check
+        // Gap 7: Close Workspace menu handler — với dirty check & UI reset (Item 17)
         private async void OnCloseWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
             if (_workspaceVm.IsDirty)
@@ -989,6 +1074,24 @@ namespace m_mslc_overlay
 
             if (_workspaceVm.IsRecording) _workspaceVm.StopRecording();
             _workspaceVm.CloseWorkspace();
+
+            // Item 17: Clear UI state & buffers when closing workspace
+            lock (_logLock)
+            {
+                _rawLogs.Clear();
+                _isLogDirty = true;
+            }
+            lock (_translationLock)
+            {
+                _translationBuffer = "";
+                _translationDisplayBuffer = "";
+                _contextHints.Clear();
+            }
+            _lastPartialCaption = "";
+            _segmentTracker.Reset();
+            _revisionWindow.Reset();
+            _segmentIdMap.Clear();
+            _lastSegmentEndMs = 0;
             
             // Update session control button to "Start Session" state
             var btn = this.FindControl<Button>("SessionControlBtn");
