@@ -6,6 +6,7 @@ namespace MMslcOverlay.Core.Workspace.Export;
 
 public interface IExporter
 {
+    string ContentMode { get; set; }
     string Export(IEnumerable<MergedSegment> segments, IEnumerable<FreeformBlock>? blocks = null);
 }
 

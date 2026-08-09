@@ -25,6 +25,14 @@ namespace m_mslc_overlay.views.dialogs
                 OfflineTranslationServerManager.OnStateChanged -= OnServerStateChanged;
                 DiarizerProcessManager.OnGlobalStateChanged -= OnAtom32StateChanged;
             };
+
+            this.KeyDown += (s, e) => {
+                if (e.Key == Avalonia.Input.Key.S && e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control))
+                {
+                    SaveSettings();
+                    this.Close();
+                }
+            };
         }
 
         private void OnAtom32StateChanged(DiarizerState state)

@@ -1,0 +1,96 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="m_mslc_overlay.views.dialogs.WelcomeWindow"
+        Title="MSLC Subtitle Engine - Welcome"
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
+        Width="860" Height="580"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="36"
+        Background="#F1F5F9"
+        x:CompileBindings="False">
+
+    <Window.Styles>
+        <Style Selector="Border.DotIndicator">
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="#94A3B8"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Width" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.25"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.DotIndicator.Active">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Background" Value="#0078D4"/>
+        </Style>
+        <Style Selector="Border.DotIndicator:not(.Active)">
+            <Setter Property="Width" Value="8"/>
+        </Style>
+        <Style Selector="Border.DotIndicator:pointerover:not(.Active)">
+            <Setter Property="Background" Value="#475569"/>
+        </Style>
+
+        <Style Selector="Border.CardContainer">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="BoxShadow" Value="0 6 16 0 #1A000000"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto, *, Auto">
+
+        <!-- Top Header Bar -->
+        <Border Grid.Row="0" Height="48" Padding="20,8" Background="Transparent">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Image Source="avares://m-mslc-overlay/assets/icons/app-icon.ico" Width="24" Height="24"/>
+                    <TextBlock Text="MSLC Subtitle Engine" FontWeight="Bold" FontSize="15" Foreground="#0F172A" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Button Grid.Column="2" x:Name="SkipTopBtn" Content="Bỏ qua" Classes="accent" Background="Transparent" Foreground="#0F172A" FontWeight="Bold" FontSize="13" Padding="12,4" Click="SkipBtn_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Carousel Slide Area -->
+        <Border Grid.Row="1" Margin="24,0,24,12" Classes="CardContainer">
+            <TransitioningContentControl x:Name="SlideTransitionContainer">
+                <!-- Content swapped dynamically in code-behind -->
+            </TransitioningContentControl>
+        </Border>
+
+        <!-- Bottom Navigation Controls Bar -->
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="24,14">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+
+                <!-- Left: Skip Button -->
+                <Button Grid.Column="0" x:Name="SkipBtn" Content="Bỏ qua hướng dẫn" Background="Transparent" Foreground="#0F172A" FontWeight="Bold" FontSize="13" Click="SkipBtn_Click"/>
+
+                <!-- Center: Slide Dots Indicator -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border x:Name="Dot0" Classes="DotIndicator Active" PointerPressed="Dot_PointerPressed" Tag="0"/>
+                    <Border x:Name="Dot1" Classes="DotIndicator" PointerPressed="Dot_PointerPressed" Tag="1"/>
+                    <Border x:Name="Dot2" Classes="DotIndicator" PointerPressed="Dot_PointerPressed" Tag="2"/>
+                    <Border x:Name="Dot3" Classes="DotIndicator" PointerPressed="Dot_PointerPressed" Tag="3"/>
+                </StackPanel>
+
+                <!-- Right: Navigation Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                    <Button x:Name="BackBtn" Content="◀ Quay lại" Width="110" Height="36" Click="BackBtn_Click" IsEnabled="False" Foreground="#0F172A" FontWeight="Bold" BorderBrush="#94A3B8"/>
+                    <Button x:Name="NextBtn" Content="Tiếp theo ▶" Width="120" Height="36" Click="NextBtn_Click" Background="#0078D4" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                </StackPanel>
+
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

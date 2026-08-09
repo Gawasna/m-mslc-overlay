@@ -100,6 +100,7 @@ namespace m_mslc_overlay.views.dialogs
             var subConfig = ExportSubtitlesCheck.IsChecked == true ? new SubtitleConfig
             {
                 Format = (SubtitleFormatCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? ".SRT",
+                ContentMode = (ContentModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Song ngữ (EN + VI)",
                 Encoding = (SubtitleEncodingCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "UTF-8",
                 IncludeStyles = IncludeStylesCheck.IsChecked == true,
                 MergeOverlapping = MergeLinesCheck.IsChecked == true
@@ -110,10 +111,12 @@ namespace m_mslc_overlay.views.dialogs
             else if (AudioFormatFlac.IsChecked == true) audioFormat = "FLAC";
 
             string audioChannels = AudioChannelsMono.IsChecked == true ? "Mono" : "Stereo";
+            string audioMode = AudioModeSegment.IsChecked == true ? "Segment" : "Merge";
 
             var audioConfig = ExportAudioCheck.IsChecked == true ? new AudioConfig
             {
                 Format = audioFormat,
+                Mode = audioMode,
                 Bitrate = (AudioBitrateCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "192 kbps",
                 Channels = audioChannels,
                 NormalizeVolume = NormalizeVolumeCheck.IsChecked == true
@@ -181,6 +184,9 @@ namespace m_mslc_overlay.views.dialogs
             [JsonPropertyName("format")]
             public string Format { get; set; } = "";
             
+            [JsonPropertyName("contentMode")]
+            public string ContentMode { get; set; } = "";
+
             [JsonPropertyName("encoding")]
             public string Encoding { get; set; } = "";
             
@@ -196,6 +202,9 @@ namespace m_mslc_overlay.views.dialogs
             [JsonPropertyName("format")]
             public string Format { get; set; } = "";
             
+            [JsonPropertyName("mode")]
+            public string Mode { get; set; } = "";
+
             [JsonPropertyName("bitrate")]
             public string Bitrate { get; set; } = "";
             
