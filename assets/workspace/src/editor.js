@@ -422,6 +422,133 @@ const searchPlugin = new Plugin({
   }
 });
 
+const machineProtectPluginKey = new PluginKey("machineProtect");
+
+function machineFingerprint(doc) {
+    const parts = [];
+    doc.descendants((node) => {
+        if (node.type.name === "machine_segment") {
+            parts.push(String(node.attrs.segId) + "\0" + node.textContent);
+        }
+    });
+    return parts.join("\n");
+}
+
+function posInsideMachine($pos) {
+    for (let d = $pos.depth; d > 0; d--) {
+        if ($pos.node(d).type.name === "machine_segment") return true;
+    }
+    return false;
+}
+
+function selectionTouchesMachine(state) {
+    const { from, to, $from, $to, empty } = state.selection;
+    if (posInsideMachine($from) || posInsideMachine($to)) return true;
+    if (empty) return false;
+    let touches = false;
+    state.doc.nodesBetween(from, to, (node) => {
+        if (node.type.name === "machine_segment") {
+            touches = true;
+            return false;
+        }
+    });
+    return touches;
+}
+
+const machineProtectPlugin = new Plugin({
+    key: machineProtectPluginKey,
+    filterTransaction(tr, state) {
+        if (!tr.docChanged) return true;
+        if (tr.getMeta(machineProtectPluginKey)?.allowMachineEdit) return true;
+        return machineFingerprint(state.doc) === machineFingerprint(tr.doc);
+    },
+    props: {
+        handleTextInput(view, from, to) {
+            const $from = view.state.doc.resolve(from);
+            const $to = view.state.doc.resolve(to);
+            if (posInsideMachine($from) || posInsideMachine($to)) return true;
+            if (from !== to) {
+                let touches = false;
+                view.state.doc.nodesBetween(from, to, (node) => {
+                    if (node.type.name === "machine_segment") {
+                        touches = true;
+                        return false;
+                    }
+                });
+                if (touches) return true;
+            }
+            return false;
+        },
+        handleKeyDown(view, event) {
+            const touches = selectionTouchesMachine(view.state);
+            if (!touches) return false;
+
+            const navKeys = new Set([
+                "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+                "Home", "End", "PageUp", "PageDown", "Escape", "Tab",
+                "Shift", "Control", "Alt", "Meta", "CapsLock"
+            ]);
+            if (navKeys.has(event.key)) return false;
+
+            const mod = event.ctrlKey || event.metaKey;
+            if (mod && (event.key === "c" || event.key === "C" || event.key === "Insert")) {
+                return false;
+            }
+            if (mod && (event.key === "a" || event.key === "A")) {
+                return false;
+            }
+            if (mod && (event.key === "x" || event.key === "X" ||
+                        event.key === "v" || event.key === "V" ||
+                        event.key === "z" || event.key === "Z" ||
+                        event.key === "y" || event.key === "Y")) {
+                event.preventDefault();
+                return true;
+            }
+            if (event.key === "Backspace" || event.key === "Delete" ||
+                event.key === "Enter" || event.key === "Process") {
+                event.preventDefault();
+                return true;
+            }
+            if (event.key.length === 1 || event.key === "Unidentified") {
+                event.preventDefault();
+                return true;
+            }
+            return false;
+        },
+        handlePaste(view) {
+            return selectionTouchesMachine(view.state);
+        },
+        handleDrop(view) {
+            return selectionTouchesMachine(view.state);
+        },
+        handleDOMEvents: {
+            cut(view, event) {
+                if (selectionTouchesMachine(view.state)) {
+                    event.preventDefault();
+                    return true;
+                }
+                return false;
+            },
+            paste(view, event) {
+                if (selectionTouchesMachine(view.state)) {
+                    event.preventDefault();
+                    return true;
+                }
+                return false;
+            },
+            beforeinput(view, event) {
+                if (!selectionTouchesMachine(view.state)) return false;
+                const t = event.inputType || "";
+                if (t.startsWith("insert") || t.startsWith("delete") || t.startsWith("format") || t === "historyUndo" || t === "historyRedo") {
+                    event.preventDefault();
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+});
+
 // 3. Editor Initialization
 let view;
 
@@ -433,6 +560,12 @@ const insertBreak = (state, dispatch) => {
     }
     return false;
 };
+
+function dispatchBridge(tr) {
+    tr.setMeta(machineProtectPluginKey, { allowMachineEdit: true });
+    tr.setMeta("addToHistory", false);
+    view.dispatch(tr);
+}
 
 function initEditor() {
     let scrollIndicator = document.createElement("div");
@@ -456,6 +589,7 @@ function initEditor() {
             schema,
             plugins: [
                 history(),
+                machineProtectPlugin,
                 keymap({ "Mod-z": undo, "Mod-y": redo, "Enter": insertBreak, "Shift-Enter": insertBreak }),
                 keymap(baseKeymap),
                 magicCursorPlugin,
@@ -612,7 +746,7 @@ window.__bridge = {
             tr.setMeta(magicCursorPluginKey, { deco: deco, newPos: newMagicCursorPos });
             
             window.forceScrollMagic = true;
-            view.dispatch(tr);
+            dispatchBridge(tr);
 
             } // end !alreadyExists
 
@@ -646,7 +780,7 @@ window.__bridge = {
                 let existingTextTrsNode = existingNode.childCount > 1 ? existingNode.child(1) : null;
 
                 if (msg.field === "TextSrc") {
-                    contentNodes.push(schema.nodes.seg_text.create({}, schema.text(msg.newValue)));
+                    contentNodes.push(schema.nodes.seg_text.create({}, schema.text(msg.newValue || "")));
                     if (existingTextTrsNode) {
                         contentNodes.push(existingTextTrsNode);
                     }
@@ -660,7 +794,7 @@ window.__bridge = {
                 }
 
                 const newNode = schema.nodes.machine_segment.create(existingNode.attrs, contentNodes);
-                view.dispatch(view.state.tr.replaceWith(pos, pos + existingNode.nodeSize, newNode));
+                dispatchBridge(view.state.tr.replaceWith(pos, pos + existingNode.nodeSize, newNode));
             }
         } else if (msg.type === "FREEFORM_PERSISTED") {
             const { anchorAfter, blockId } = msg;
@@ -669,7 +803,7 @@ window.__bridge = {
             view.state.doc.descendants((node, pos) => {
                 if (found) return false;
                 if (node.type.name === "freeform_block" && node.attrs.anchorAfter === anchorAfter) {
-                    view.dispatch(
+                    dispatchBridge(
                         view.state.tr.setNodeMarkup(pos, null, {
                             ...node.attrs,
                             blockId: blockId

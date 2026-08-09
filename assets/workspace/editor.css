@@ -28,13 +28,23 @@ body {
 .machine-segment {
   position: relative;
   display: flex;
-  gap: 8px;  /* Reduced gap for tighter layout */
+  gap: 8px;
   margin: 4px 0;
   padding: 4px 8px;
   border-radius: 4px;
   transition: background 0.15s;
+  -webkit-user-modify: read-only;
 }
 .machine-segment:hover { background: rgba(34, 197, 94, 0.03); }
+.machine-segment .seg-text,
+.machine-segment .seg-trs,
+.machine-segment .seg-content {
+  cursor: default;
+}
+.freeform-block {
+  -webkit-user-modify: read-write;
+  user-select: text;
+}
 
 /* Audio icon column (left margin) */
 .seg-audio-icon {
