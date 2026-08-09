@@ -2035,10 +2035,70 @@ namespace m_mslc_overlay
 
         private async void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
         {
-            var exportDialog = new m_mslc_overlay.views.dialogs.ExportDialog((jsonPayload) => {
+            var exportDialog = new m_mslc_overlay.views.dialogs.ExportDialog(async (jsonPayload) => {
                 services.LoggerService.Log($"[MainWindow] Export callback triggered with JSON payload:\n{jsonPayload}");
+                await ProcessAdvancedExportPayloadAsync(jsonPayload);
             });
             await exportDialog.ShowDialog(this);
+        }
+
+        private async System.Threading.Tasks.Task ProcessAdvancedExportPayloadAsync(string jsonPayload)
+        {
+            if (_workspaceVm?.Service?.SegmentRepo == null)
+            {
+                await ShowErrorMessageAsync("Lỗi xuất file", "Chưa mở workspace hoặc kho dữ liệu rỗng!");
+                return;
+            }
+
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
+                var root = doc.RootElement;
+
+                bool enableSub = root.TryGetProperty("enableSubtitle", out var subProp) && subProp.GetBoolean();
+                string outputPath = root.TryGetProperty("outputPath", out var pathProp) ? pathProp.GetString() ?? "" : "";
+                string filenamePattern = root.TryGetProperty("fileNamePattern", out var nameProp) ? nameProp.GetString() ?? "export" : "export";
+
+                if (!enableSub || string.IsNullOrWhiteSpace(outputPath)) return;
+
+                var subConfig = root.GetProperty("subtitleConfig");
+                string format = subConfig.TryGetProperty("format", out var fmtProp) ? fmtProp.GetString() ?? ".SRT" : ".SRT";
+                string contentMode = subConfig.TryGetProperty("contentMode", out var modeProp) ? modeProp.GetString() ?? "Song ngữ (EN + VI)" : "Song ngữ (EN + VI)";
+                string encoding = subConfig.TryGetProperty("encoding", out var encProp) ? encProp.GetString() ?? "UTF-8" : "UTF-8";
+
+                MMslcOverlay.Core.Workspace.Export.IExporter exporter = format.ToUpper() switch
+                {
+                    ".TXT" => new MMslcOverlay.Core.Workspace.Export.TxtExporter(),
+                    ".MD" => new MMslcOverlay.Core.Workspace.Export.MarkdownExporter(),
+                    ".JSON" => new MMslcOverlay.Core.Workspace.Export.JsonExporter(),
+                    ".PDF" => new MMslcOverlay.Core.Workspace.Export.PdfExporter(),
+                    _ => new MMslcOverlay.Core.Workspace.Export.SrtExporter()
+                };
+
+                exporter.ContentMode = contentMode;
+
+                var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
+                string exportedContent = engine.RunExport(exporter);
+
+                string ext = format.StartsWith(".") ? format.ToLower() : "." + format.ToLower();
+                if (!filenamePattern.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                {
+                    filenamePattern += ext;
+                }
+
+                string fullDestPath = Path.Combine(outputPath, filenamePattern);
+
+                var enc = encoding.Equals("ANSI", StringComparison.OrdinalIgnoreCase) ? System.Text.Encoding.ASCII : System.Text.Encoding.UTF8;
+                await File.WriteAllTextAsync(fullDestPath, exportedContent, enc);
+
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Xuất file thành công: {fullDestPath} (Chế độ: {contentMode})\n");
+                _workspaceVm.RefreshSessionFiles();
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Lỗi xuất file nâng cao: {ex.Message}\n");
+                await ShowErrorMessageAsync("Lỗi xuất file", ex.Message);
+            }
         }
 
         private void ActiveExtractorCheckout_Click(object? sender, RoutedEventArgs e)
@@ -2189,6 +2249,11 @@ namespace m_mslc_overlay
                 _focusKeyController.Register(Key.L, KeyModifiers.Control, CycleLanguage);
                 _focusKeyController.Register(Key.C, KeyModifiers.Control, ClearOverlayText);
                 _focusKeyController.Register(Key.S, KeyModifiers.Control, () => _ = SaveWorkspaceSessionAsync());
+                _focusKeyController.Register(Key.S, KeyModifiers.Control | KeyModifiers.Shift, () => OnExportAdvancedMenuClick(null, null));
+                _focusKeyController.Register(Key.E, KeyModifiers.Control, () => {
+                    if (_workspaceVm != null && _workspaceVm.IsOpen && _workspaceVm.ExportSrtCommand.CanExecute(null))
+                        _workspaceVm.ExportSrtCommand.Execute(null);
+                });
                 _focusKeyController.Register(Key.Up, KeyModifiers.Control, () => ChangeOverlayFontSize(2.0));
                 _focusKeyController.Register(Key.Down, KeyModifiers.Control, () => ChangeOverlayFontSize(-2.0));
 
