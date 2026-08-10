@@ -95,6 +95,15 @@ namespace MMslcOverlay.Services
                     var line = await stdout.ReadLineAsync();
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
+                    // Host protocol: one JSON object per stdout line. Non-JSON is noise.
+                    string trimmed = line.TrimStart();
+                    if (trimmed.Length == 0 || trimmed[0] != '{')
+                    {
+                        if (debug)
+                            OnLog?.Invoke($"[CLI_SKIP] {line}");
+                        continue;
+                    }
+
                     if (debug && !line.Contains("\"type\": \"vol_level\"") && !line.Contains("\"type\":\"vol_level\""))
                     {
                         OnLog?.Invoke($"[CLI_IPC_RAW] {line}");
@@ -106,15 +115,16 @@ namespace MMslcOverlay.Services
                         if (diarizerEvent != null)
                         {
                             if (diarizerEvent is ReadyEvent)
-                            {
                                 UpdateGlobalState(DiarizerState.Ready);
-                            }
+                            else if (diarizerEvent is ErrorEvent)
+                                UpdateGlobalState(DiarizerState.Failed);
                             OnEvent?.Invoke(diarizerEvent);
                         }
                     }
                     catch (JsonException ex)
                     {
-                        OnLog?.Invoke($"[CLI_JSON_ERR] Failed to parse: {line}. Exception: {ex.Message}");
+                        if (debug)
+                            OnLog?.Invoke($"[CLI_JSON_ERR] Failed to parse: {line}. Exception: {ex.Message}");
                     }
                 }
             }

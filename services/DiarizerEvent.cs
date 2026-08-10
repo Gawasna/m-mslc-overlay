@@ -5,7 +5,8 @@ using System.Text.Json.Serialization;
 namespace MMslcOverlay.Services
 {
     public record DiarizerConfig(
-        int DeviceIndex,
+        /// <summary>-1 = auto WASAPI loopback (system audio, matches Live Captions).</summary>
+        int DeviceIndex = -1,
         float Threshold = 0.5f,
         int ExpectedSpeakers = 0,
         float MinSpeechDuration = 1.2f,

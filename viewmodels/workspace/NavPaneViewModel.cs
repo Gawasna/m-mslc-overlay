@@ -318,15 +318,30 @@ namespace MMslcOverlay.ViewModels.Workspace
 
         /// <summary>
         /// Sync speakers from diarization timeline segments.
-        /// Extracts unique speaker UIDs and updates the Speakers collection.
+        /// Adds/updates active UIDs and removes speakers that the diarizer merged away
+        /// (prevents Speaker-01/02/03 list growth when only 2 people remain).
         /// </summary>
         public void SyncSpeakers(System.Collections.Generic.List<MMslcOverlay.Services.SegmentInfo> segments)
         {
             var seen = new System.Collections.Generic.HashSet<string>();
             foreach (var seg in segments)
             {
-                if (seen.Add(seg.Uid))
-                    AddOrUpdateSpeaker(seg.Uid, seg.Identity);
+                if (string.IsNullOrWhiteSpace(seg.Uid)) continue;
+                if (!seen.Add(seg.Uid)) continue;
+                string name = string.IsNullOrWhiteSpace(seg.Identity) ? seg.Uid : seg.Identity;
+                AddOrUpdateSpeaker(seg.Uid, name);
+            }
+
+            // Prune IDs no longer present in the latest timeline (merged/gone).
+            // Only prune when timeline is non-empty so a transient empty update
+            // does not wipe the list mid-session.
+            if (seen.Count > 0)
+            {
+                for (int i = Speakers.Count - 1; i >= 0; i--)
+                {
+                    if (!seen.Contains(Speakers[i].SpeakerKey))
+                        Speakers.RemoveAt(i);
+                }
             }
         }
 

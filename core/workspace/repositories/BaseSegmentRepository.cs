@@ -237,6 +237,25 @@ public class BaseSegmentRepository
     }
 
     /// <summary>
+    /// Update speaker_id when diarizer timeline re-resolves a segment.
+    /// </summary>
+    public void UpdateSegmentSpeaker(long id, string speakerId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE segments
+            SET speaker_id = @speaker_id
+            WHERE id = @id;
+        ";
+        command.Parameters.AddWithValue("@speaker_id", speakerId ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@id", id);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
     /// Force checkpoint WAL to main database file.
     /// Call this before closing workspace to ensure all pending writes are persisted.
     /// </summary>

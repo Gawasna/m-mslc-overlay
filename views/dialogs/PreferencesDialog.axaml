@@ -188,75 +188,69 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Utilities Tab -->
+                    <!-- Utilities Tab: plugin install + runtime -->
                     <StackPanel x:Name="TabUtilities" IsVisible="False" Spacing="24">
                         <TextBlock Text="{DynamicResource Tab_Utilities}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Cài đặt và chạy plugin Python (atom26 dịch offline, atom32 diarizer)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,-12,0,0"/>
                         
                         <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,8">
                             <StackPanel Spacing="16">
-                                <!-- Thông tin -->
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_OfflineTranslation}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Quản lý và tải xuống mô hình Dịch thuật Offline (CTranslate2 - atom26)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="atom26 — Offline Translation (CTranslate2). Cài package plugin trước, rồi tải model nếu cần." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="UtilAtom26InstallText" Text="Đang kiểm tra cài đặt..." FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
-                                <!-- Bật/Tắt Tiện Ích -->
                                 <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
                                     <ToggleSwitch x:Name="UtilAtom26Toggle" Grid.Column="0" OnContent="Bật máy chủ Dịch (Running)" OffContent="Tắt máy chủ Dịch (Stopped)" IsCheckedChanged="OfflineServerToggle_IsCheckedChanged" VerticalAlignment="Center"/>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                        <TextBlock Text="Trạng thái:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Runtime:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="UtilAtom26StateText" Text="Đang dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
                                 
                                 <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>
                                 
-                                <!-- Controls -->
                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <ComboBox x:Name="UtilTransModelCombo" Width="260" SelectedIndex="0" CornerRadius="6" IsEnabled="False">
-                                        <ComboBoxItem Content="NLLB-200 600M (Mặc định)"/>
+                                    <Button x:Name="UtilTransDownloadBtn" Click="UtilTransDownloadBtn_Click" Classes="PrimaryBtn" Content="Cài / cập nhật plugin" Padding="12,8" CornerRadius="6" Cursor="Hand" ToolTip.Tip="Tải atom26 từ manifest (zip + verify)"/>
+                                    <Button x:Name="UtilTransDeleteBtn" Click="UtilTransDeleteBtn_Click" Content="Gỡ plugin" Padding="12,8" CornerRadius="6" Cursor="Hand" ToolTip.Tip="Xóa package atom26 và lock"/>
+                                    <Button x:Name="UtilTransModelBtn" Click="UtilTransModelBtn_Click" Content="Tải model NLLB" Padding="12,8" CornerRadius="6" Cursor="Hand" ToolTip.Tip="Tải mô hình dịch (sau khi đã có plugin)"/>
+                                    <ComboBox x:Name="UtilTransModelCombo" Width="180" SelectedIndex="0" CornerRadius="6" IsVisible="False">
+                                        <ComboBoxItem Content="NLLB-200 600M"/>
                                     </ComboBox>
-                                    <Button x:Name="UtilTransDownloadBtn" Click="UtilTransDownloadBtn_Click" Classes="PrimaryBtn" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Download}">
-                                        <materialIcons:MaterialIcon Kind="Download" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Button>
-                                    <Button x:Name="UtilTransDeleteBtn" Click="UtilTransDeleteBtn_Click" Background="Transparent" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Delete}">
-                                        <materialIcons:MaterialIcon Kind="Delete" Width="18" Height="18" Foreground="#EF4444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Button>
                                 </StackPanel>
+                                <ProgressBar x:Name="UtilAtom26Progress" Minimum="0" Maximum="100" Height="6" IsVisible="False"/>
+                                <TextBlock x:Name="UtilAtom26LogText" Text="" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" MaxHeight="72"/>
                             </StackPanel>
                         </Border>
 
                         <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="20">
                             <StackPanel Spacing="16">
-                                <!-- Thông tin -->
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{DynamicResource Pref_Utilities_SpeakerLabeling}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Tách và nhận diện người nói (Speaker Diarization - atom32)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="atom32 — Speaker Diarization. Cài package rồi bật để gán người nói khi session chạy." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="UtilAtom32InstallText" Text="Đang kiểm tra cài đặt..." FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 
-                                <!-- Bật/Tắt Tiện Ích -->
                                 <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
                                     <ToggleSwitch x:Name="UtilAtom32Toggle" Grid.Column="0" OnContent="Bật Tiện ích (Kích hoạt cùng Overlay)" OffContent="Tắt Tiện ích (Vô hiệu hóa)" IsCheckedChanged="UtilAtom32Toggle_IsCheckedChanged" VerticalAlignment="Center"/>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                        <TextBlock Text="Trạng thái:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Runtime:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="UtilAtom32StateText" Text="Đã dừng" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
                                 
                                 <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>
 
-                                <!-- Controls -->
                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <ComboBox x:Name="UtilSpeakerModelCombo" Width="260" SelectedIndex="0" CornerRadius="6" IsEnabled="False">
-                                        <ComboBoxItem Content="Pyannote Segmentation 3.0 (Mặc định)"/>
+                                    <Button x:Name="UtilSpeakerDownloadBtn" Click="UtilSpeakerDownloadBtn_Click" Classes="PrimaryBtn" Content="Cài / cập nhật plugin" Padding="12,8" CornerRadius="6" Cursor="Hand" ToolTip.Tip="Tải atom32 từ manifest"/>
+                                    <Button x:Name="UtilSpeakerDeleteBtn" Click="UtilSpeakerDeleteBtn_Click" Content="Gỡ plugin" Padding="12,8" CornerRadius="6" Cursor="Hand" ToolTip.Tip="Xóa package atom32 và lock"/>
+                                    <ComboBox x:Name="UtilSpeakerModelCombo" Width="180" SelectedIndex="0" CornerRadius="6" IsVisible="False">
+                                        <ComboBoxItem Content="Default"/>
                                     </ComboBox>
-                                    <Button x:Name="UtilSpeakerDownloadBtn" Click="UtilSpeakerDownloadBtn_Click" Classes="PrimaryBtn" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Download}">
-                                        <materialIcons:MaterialIcon Kind="Download" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Button>
-                                    <Button x:Name="UtilSpeakerDeleteBtn" Click="UtilSpeakerDeleteBtn_Click" Background="Transparent" Width="36" Height="36" Padding="0" CornerRadius="6" Cursor="Hand" ToolTip.Tip="{DynamicResource Pref_Utilities_Delete}">
-                                        <materialIcons:MaterialIcon Kind="Delete" Width="18" Height="18" Foreground="#EF4444" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Button>
                                 </StackPanel>
+                                <ProgressBar x:Name="UtilAtom32Progress" Minimum="0" Maximum="100" Height="6" IsVisible="False"/>
+                                <TextBlock x:Name="UtilAtom32LogText" Text="" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" MaxHeight="72"/>
                             </StackPanel>
                         </Border>
 

@@ -86,6 +86,42 @@ namespace m_mslc_overlay.views.dialogs
 
             UpdateServerStateUI(OfflineTranslationServerManager.State);
             UpdateAtom32StateUI(DiarizerProcessManager.GlobalState);
+            _ = RefreshPluginInstallStatusAsync();
+        }
+
+        private async Task RefreshPluginInstallStatusAsync()
+        {
+            try
+            {
+                var s26 = await PluginManagerService.GetStatusAsync("atom26");
+                var s32 = await PluginManagerService.GetStatusAsync("atom32");
+
+                if (UtilAtom26InstallText != null)
+                {
+                    UtilAtom26InstallText.Text = $"Cài đặt: {s26.Summary}" +
+                        (s26.EnvReady ? "" : " · Runtime chỉ chạy khi có venv");
+                    UtilAtom26InstallText.Foreground = (s26.EntryScriptPresent && s26.EnvReady)
+                        ? Avalonia.Media.Brushes.Green
+                        : s26.InstallState == PluginInstallState.Broken
+                            ? Avalonia.Media.Brushes.Orange
+                            : Avalonia.Media.Brushes.Gray;
+                }
+
+                if (UtilAtom32InstallText != null)
+                {
+                    UtilAtom32InstallText.Text = $"Cài đặt: {s32.Summary}" +
+                        (s32.EnvReady ? "" : " · Bấm Cài lại để tạo .venv + pip");
+                    UtilAtom32InstallText.Foreground = (s32.EntryScriptPresent && s32.EnvReady)
+                        ? Avalonia.Media.Brushes.Green
+                        : s32.InstallState == PluginInstallState.Broken
+                            ? Avalonia.Media.Brushes.Orange
+                            : Avalonia.Media.Brushes.Gray;
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Log($"[PreferencesDialog] Refresh plugin status failed: {ex.Message}");
+            }
         }
 
         private void SaveSettings()
@@ -220,6 +256,7 @@ namespace m_mslc_overlay.views.dialogs
                     break;
                 case 4:
                     if (TabUtilities != null) TabUtilities.IsVisible = true;
+                    _ = RefreshPluginInstallStatusAsync();
                     break;
                 case 5:
                     if (TabAdvanced != null) TabAdvanced.IsVisible = true;
@@ -377,82 +414,147 @@ namespace m_mslc_overlay.views.dialogs
             ConfigManager.Save();
         }
 
-        // --- TAB TIỆN ÍCH (UTILITIES) ---
+        // --- TAB TIỆN ÍCH (UTILITIES) / PLUGIN MANAGER ---
 
-        // Dịch thuật Offline
         private async void UtilTransDownloadBtn_Click(object? sender, RoutedEventArgs e)
         {
-            if (UtilTransModelCombo == null) return;
+            await RunAtomInstallAsync("atom26", UtilAtom26Progress, UtilAtom26LogText, UtilTransDownloadBtn, UtilTransDeleteBtn);
+        }
+
+        private async void UtilTransDeleteBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunAtomUninstallAsync("atom26", "Offline Translation (atom26)", UtilAtom26LogText);
+        }
+
+        private async void UtilTransModelBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            var status = await PluginManagerService.GetStatusAsync("atom26");
+            if (!status.EntryScriptPresent)
+            {
+                await MessageDialog.ShowAsync(this, "Thông báo", "Cài plugin atom26 trước, rồi mới tải model.");
+                return;
+            }
 
             string modelId = "facebook/nllb-200-distilled-600m";
             string modelOutputDir = "models/nllb-600m-int8";
-
-            if (UtilTransModelCombo.SelectedIndex == 1)
+            if (UtilTransModelCombo?.SelectedIndex == 1)
             {
                 modelId = "Helsinki-NLP/opus-mt-en-vi";
                 modelOutputDir = "models/opus-en-vi-int8";
             }
 
-            // Tải/Cài đặt model
             var installDlg = new InstallationDialog(modelId, modelOutputDir);
             await installDlg.ShowDialog(this);
         }
 
-        private void UtilTransDeleteBtn_Click(object? sender, RoutedEventArgs e)
-        {
-            if (UtilTransModelCombo == null) return;
-            string modelDir = UtilTransModelCombo.SelectedIndex == 1 ? "opus-en-vi-int8" : "nllb-600m-int8";
-            DeleteModelFolder(modelDir);
-        }
-
-        // Speaker Diarization
         private async void UtilSpeakerDownloadBtn_Click(object? sender, RoutedEventArgs e)
         {
-            // Placeholder cho Speaker Labeling models
-            await MessageDialog.ShowAsync(this, "Thông báo", "Tính năng cài đặt mô hình Speaker Diarization đang được hoàn thiện.");
+            await RunAtomInstallAsync("atom32", UtilAtom32Progress, UtilAtom32LogText, UtilSpeakerDownloadBtn, UtilSpeakerDeleteBtn);
         }
 
-        private void UtilSpeakerDeleteBtn_Click(object? sender, RoutedEventArgs e)
+        private async void UtilSpeakerDeleteBtn_Click(object? sender, RoutedEventArgs e)
         {
-            // Placeholder
+            await RunAtomUninstallAsync("atom32", "Speaker Diarization (atom32)", UtilAtom32LogText);
+        }
+
+        private async Task RunAtomInstallAsync(
+            string atomId,
+            ProgressBar? progress,
+            TextBlock? logBlock,
+            Button? installBtn,
+            Button? deleteBtn)
+        {
+            if (installBtn != null) installBtn.IsEnabled = false;
+            if (deleteBtn != null) deleteBtn.IsEnabled = false;
+            if (progress != null) { progress.IsVisible = true; progress.Value = 0; }
+            if (logBlock != null) logBlock.Text = $"Đang cài {atomId}...";
+
+            try
+            {
+                bool ok = await PluginManagerService.InstallAsync(
+                    atomId,
+                    msg =>
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            if (logBlock != null)
+                            {
+                                string line = msg.Length > 200 ? msg.Substring(0, 200) + "…" : msg;
+                                logBlock.Text = line;
+                            }
+                        });
+                        LoggerService.Log(msg);
+                    },
+                    pct =>
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            if (progress != null) progress.Value = pct;
+                        });
+                    });
+
+                if (logBlock != null)
+                    logBlock.Text = ok ? $"Cài {atomId} thành công." : $"Cài {atomId} thất bại. Xem log app.";
+
+                var status = await PluginManagerService.GetStatusAsync(atomId);
+                await MessageDialog.ShowAsync(this,
+                    ok ? "Thành công" : "Lỗi",
+                    ok
+                        ? $"Plugin {atomId} sẵn sàng.\nEnv: {(status.EnvReady ? "venv OK" : "thiếu venv")}\n{status.InstallDir}"
+                        : $"Không cài được {atomId}. Cần Python 3 trên PATH, mạng (pip), xem log phía dưới / mslc_ui_debug.log.");
+            }
+            catch (Exception ex)
+            {
+                if (logBlock != null) logBlock.Text = ex.Message;
+                await MessageDialog.ShowAsync(this, "Lỗi", ex.Message);
+            }
+            finally
+            {
+                if (installBtn != null) installBtn.IsEnabled = true;
+                if (deleteBtn != null) deleteBtn.IsEnabled = true;
+                if (progress != null) progress.IsVisible = false;
+                await RefreshPluginInstallStatusAsync();
+            }
+        }
+
+        private async Task RunAtomUninstallAsync(string atomId, string displayName, TextBlock? logBlock)
+        {
+            bool go = await MessageDialog.ShowAsync(this, "Xác nhận",
+                $"Gỡ {displayName}?\nProcess liên quan sẽ dừng (nếu có) và thư mục cài bị xóa.",
+                showCancel: true);
+            if (!go) return;
+
+            if (logBlock != null) logBlock.Text = $"Đang gỡ {atomId}...";
+            try
+            {
+                bool ok = await PluginManagerService.UninstallAsync(atomId, msg =>
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        if (logBlock != null) logBlock.Text = msg;
+                    });
+                });
+                await MessageDialog.ShowAsync(this, ok ? "Thành công" : "Thông báo",
+                    ok
+                        ? $"Đã gỡ {displayName}."
+                        : $"Gỡ {displayName} không hoàn tất (xem log).");
+            }
+            catch (Exception ex)
+            {
+                await MessageDialog.ShowAsync(this, "Lỗi", ex.Message);
+            }
+            finally
+            {
+                await RefreshPluginInstallStatusAsync();
+            }
         }
 
         private void UtilAtom32Toggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {
             if (_isUpdatingToggle || UtilAtom32Toggle == null) return;
             ConfigManager.Current.EnableDiarizer = UtilAtom32Toggle.IsChecked ?? false;
-            LoggerService.Log($"[PreferencesDialog] atom32 (Speaker Diarization) EnableDiarizer toggled to {ConfigManager.Current.EnableDiarizer}");
-        }
-
-        private void DeleteModelFolder(string modelDirName)
-        {
-            try
-            {
-                string serverDir = OfflineTranslationServerManager.FindServerDirectory();
-                if (string.IsNullOrEmpty(serverDir))
-                {
-                    string configuredPath = ConfigManager.Current.OfflineServerDir;
-                    serverDir = Path.IsPathRooted(configuredPath) 
-                        ? configuredPath 
-                        : AppPathHelper.GetWritablePath(configuredPath);
-                }
-                string path = Path.Combine(serverDir, "models", modelDirName);
-                if (Directory.Exists(path))
-                {
-                    Directory.Delete(path, true);
-                    LoggerService.Log($"[PreferencesDialog] Deleted model folder: {path}");
-                    _ = MessageDialog.ShowAsync(this, "Thành công", $"Đã xóa mô hình: {modelDirName}");
-                }
-                else 
-                {
-                    _ = MessageDialog.ShowAsync(this, "Thông báo", $"Không tìm thấy thư mục mô hình: {modelDirName}");
-                }
-            }
-            catch (Exception ex)
-            {
-                LoggerService.Log($"[PreferencesDialog] Error deleting model folder {modelDirName}: {ex.Message}");
-                _ = MessageDialog.ShowAsync(this, "Lỗi", $"Lỗi khi xóa mô hình: {ex.Message}");
-            }
+            ConfigManager.Save();
+            LoggerService.Log($"[PreferencesDialog] atom32 EnableDiarizer = {ConfigManager.Current.EnableDiarizer}");
         }
 
         private async void RunEnvCheckBtn_Click(object? sender, RoutedEventArgs e)

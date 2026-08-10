@@ -125,6 +125,7 @@ class MachineSegmentView {
     const gutter = document.createElement("span");
     gutter.className = "seg-gutter";
     gutter.textContent = formatTimestamp(node.attrs.tsStartMs) + " [" + node.attrs.speakerId + "]";
+    this._gutter = gutter;
     // Note: Click handler removed from gutter (now on icon)
 
     const content = document.createElement("div");
@@ -139,6 +140,17 @@ class MachineSegmentView {
     this.dom.addEventListener("dblclick", () => {
       sendToHost({ type: "OPEN_EDIT_FIELD", segId: node.attrs.segId, pos: getPos() });
     });
+  }
+
+  // Refresh gutter when diarizer re-assigns speakerId (APPLY_PATCH)
+  update(node) {
+    if (node.type.name !== "machine_segment") return false;
+    this._segId = node.attrs.segId;
+    if (this._gutter) {
+      this._gutter.textContent =
+        formatTimestamp(node.attrs.tsStartMs) + " [" + node.attrs.speakerId + "]";
+    }
+    return true;
   }
   
   // Called from bridge when playback ends — re-enable the icon
@@ -655,6 +667,12 @@ window.__bridge = {
                     if (msg.newValue) {
                         contentNodes.push(schema.nodes.seg_trs.create({}, schema.text(msg.newValue)));
                     }
+                } else if (msg.field === "SpeakerId" || msg.field === "speakerId" || msg.field === "speaker_id") {
+                    // Diarizer re-resolved speaker: keep text, only change attrs.speakerId
+                    const newAttrs = { ...existingNode.attrs, speakerId: msg.newValue || "UNK" };
+                    const newNode = schema.nodes.machine_segment.create(newAttrs, existingNode.content);
+                    view.dispatch(view.state.tr.replaceWith(pos, pos + existingNode.nodeSize, newNode));
+                    return;
                 } else {
                     return;
                 }

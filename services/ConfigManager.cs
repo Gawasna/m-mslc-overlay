@@ -42,7 +42,8 @@ namespace m_mslc_overlay.services
         /// <summary>
         /// Audio input device index (0 = default system). Khớp với --device của cli_diarizer.py.
         /// </summary>
-        public int DiarizerDeviceIndex { get; set; } = 0;
+        /// <summary>-1 = auto WASAPI loopback (system audio). 0+ = explicit device index.</summary>
+        public int DiarizerDeviceIndex { get; set; } = -1;
 
         /// <summary>
         /// Cosine distance threshold để accept speaker match (0.0–1.0).

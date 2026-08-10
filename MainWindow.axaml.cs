@@ -44,7 +44,17 @@ namespace m_mslc_overlay
         private DiarizerProcessManager? _diarizerManager;
         private string _latestSpeakerUid = string.Empty;
         private string _latestSpeakerDisplayName = string.Empty;
+        private readonly object _timelineLock = new();
+        private System.Collections.Generic.List<MMslcOverlay.Services.SegmentInfo> _diarizerTimeline = new();
         private readonly System.Collections.Generic.Dictionary<Guid, long> _segmentIdMap = new();
+        /// <summary>
+        /// Recent machine segs for diarizer re-label when timeline_update arrives.
+        /// Locked = already has a real speaker (non-UNK); never flip 01↔02 after that.
+        /// </summary>
+        private readonly System.Collections.Generic.List<(long DbId, long TsStartMs, long TsEndMs, string SpeakerId, bool Locked)> _recentSpeakerSegs = new();
+        private const int MaxRecentSpeakerSegs = 80;
+        /// <summary>Nearest diarizer segment fallback max gap (seconds).</summary>
+        private const double SpeakerNearestMaxSec = 1.2;
 
         private readonly object _translationLock = new object();
         private string _translationBuffer = "";
@@ -281,11 +291,16 @@ namespace m_mslc_overlay
                         long tsStartMs = _lastSegmentEndMs > 0 ? Math.Max(_lastSegmentEndMs, startOffsetMs) : startOffsetMs;
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
-                        // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav
-                        string resolvedSpeaker = !string.IsNullOrEmpty(meta.SpeakerId) ? meta.SpeakerId : (!string.IsNullOrEmpty(_latestSpeakerUid) ? _latestSpeakerUid : "UNK");
+                        // atom32: prefer timeline match by segment mid-time; fallback latest recognition
+                        string resolvedSpeaker = !string.IsNullOrEmpty(meta.SpeakerId)
+                            ? meta.SpeakerId
+                            : ResolveSpeakerForInterval(tsStartMs, tsEndMs);
                         if (resolvedSpeaker != "UNK")
                         {
-                            string dispName = (resolvedSpeaker == _latestSpeakerUid && !string.IsNullOrEmpty(_latestSpeakerDisplayName)) ? _latestSpeakerDisplayName : resolvedSpeaker;
+                            string dispName = !string.IsNullOrEmpty(_latestSpeakerDisplayName)
+                                && resolvedSpeaker == _latestSpeakerUid
+                                ? _latestSpeakerDisplayName
+                                : resolvedSpeaker;
                             _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
                         }
                         
@@ -309,6 +324,16 @@ namespace m_mslc_overlay
                         // without going through _segmentIdMap (which drifts on ShortSentenceBuffer merges)
                         meta.WorkspaceDbId = dbId;
                         _segmentIdMap[segment.Id] = dbId;
+
+                        // Track for later re-label: only UNK can be filled later; real ids lock.
+                        if (dbId > 0)
+                        {
+                            bool locked = !string.IsNullOrEmpty(resolvedSpeaker)
+                                          && !string.Equals(resolvedSpeaker, "UNK", StringComparison.OrdinalIgnoreCase);
+                            _recentSpeakerSegs.Add((dbId, tsStartMs, tsEndMs, resolvedSpeaker, locked));
+                            while (_recentSpeakerSegs.Count > MaxRecentSpeakerSegs)
+                                _recentSpeakerSegs.RemoveAt(0);
+                        }
                     }
 
                     // FIX V6: No accumulation needed - translate per segment immediately
@@ -1510,6 +1535,9 @@ namespace m_mslc_overlay
                 // Step 5: Start recording
                 _workspaceVm.StartRecording();
                 AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
+
+                // Step 6: Speaker diarizer (atom32) — same lifecycle as session, not only Overlay button
+                await InitializeDiarizerAsync();
                 
                 // Update button to "Pause Recording"
                 _sessionState = SessionState.Recording;
@@ -1556,9 +1584,11 @@ namespace m_mslc_overlay
                     await FlushPendingEditsAsync();
                     AppendLog($"[{timestamp}] [SESSION] Pending edits flushed\n");
                 }
+
+                // Step 3: Stop diarizer with recording (runtime → Stopped in Preferences)
+                await ShutdownDiarizerAsync();
                 
-                // Step 3: Workspace stays OPEN (user can continue editing, export, etc.)
-                // User must explicitly close via File menu or Close Workspace button
+                // Step 4: Workspace stays OPEN (user can continue editing, export, etc.)
                 
                 // Update button state
                 _sessionState = SessionState.Idle;
@@ -1649,6 +1679,154 @@ namespace m_mslc_overlay
             }
         }
 
+        /// <summary>
+        /// Map STT interval (ms session timeline) to diarizer uid using last timeline_update.
+        /// Prefer max-overlap vote across diarizer segs (helps when STT spans 2 turns).
+        /// Nearest fallback is tight; long STT spans without overlap stay UNK rather than
+        /// stamping a far speaker.
+        /// </summary>
+        private string ResolveSpeakerForInterval(long tsStartMs, long tsEndMs)
+        {
+            double startSec = tsStartMs / 1000.0;
+            double endSec = tsEndMs / 1000.0;
+            if (endSec < startSec)
+                (startSec, endSec) = (endSec, startSec);
+            double midSec = (startSec + endSec) / 2.0;
+            double sttDur = endSec - startSec;
+
+            lock (_timelineLock)
+            {
+                if (_diarizerTimeline.Count > 0)
+                {
+                    // 1) Max overlap duration per uid (majority of talk time in STT window)
+                    var overlapByUid = new System.Collections.Generic.Dictionary<string, double>(StringComparer.Ordinal);
+                    MMslcOverlay.Services.SegmentInfo? nearest = null;
+                    double nearestDist = double.MaxValue;
+
+                    foreach (var seg in _diarizerTimeline)
+                    {
+                        if (string.IsNullOrEmpty(seg.Uid))
+                            continue;
+
+                        double ovStart = Math.Max(startSec, seg.Start);
+                        double ovEnd = Math.Min(endSec, seg.End);
+                        double ov = ovEnd - ovStart;
+                        if (ov > 0.02)
+                        {
+                            if (!overlapByUid.TryGetValue(seg.Uid, out double acc))
+                                acc = 0;
+                            overlapByUid[seg.Uid] = acc + ov;
+                        }
+
+                        double segMid = (seg.Start + seg.End) / 2.0;
+                        double d = Math.Abs(segMid - midSec);
+                        if (d < nearestDist)
+                        {
+                            nearestDist = d;
+                            nearest = seg;
+                        }
+                    }
+
+                    string? bestUid = null;
+                    if (overlapByUid.Count > 0)
+                    {
+                        double bestOv = -1;
+                        foreach (var kv in overlapByUid)
+                        {
+                            if (kv.Value > bestOv)
+                            {
+                                bestOv = kv.Value;
+                                bestUid = kv.Key;
+                            }
+                        }
+                    }
+                    else if (sttDur <= 2.5 && nearest != null && nearestDist <= SpeakerNearestMaxSec)
+                    {
+                        // No overlap: only short STT lines may use nearest, and only close by.
+                        bestUid = nearest.Uid;
+                    }
+
+                    if (!string.IsNullOrEmpty(bestUid))
+                    {
+                        var match = _diarizerTimeline.Find(s => s.Uid == bestUid);
+                        if (match != null && !string.IsNullOrEmpty(match.Identity))
+                            _latestSpeakerDisplayName = match.Identity;
+                        _latestSpeakerUid = bestUid;
+                        return bestUid;
+                    }
+                }
+            }
+
+            // No reliable map yet — leave UNK (do not glue latest speaker onto every early line)
+            return "UNK";
+        }
+
+        /// <summary>
+        /// When diarizer timeline updates: only fill UNK → real speaker.
+        /// Never flip Speaker-01 ↔ Speaker-02 after first non-UNK (log: Oh OK. thrash 3x).
+        /// </summary>
+        private void RelabelRecentSegmentsFromTimeline()
+        {
+            if (_recentSpeakerSegs.Count == 0) return;
+
+            var updates = new System.Collections.Generic.List<(long DbId, string NewSpeaker)>();
+            for (int i = 0; i < _recentSpeakerSegs.Count; i++)
+            {
+                var entry = _recentSpeakerSegs[i];
+                // Locked = already had a real speaker id at insert or previous fill
+                if (entry.Locked)
+                    continue;
+                if (!string.IsNullOrEmpty(entry.SpeakerId)
+                    && !string.Equals(entry.SpeakerId, "UNK", StringComparison.OrdinalIgnoreCase))
+                {
+                    _recentSpeakerSegs[i] = (entry.DbId, entry.TsStartMs, entry.TsEndMs, entry.SpeakerId, true);
+                    continue;
+                }
+
+                string resolved = ResolveSpeakerForInterval(entry.TsStartMs, entry.TsEndMs);
+                if (string.IsNullOrEmpty(resolved)
+                    || string.Equals(resolved, "UNK", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (string.Equals(entry.SpeakerId, resolved, StringComparison.Ordinal))
+                {
+                    _recentSpeakerSegs[i] = (entry.DbId, entry.TsStartMs, entry.TsEndMs, resolved, true);
+                    continue;
+                }
+
+                updates.Add((entry.DbId, resolved));
+                // Lock after first real assignment — no more flips
+                _recentSpeakerSegs[i] = (entry.DbId, entry.TsStartMs, entry.TsEndMs, resolved, true);
+            }
+
+            if (updates.Count == 0) return;
+
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    var baseRepo = _workspaceVm?.Service?.ActiveSegmentRepo;
+                    var sheet = _workspaceVm?.Sheet as PaperSheetViewModel;
+                    foreach (var (dbId, newSpeaker) in updates)
+                    {
+                        try { baseRepo?.UpdateSegmentSpeaker(dbId, newSpeaker); }
+                        catch { /* non-fatal */ }
+
+                        sheet?.SendToEditor(new BridgeMessage
+                        {
+                            Type = "APPLY_PATCH",
+                            SegId = dbId.ToString(),
+                            Field = "SpeakerId",
+                            NewValue = newSpeaker
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"[DIARIZER] Relabel failed: {ex.Message}\n");
+                }
+            });
+        }
+
         private async System.Threading.Tasks.Task InitializeDiarizerAsync()
         {
             if (_diarizerManager != null) return;
@@ -1660,6 +1838,11 @@ namespace m_mslc_overlay
                 _workspaceVm.NavPane?.SetDiarizerUnavailable("Feature disabled in Preferences. Enable to use speaker diarization.");
                 return;
             }
+
+            lock (_timelineLock) { _diarizerTimeline = new System.Collections.Generic.List<MMslcOverlay.Services.SegmentInfo>(); }
+            _latestSpeakerUid = string.Empty;
+            _latestSpeakerDisplayName = string.Empty;
+            _recentSpeakerSegs.Clear();
             
             _diarizerManager = new DiarizerProcessManager();
             
@@ -1684,25 +1867,29 @@ namespace m_mslc_overlay
             }
 
             string installDir = PluginManifestService.ResolveInstallDir(atom32Entry.InstallDir);
-            string pythonExe = Path.Combine(installDir, ".venv", "Scripts", "python.exe");
             string scriptPath = Path.Combine(installDir, atom32Entry.EntryScript);
+            string? pythonExe = await PluginManagerService.ResolvePythonExeAsync("atom32");
 
-            if (!File.Exists(pythonExe) || !File.Exists(scriptPath))
+            if (string.IsNullOrEmpty(pythonExe) || !File.Exists(scriptPath))
             {
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] Cannot find python ({pythonExe}) or script ({scriptPath}).\n");
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Install atom32 from Preferences > Utilities > Speaker Diarization.\n");
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER ERROR] Missing venv python or script.\n");
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Preferences > Utilities > Cài / cập nhật plugin (atom32) để tạo .venv + pip.\n");
+                AppendLog($"  script={scriptPath}\n  python={pythonExe ?? "(null)"}\n");
                 _diarizerManager.Dispose();
                 _diarizerManager = null;
-                _workspaceVm.NavPane?.SetDiarizerUnavailable("Plugin not installed. Open Preferences to download.");
+                _workspaceVm.NavPane?.SetDiarizerUnavailable("Plugin thiếu venv. Mở Preferences → Utilities → Cài lại atom32.");
                 return;
             }
 
+            // -1 = auto WASAPI loopback (system audio). Device 0 is usually the mic and
+            // will not hear YouTube/speakers that Live Captions is captioning.
+            int deviceIdx = ConfigManager.Current.DiarizerDeviceIndex;
             var config = new DiarizerConfig(
-                DeviceIndex: ConfigManager.Current.DiarizerDeviceIndex,
+                DeviceIndex: deviceIdx,
                 Debug: true
             );
 
-            AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Starting Speaker Diarizer Process...\n");
+            AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Starting Speaker Diarizer: {pythonExe} (device={deviceIdx}; -1=auto loopback)\n");
             await _diarizerManager.StartAsync(config, pythonExe, scriptPath);
         }
 
@@ -1756,21 +1943,26 @@ namespace m_mslc_overlay
             switch (evt)
             {
                 case TimelineUpdateEvent tu:
-                    // Update NavPane speaker list on UI thread
+                    lock (_timelineLock)
+                    {
+                        _diarizerTimeline = tu.Segments ?? new System.Collections.Generic.List<MMslcOverlay.Services.SegmentInfo>();
+                    }
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        _workspaceVm.NavPane?.SyncSpeakers(tu.Segments);
+                        if (tu.Segments != null)
+                            _workspaceVm.NavPane?.SyncSpeakers(tu.Segments);
                     });
+                    // Re-stamp speaker labels on recent paper lines as roster stabilizes
+                    RelabelRecentSegmentsFromTimeline();
                     break;
 
                 case RecognitionEvent re:
-                    // Cache latest speaker for next commit and instantly sync with Doc Nav
                     _latestSpeakerUid = re.Uid;
-                    _latestSpeakerDisplayName = re.DisplayName;
+                    _latestSpeakerDisplayName = string.IsNullOrEmpty(re.DisplayName) ? re.Uid : re.DisplayName;
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         if (!string.IsNullOrEmpty(re.Uid))
-                            _workspaceVm.NavPane?.AddOrUpdateSpeaker(re.Uid, !string.IsNullOrEmpty(re.DisplayName) ? re.DisplayName : re.Uid);
+                            _workspaceVm.NavPane?.AddOrUpdateSpeaker(re.Uid, _latestSpeakerDisplayName);
                     });
                     break;
 

@@ -181,75 +181,79 @@ namespace m_mslc_overlay.services
             // Resolve install dir (relative to BaseDir or repo root)
             string installDir = ResolveInstallDir(atom.InstallDir);
 
-            // In DevMode, if the plugin is already present in the repository with its script and python executable,
-            // we treat it as installed to avoid overwriting dev code or downloading.
-            string venvDirName = atomId == "atom32" ? ".venv" : "venv";
-            string devPythonExe = Path.Combine(installDir, venvDirName, "Scripts", "python.exe");
-            string devScriptPath = Path.Combine(installDir, atom.EntryScript);
-            if (AppPathHelper.IsDevMode && File.Exists(devScriptPath) && File.Exists(devPythonExe))
+            string entryPath = Path.Combine(installDir, atom.EntryScript);
+            bool scriptPresent = File.Exists(entryPath);
+            bool envReady = PluginPythonEnvService.IsEnvReady(installDir, atomId);
+            bool locked = PluginInstallLockManager.IsInstalled(atomId, atom.Version);
+
+            // Package files already OK — still ensure Python venv/deps
+            if (scriptPresent && locked && envReady)
             {
-                onLog($"[PluginManifestService] [DEV] {atom.Name} detected in repository root with venv. Skipping setup.");
-                PluginInstallLockManager.RecordInstallation(
-                    atomId,
-                    atom.Version,
-                    installDir,
-                    atom.SourceUrl,
-                    sha256Verified: false);
+                onLog($"[PluginManifestService] {atom.Name} v{atom.Version} already installed (files + venv). Skipping.");
+                onProgress(100);
                 return true;
             }
 
-            // Check already installed at correct version
-            if (PluginInstallLockManager.IsInstalled(atomId, atom.Version))
-            {
-                // Verify entry script still physically exists
-                string entryPath = Path.Combine(installDir, atom.EntryScript);
-                if (File.Exists(entryPath))
-                {
-                    onLog($"[PluginManifestService] {atom.Name} v{atom.Version} already installed. Skipping.");
-                    return true;
-                }
-                // Lock file stale — reinstall
-                onLog($"[PluginManifestService] Lock entry exists but {atom.EntryScript} is missing. Reinstalling...");
-                PluginInstallLockManager.RemoveRecord(atomId);
-            }
-
             if (!Directory.Exists(installDir))
-            {
                 Directory.CreateDirectory(installDir);
-            }
 
-            bool success;
+            bool packageOk = scriptPresent;
 
-            if (atom.SourceUrl.StartsWith("local:", StringComparison.OrdinalIgnoreCase))
+            if (!packageOk)
             {
-                // Dev-mode: copy from local source directory
-                success = await LocalCopyAsync(atom, installDir, onLog, onProgress);
-            }
-            else if (atom.SourceUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-                  || atom.SourceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-            {
-                // Production: download ZIP from remote URL
-                success = await RemoteDownloadAsync(atom, installDir, onLog, onProgress);
-            }
-            else
-            {
-                onLog($"[PluginManifestService] Unknown source_url scheme: {atom.SourceUrl}");
-                return false;
-            }
+                if (locked)
+                {
+                    onLog($"[PluginManifestService] Lock entry exists but {atom.EntryScript} is missing. Reinstalling package...");
+                    PluginInstallLockManager.RemoveRecord(atomId);
+                }
 
-            if (success)
-            {
+                if (atom.SourceUrl.StartsWith("local:", StringComparison.OrdinalIgnoreCase))
+                    packageOk = await LocalCopyAsync(atom, installDir, onLog, onProgress);
+                else if (atom.SourceUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                      || atom.SourceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                    packageOk = await RemoteDownloadAsync(atom, installDir, onLog, onProgress);
+                else
+                {
+                    onLog($"[PluginManifestService] Unknown source_url scheme: {atom.SourceUrl}");
+                    return false;
+                }
+
+                if (!packageOk)
+                    return false;
+
                 PluginInstallLockManager.RecordInstallation(
                     atomId,
                     atom.Version,
                     installDir,
                     atom.SourceUrl,
                     sha256Verified: !string.IsNullOrEmpty(atom.Sha256));
-
-                onLog($"[PluginManifestService] {atom.Name} v{atom.Version} installed successfully.");
+                onLog($"[PluginManifestService] {atom.Name} v{atom.Version} package files ready.");
+            }
+            else if (!locked)
+            {
+                PluginInstallLockManager.RecordInstallation(
+                    atomId,
+                    atom.Version,
+                    installDir,
+                    atom.SourceUrl,
+                    sha256Verified: false);
             }
 
-            return success;
+            // Always ensure venv + pip (progress 70→100 when package already present)
+            onProgress(70);
+            onLog($"[PluginManifestService] Setting up Python environment for {atomId}...");
+            bool envOk = await PluginPythonEnvService.EnsureEnvAsync(
+                atomId, installDir, onLog, p => onProgress(70 + p * 0.3));
+
+            if (!envOk)
+            {
+                onLog($"[PluginManifestService] Package installed but Python env failed for {atomId}.");
+                return false;
+            }
+
+            onProgress(100);
+            onLog($"[PluginManifestService] {atom.Name} fully ready (package + venv).");
+            return true;
         }
 
         /// <summary>
@@ -265,6 +269,96 @@ namespace m_mslc_overlay.services
             if (record == null) return false; // Not installed at all
 
             return record.Version == atom.Version;
+        }
+
+        /// <summary>
+        /// True if entry script exists under the resolved install directory.
+        /// </summary>
+        public static bool IsEntryScriptPresent(AtomManifestEntry atom)
+        {
+            string installDir = ResolveInstallDir(atom.InstallDir);
+            string entryPath = Path.Combine(installDir, atom.EntryScript);
+            return File.Exists(entryPath);
+        }
+
+        /// <summary>
+        /// Removes lock record and deletes install directory (best-effort).
+        /// Caller should stop any running process for this atom first.
+        /// </summary>
+        public static async Task<bool> UninstallAsync(string atomId, Action<string>? onLog = null)
+        {
+            void Log(string msg)
+            {
+                onLog?.Invoke(msg);
+                LoggerService.Log(msg);
+            }
+
+            var atom = await FindAtomAsync(atomId);
+            var record = PluginInstallLockManager.GetRecord(atomId);
+            string? installDir = null;
+
+            if (record != null && !string.IsNullOrWhiteSpace(record.InstallDir))
+                installDir = record.InstallDir;
+            else if (atom != null)
+                installDir = ResolveInstallDir(atom.InstallDir);
+
+            if (string.IsNullOrWhiteSpace(installDir))
+            {
+                Log($"[PluginManifestService] Uninstall: no install path for '{atomId}'.");
+                PluginInstallLockManager.RemoveRecord(atomId);
+                return false;
+            }
+
+            // Never delete the repo plugins/ stub in a reckless way when only metadata present —
+            // still allow delete if user requested uninstall of a full install tree.
+            try
+            {
+                if (Directory.Exists(installDir))
+                {
+                    Log($"[PluginManifestService] Uninstalling '{atomId}' from {installDir}...");
+                    await Task.Run(() =>
+                    {
+                        // Remove venv / caches first if present
+                        foreach (var sub in new[] { "venv", ".venv", "__pycache__", "models" })
+                        {
+                            string p = Path.Combine(installDir, sub);
+                            if (Directory.Exists(p))
+                            {
+                                try { Directory.Delete(p, recursive: true); }
+                                catch (Exception ex) { Log($"  warn: could not delete {sub}: {ex.Message}"); }
+                            }
+                        }
+
+                        // Delete remaining files except leave directory if locked
+                        try
+                        {
+                            Directory.Delete(installDir, recursive: true);
+                        }
+                        catch
+                        {
+                            // Partial cleanup: delete known entry scripts / py files
+                            foreach (var file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
+                            {
+                                try { File.Delete(file); } catch { /* ignore */ }
+                            }
+                        }
+                    });
+                    Log($"[PluginManifestService] Removed install directory for '{atomId}'.");
+                }
+                else
+                {
+                    Log($"[PluginManifestService] Install dir missing for '{atomId}' (already clean).");
+                }
+
+                PluginInstallLockManager.RemoveRecord(atomId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log($"[PluginManifestService] Uninstall failed for '{atomId}': {ex.Message}");
+                PluginInstallLockManager.RemoveRecord(atomId);
+                return false;
+            }
         }
 
         // ---- Private Helpers ----
