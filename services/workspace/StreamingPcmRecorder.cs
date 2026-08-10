@@ -36,6 +36,9 @@ public class StreamingPcmRecorder : IDisposable
 
     public string SessionId => _metadata.SessionId;
     public long CurrentOffsetMs => _sessionOffsetMs;
+    
+    private long _startPreciseTicks = 0;
+    public long StartPreciseTicks => _startPreciseTicks;
 
     public StreamingPcmRecorder(string audioDir, string sessionId)
     {
@@ -119,6 +122,8 @@ public class StreamingPcmRecorder : IDisposable
             
             _capture.DataAvailable += OnDataAvailable;
             _capture.StartRecording();
+            
+            _startPreciseTicks = MSLCOverlay.Core.Services.Clock.ClockSyncHelper.GetCurrentPreciseTicks();
             
             _isRecording = true;
             Console.WriteLine($"[StreamingPcmRecorder] ✅ Recording started via WASAPI Loopback (Output Device) for session {SessionId} -> {_capture.WaveFormat}");

@@ -288,6 +288,8 @@ namespace m_mslc_overlay
                             string dispName = (resolvedSpeaker == _latestSpeakerUid && !string.IsNullOrEmpty(_latestSpeakerDisplayName)) ? _latestSpeakerDisplayName : resolvedSpeaker;
                             _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
                         }
+                        
+                        _workspaceVm.Service.IngestionService.ClockSync = _pipeService.ClockSync;
 
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
@@ -520,7 +522,6 @@ namespace m_mslc_overlay
             this.Opened += (s, e) => {
                 InitializeHotkeys();
                 InitializeFocusKeys();
-                RefreshRecentWorkspacesMenu();
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
@@ -554,7 +555,6 @@ namespace m_mslc_overlay
         public MainWindow(string workspacePath) : this()
         {
             _workspaceVm.OpenOrCreate(workspacePath);
-            ConfigManager.AddRecentWorkspace(workspacePath);
         }
 
         /// <summary>
@@ -632,6 +632,11 @@ namespace m_mslc_overlay
             _ = NewWorkspaceFlowAsync();
         }
 
+        private void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
+        {
+            // Placeholder for advanced export options dialog
+        }
+
         private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()
         {
             // Dirty-check trước khi đóng workspace hiện tại
@@ -657,8 +662,6 @@ namespace m_mslc_overlay
             try
             {
                 _workspaceVm.OpenOrCreate(newPath);
-                ConfigManager.AddRecentWorkspace(newPath);
-                RefreshRecentWorkspacesMenu();
             }
             catch (Exception ex)
             {
@@ -937,87 +940,6 @@ namespace m_mslc_overlay
             try
             {
                 _workspaceVm.OpenOrCreate(selectedPath);
-                ConfigManager.AddRecentWorkspace(selectedPath);
-                RefreshRecentWorkspacesMenu();
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync("Lỗi mở workspace", ex.Message);
-            }
-        }
-
-        private void RefreshRecentWorkspacesMenu()
-        {
-            var recentMenu = this.FindControl<MenuItem>("RecentWorkspacesMenuItem");
-            if (recentMenu == null) return;
-
-            recentMenu.Items.Clear();
-
-            var recents = ConfigManager.Current.RecentWorkspaces;
-            if (recents == null || recents.Count == 0)
-            {
-                recentMenu.Items.Add(new MenuItem { Header = "(Không có workspace gần đây)", IsEnabled = false });
-                return;
-            }
-
-            int idx = 1;
-            foreach (var path in recents)
-            {
-                string folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                if (string.IsNullOrEmpty(folderName)) folderName = path;
-
-                var menuItem = new MenuItem
-                {
-                    Header = $"_{idx++}. {folderName}"
-                };
-                ToolTip.SetTip(menuItem, path);
-
-                string localPath = path;
-                menuItem.Click += async (s, e) =>
-                {
-                    await OpenRecentWorkspaceAsync(localPath);
-                };
-
-                recentMenu.Items.Add(menuItem);
-            }
-
-            recentMenu.Items.Add(new Separator());
-            var clearMenu = new MenuItem { Header = "Clear _History" };
-            clearMenu.Click += (s, e) =>
-            {
-                ConfigManager.Current.RecentWorkspaces.Clear();
-                ConfigManager.Save();
-                RefreshRecentWorkspacesMenu();
-            };
-            recentMenu.Items.Add(clearMenu);
-        }
-
-        private async System.Threading.Tasks.Task OpenRecentWorkspaceAsync(string selectedPath)
-        {
-            if (_workspaceVm.IsOpen && _workspaceVm.IsDirty)
-            {
-                var choice = await ShowUnsavedChangesDialogAsync();
-                if (choice == UnsavedChoice.Cancel) return;
-                if (choice == UnsavedChoice.Save) await _workspaceVm.FlushPendingAsync();
-            }
-
-            var storage = new MMslcOverlay.Core.Workspace.Storage.WorkspaceStorage(selectedPath);
-            if (!storage.IsValidWorkspace())
-            {
-                await ShowErrorMessageAsync("Không tìm thấy Workspace",
-                    $"Thư mục '{selectedPath}' không tồn tại hoặc không còn hợp lệ.\n" +
-                    "Đã tự động xóa khỏi danh sách Recent.");
-                ConfigManager.Current.RecentWorkspaces.RemoveAll(p => string.Equals(p, selectedPath, StringComparison.OrdinalIgnoreCase));
-                ConfigManager.Save();
-                RefreshRecentWorkspacesMenu();
-                return;
-            }
-
-            try
-            {
-                _workspaceVm.OpenOrCreate(selectedPath);
-                ConfigManager.AddRecentWorkspace(selectedPath);
-                RefreshRecentWorkspacesMenu();
             }
             catch (Exception ex)
             {
@@ -1059,7 +981,7 @@ namespace m_mslc_overlay
             await dialog.ShowDialog(this);
         }
 
-        // Gap 7: Close Workspace menu handler — với dirty check & UI reset (Item 17)
+        // Gap 7: Close Workspace menu handler — với dirty check
         private async void OnCloseWorkspaceMenuClick(object? sender, RoutedEventArgs e)
         {
             if (_workspaceVm.IsDirty)
@@ -1072,24 +994,6 @@ namespace m_mslc_overlay
 
             if (_workspaceVm.IsRecording) _workspaceVm.StopRecording();
             _workspaceVm.CloseWorkspace();
-
-            // Item 17: Clear UI state & buffers when closing workspace
-            lock (_logLock)
-            {
-                _rawLogs.Clear();
-                _isLogDirty = true;
-            }
-            lock (_translationLock)
-            {
-                _translationBuffer = "";
-                _translationDisplayBuffer = "";
-                _contextHints.Clear();
-            }
-            _lastPartialCaption = "";
-            _segmentTracker.Reset();
-            _revisionWindow.Reset();
-            _segmentIdMap.Clear();
-            _lastSegmentEndMs = 0;
             
             // Update session control button to "Start Session" state
             var btn = this.FindControl<Button>("SessionControlBtn");
@@ -2021,74 +1925,6 @@ namespace m_mslc_overlay
             preferencesDialog.ShowDialog(this);
         }
 
-        private async void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
-        {
-            var exportDialog = new m_mslc_overlay.views.dialogs.ExportDialog(async (jsonPayload) => {
-                services.LoggerService.Log($"[MainWindow] Export callback triggered with JSON payload:\n{jsonPayload}");
-                await ProcessAdvancedExportPayloadAsync(jsonPayload);
-            });
-            await exportDialog.ShowDialog(this);
-        }
-
-        private async System.Threading.Tasks.Task ProcessAdvancedExportPayloadAsync(string jsonPayload)
-        {
-            if (_workspaceVm?.Service?.SegmentRepo == null)
-            {
-                await ShowErrorMessageAsync("Lỗi xuất file", "Chưa mở workspace hoặc kho dữ liệu rỗng!");
-                return;
-            }
-
-            try
-            {
-                using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
-                var root = doc.RootElement;
-
-                bool enableSub = root.TryGetProperty("enableSubtitle", out var subProp) && subProp.GetBoolean();
-                string outputPath = root.TryGetProperty("outputPath", out var pathProp) ? pathProp.GetString() ?? "" : "";
-                string filenamePattern = root.TryGetProperty("fileNamePattern", out var nameProp) ? nameProp.GetString() ?? "export" : "export";
-
-                if (!enableSub || string.IsNullOrWhiteSpace(outputPath)) return;
-
-                var subConfig = root.GetProperty("subtitleConfig");
-                string format = subConfig.TryGetProperty("format", out var fmtProp) ? fmtProp.GetString() ?? ".SRT" : ".SRT";
-                string contentMode = subConfig.TryGetProperty("contentMode", out var modeProp) ? modeProp.GetString() ?? "Song ngữ (EN + VI)" : "Song ngữ (EN + VI)";
-                string encoding = subConfig.TryGetProperty("encoding", out var encProp) ? encProp.GetString() ?? "UTF-8" : "UTF-8";
-
-                MMslcOverlay.Core.Workspace.Export.IExporter exporter = format.ToUpper() switch
-                {
-                    ".TXT" => new MMslcOverlay.Core.Workspace.Export.TxtExporter(),
-                    ".MD" => new MMslcOverlay.Core.Workspace.Export.MarkdownExporter(),
-                    ".JSON" => new MMslcOverlay.Core.Workspace.Export.JsonExporter(),
-                    ".PDF" => new MMslcOverlay.Core.Workspace.Export.PdfExporter(),
-                    _ => new MMslcOverlay.Core.Workspace.Export.SrtExporter()
-                };
-
-                exporter.ContentMode = contentMode;
-
-                var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
-                string exportedContent = engine.RunExport(exporter);
-
-                string ext = format.StartsWith(".") ? format.ToLower() : "." + format.ToLower();
-                if (!filenamePattern.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                {
-                    filenamePattern += ext;
-                }
-
-                string fullDestPath = Path.Combine(outputPath, filenamePattern);
-
-                var enc = encoding.Equals("ANSI", StringComparison.OrdinalIgnoreCase) ? System.Text.Encoding.ASCII : System.Text.Encoding.UTF8;
-                await File.WriteAllTextAsync(fullDestPath, exportedContent, enc);
-
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Xuất file thành công: {fullDestPath} (Chế độ: {contentMode})\n");
-                _workspaceVm.RefreshSessionFiles();
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Lỗi xuất file nâng cao: {ex.Message}\n");
-                await ShowErrorMessageAsync("Lỗi xuất file", ex.Message);
-            }
-        }
-
         private void ActiveExtractorCheckout_Click(object? sender, RoutedEventArgs e)
         {
             var updateDialog = new m_mslc_overlay.views.dialogs.ExtractorUpdateDialog();
@@ -2236,12 +2072,6 @@ namespace m_mslc_overlay
                 _focusKeyController.Register(Key.T, KeyModifiers.Control, ToggleTranslation);
                 _focusKeyController.Register(Key.L, KeyModifiers.Control, CycleLanguage);
                 _focusKeyController.Register(Key.C, KeyModifiers.Control, ClearOverlayText);
-                _focusKeyController.Register(Key.S, KeyModifiers.Control, () => _ = SaveWorkspaceSessionAsync());
-                _focusKeyController.Register(Key.S, KeyModifiers.Control | KeyModifiers.Shift, () => OnExportAdvancedMenuClick(null, null));
-                _focusKeyController.Register(Key.E, KeyModifiers.Control, () => {
-                    if (_workspaceVm != null && _workspaceVm.IsOpen && _workspaceVm.ExportSrtCommand.CanExecute(null))
-                        _workspaceVm.ExportSrtCommand.Execute(null);
-                });
                 _focusKeyController.Register(Key.Up, KeyModifiers.Control, () => ChangeOverlayFontSize(2.0));
                 _focusKeyController.Register(Key.Down, KeyModifiers.Control, () => ChangeOverlayFontSize(-2.0));
 
@@ -2260,20 +2090,11 @@ namespace m_mslc_overlay
                 _focusKeyController.RegisterFallbackKey(Key.L, CycleLanguage);
                 _focusKeyController.RegisterFallbackKey(Key.C, ClearOverlayText);
 
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Focused window key controller initialized (Ctrl+S enabled).\n");
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Focused window key controller initialized.\n");
             }
             catch (Exception ex)
             {
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize focused key controller: {ex.Message}\n");
-            }
-        }
-
-        private async System.Threading.Tasks.Task SaveWorkspaceSessionAsync()
-        {
-            if (_workspaceVm != null && _workspaceVm.IsOpen)
-            {
-                await _workspaceVm.FlushPendingAsync();
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Workspace session saved (Ctrl+S).\n");
             }
         }
 

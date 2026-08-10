@@ -94,7 +94,6 @@
                 <MenuItem Header="{DynamicResource Menu_File}">
                     <MenuItem Header="_New Workspace" Click="OnNewWorkspaceMenuClick" />
                     <MenuItem Header="_Open Workspace..." Click="OnOpenWorkspaceMenuClick" />
-                    <MenuItem Header="Open _Recent" x:Name="RecentWorkspacesMenuItem" />
                     <MenuItem Header="_Close Workspace" Click="OnCloseWorkspaceMenuClick" IsEnabled="{Binding IsOpen}" x:CompileBindings="False" />
                     <Separator />
                     <MenuItem Header="_Export" IsEnabled="{Binding IsOpen}" x:CompileBindings="False">
