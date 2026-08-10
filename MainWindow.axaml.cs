@@ -288,8 +288,6 @@ namespace m_mslc_overlay
                             string dispName = (resolvedSpeaker == _latestSpeakerUid && !string.IsNullOrEmpty(_latestSpeakerDisplayName)) ? _latestSpeakerDisplayName : resolvedSpeaker;
                             _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
                         }
-                        
-                        _workspaceVm.Service.IngestionService.ClockSync = _pipeService.ClockSync;
 
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
