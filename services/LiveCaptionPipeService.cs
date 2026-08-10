@@ -172,26 +172,14 @@ namespace m_mslc_overlay.services
                 // 1. Handle session_started event (Algorithm B)
                 if (eventName.Equals("session_started", StringComparison.OrdinalIgnoreCase))
                 {
-                    double tSessionStarted = wallClockMs;
+                    long tSessionStartedTicks = ClockSyncHelper.GetCurrentPreciseTicks();
 
-                    if (root.TryGetProperty("ts_ms", out var tsProp) && tsProp.ValueKind == JsonValueKind.Number && tsProp.TryGetDouble(out double tsVal) && tsVal > 0)
+                    if (root.TryGetProperty("precise_ticks", out var ptProp) && ptProp.ValueKind == JsonValueKind.Number && ptProp.TryGetUInt64(out ulong ptVal) && ptVal > 0)
                     {
-                        long bootTimeUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - Environment.TickCount64;
-                        tSessionStarted = tsVal + bootTimeUnixMs;
-                    }
-                    else if (root.TryGetProperty("precise_ticks", out var ptProp) && ptProp.ValueKind == JsonValueKind.Number && ptProp.TryGetUInt64(out ulong ptVal) && ptVal > 0)
-                    {
-                        try
-                        {
-                            tSessionStarted = DateTimeOffset.FromFileTime((long)ptVal).ToUnixTimeMilliseconds();
-                        }
-                        catch
-                        {
-                            tSessionStarted = wallClockMs;
-                        }
+                        tSessionStartedTicks = (long)ptVal;
                     }
 
-                    _clockSyncHelper.AnchorHardSessionStart((long)tSessionStarted);
+                    _clockSyncHelper.AnchorHardSessionStart(tSessionStartedTicks);
                     
                     _comparisonLogger.LogEvent(new ClockSyncLogEntry(
                         SystemTimestampMs: wallClockMs,
@@ -203,7 +191,7 @@ namespace m_mslc_overlay.services
                         SdkDurationMs: 0,
                         AlgAIsAnchored: _clockSyncHelper.IsInitialized,
                         AlgAAnchorMs: 0,
-                        AlgAPlayheadMs: _clockSyncHelper.CalculateTargetPlaybackMs(0, (long)(tSessionStarted * 10000)),
+                        AlgAPlayheadMs: _clockSyncHelper.CalculateTargetPlaybackMs(0, tSessionStartedTicks),
                         AlgBIsAnchored: _clockSyncHelper.IsInitialized,
                         AlgBDeltaPhaseMs: 0,
                         AlgBPlayheadMs: _clockSyncHelper.CalculateTargetPlaybackMs(0),
@@ -213,13 +201,18 @@ namespace m_mslc_overlay.services
                     return;
                 }
 
+                // ATOM: Filter out AgentResearch telemetry events to prevent ACE from resetting LCP
+                if (!string.IsNullOrEmpty(eventName) && !eventName.Equals("caption", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
                 // 2. Handle caption events and calculate clock sync metrics
                 if (!string.IsNullOrWhiteSpace(text) || offset > 0)
                 {
                     if (!_clockSyncHelper.IsInitialized)
                     {
-                        // Record precise ticks. We don't have exact precise ticks here, so we use wallClockMs * 10000.
-                        _clockSyncHelper.AnchorSoftFirstPartial((long)(wallClockMs * 10000), (long)offset);
+                        _clockSyncHelper.AnchorSoftFirstPartial(ClockSyncHelper.GetCurrentPreciseTicks(), (long)offset);
                     }
 
                     double playheadA = _clockSyncHelper.CalculateTargetPlaybackMs((long)offset);
@@ -282,9 +275,13 @@ namespace m_mslc_overlay.services
                     var flushResult = _commitEngine.Evaluate(_lastRawText, acousticEndMs, wallClockMs, true);
                     if (flushResult.Type != CommitType.None && !string.IsNullOrWhiteSpace(flushResult.CommittedText))
                     {
+                        var flushEndMs = flushResult.AcousticEndMs;
+                        // Prevent backwards segment by enforcing monotonicity
+                        if (flushEndMs < _lastValidAcousticEndMs) flushEndMs = _lastValidAcousticEndMs;
+
                         var commitMeta = CommitMetadata.From(
                             flushResult.CommittedText, "OffsetChange",
-                            acousticEndMs: flushResult.AcousticEndMs, // <--- Use interpolated end MS
+                            acousticEndMs: flushEndMs, // <--- Monotonic end MS
                             utteranceOffset: _lastOffset);
                         _udpSender.SendCommit(commitMeta);
                         OnFinalSentenceReceived?.Invoke(commitMeta);

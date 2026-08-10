@@ -289,6 +289,7 @@ namespace m_mslc_overlay
                         // If there's a huge gap between utterances (e.g. user pauses for a long time), skip the gap.
                         long startOffsetMs = (long)(meta.UtteranceOffset / 10000);
                         long tsStartMs = _lastSegmentEndMs > 0 ? Math.Max(_lastSegmentEndMs, startOffsetMs) : startOffsetMs;
+                        if (tsEndMs < tsStartMs) tsEndMs = tsStartMs; // Enforce monotonicity
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
                         // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav
