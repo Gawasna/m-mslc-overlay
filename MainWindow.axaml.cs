@@ -300,7 +300,6 @@ namespace m_mslc_overlay
                             _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
                         }
                         
-                        _workspaceVm.Service.IngestionService.ClockSync = _pipeService.ClockSync;
 
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
