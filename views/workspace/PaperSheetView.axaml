@@ -14,7 +14,7 @@
         <components:WordStyleToolbar Grid.Row="0" DataContext="{Binding Sheet}" />
 
         <!-- Row 1: Sub-Toolbar -->
-        <components:SubToolbar Grid.Row="1" />
+        <components:SubToolbar Grid.Row="1" x:Name="WorkspaceSubToolbar" />
 
         <!-- Row 2: Main Content (Nav Pane + Paper Sheet) -->
         <Grid Grid.Row="2" ColumnDefinitions="Auto, Auto, *">

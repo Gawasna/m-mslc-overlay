@@ -80,6 +80,8 @@ namespace m_mslc_overlay
 
         // Workspace ViewModel — DataContext của MainWindow, quản lý toàn bộ session lifecycle
         private readonly WorkspaceViewModel _workspaceVm = new();
+        // Guard để tránh double-subscribe PaperSheetView.ExportRequested khi workspace reopen
+        private bool _paperSheetExportWired = false;
 
         public MainWindow()
         {
@@ -111,6 +113,14 @@ namespace m_mslc_overlay
                         // Thay đổi DataContext của PaperSheetView thành WorkspaceViewModel thay vì Sheet
                         // Vì PaperSheetView giờ đây là Composite Root bao gồm cả Toolbars (cần WorkspaceViewModel)
                         if (_workspaceVm.IsOpen) paperSheet.DataContext = _workspaceVm;
+
+                        // Wire SubToolbar export → MainWindow handler (once, idempotent via flag)
+                        if (_workspaceVm.IsOpen && !_paperSheetExportWired)
+                        {
+                            paperSheet.ExportRequested += async (payload) =>
+                                await ProcessAdvancedExportPayloadAsync(payload);
+                            _paperSheetExportWired = true;
+                        }
                     }
 
                     // Bug 2 fix: Khi workspace vừa open, sync trạng thái diarizer vào NavPane ngay.
@@ -634,7 +644,231 @@ namespace m_mslc_overlay
 
         private void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
         {
-            // Placeholder for advanced export options dialog
+            _ = ShowAdvancedExportDialogAsync();
+        }
+
+        private async System.Threading.Tasks.Task ShowAdvancedExportDialogAsync()
+        {
+            if (!_workspaceVm.IsOpen)
+            {
+                await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                    this, "Thông báo", "Vui lòng mở một workspace trước khi xuất file.");
+                return;
+            }
+
+            var exportDialog = new m_mslc_overlay.views.dialogs.ExportDialog(
+                async (jsonPayload) => await ProcessAdvancedExportPayloadAsync(jsonPayload)
+            );
+            await exportDialog.ShowDialog(this);
+        }
+
+        private async System.Threading.Tasks.Task ProcessAdvancedExportPayloadAsync(string jsonPayload)
+        {
+            if (_workspaceVm.Service?.SegmentRepo == null)
+            {
+                await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                    this, "Lỗi xuất file", "Workspace chưa có dữ liệu phân đoạn để xuất.");
+                return;
+            }
+
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
+                var root = doc.RootElement;
+
+                string outputPath = root.TryGetProperty("outputPath", out var pathProp)
+                    ? pathProp.GetString() ?? "" : "";
+                string filenamePattern = root.TryGetProperty("fileNamePattern", out var nameProp)
+                    ? nameProp.GetString() ?? "export" : "export";
+                bool overwrite = root.TryGetProperty("overwrite", out var owProp) && owProp.GetBoolean();
+
+                if (string.IsNullOrWhiteSpace(outputPath))
+                {
+                    await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                        this, "Thông báo", "Vui lòng chọn thư mục lưu trữ.");
+                    return;
+                }
+
+                bool enableSub = root.TryGetProperty("enableSubtitle", out var subToggle) && subToggle.GetBoolean();
+                bool enableAudio = root.TryGetProperty("enableAudio", out var audioToggle) && audioToggle.GetBoolean();
+
+                var errors = new System.Text.StringBuilder();
+
+                // ── Text / Subtitle export ────────────────────────────────────
+                if (enableSub && root.TryGetProperty("subtitleConfig", out var subConfig))
+                {
+                    try
+                    {
+                        string format = subConfig.TryGetProperty("format", out var fmtProp)
+                            ? fmtProp.GetString() ?? ".SRT" : ".SRT";
+                        string contentMode = subConfig.TryGetProperty("contentMode", out var modeProp)
+                            ? modeProp.GetString() ?? "Song ngữ (EN + VI)" : "Song ngữ (EN + VI)";
+                        string encoding = subConfig.TryGetProperty("encoding", out var encProp)
+                            ? encProp.GetString() ?? "UTF-8" : "UTF-8";
+                        bool includeStyles = !subConfig.TryGetProperty("includeStyles", out var stylesProp) || stylesProp.GetBoolean();
+
+                        MMslcOverlay.Core.Workspace.Export.IExporter exporter = format.ToUpperInvariant() switch
+                        {
+                            ".TXT"  => new MMslcOverlay.Core.Workspace.Export.TxtExporter(),
+                            ".MD"   => new MMslcOverlay.Core.Workspace.Export.MarkdownExporter(),
+                            ".JSON" => new MMslcOverlay.Core.Workspace.Export.JsonExporter(),
+                            ".PDF"  => new MMslcOverlay.Core.Workspace.Export.PdfExporter(),
+                            ".ASS"  => new MMslcOverlay.Core.Workspace.Export.AssExporter { IncludeStyles = includeStyles },
+                            ".VTT"  => new MMslcOverlay.Core.Workspace.Export.VttExporter(),
+                            _       => new MMslcOverlay.Core.Workspace.Export.SrtExporter()
+                        };
+                        exporter.ContentMode = contentMode;
+
+                        // Flush pending freeform edits before reading segments
+                        await _workspaceVm.FlushPendingAsync();
+
+                        var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
+                        string exportedContent = engine.RunExport(exporter);
+
+                        // Determine actual file extension
+                        string ext = format.ToUpperInvariant() switch
+                        {
+                            ".TXT"  => ".txt",
+                            ".MD"   => ".md",
+                            ".JSON" => ".json",
+                            ".PDF"  => ".pdf",
+                            ".ASS"  => ".ass",
+                            ".VTT"  => ".vtt",
+                            _       => ".srt"
+                        };
+
+                        string destFile = System.IO.Path.Combine(outputPath, filenamePattern + ext);
+
+                        if (System.IO.File.Exists(destFile) && !overwrite)
+                        {
+                            errors.AppendLine($"File đã tồn tại (bỏ qua): {System.IO.Path.GetFileName(destFile)}");
+                        }
+                        else
+                        {
+                            if (ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // PdfExporter trả về path tạm thời
+                                if (System.IO.File.Exists(exportedContent))
+                                {
+                                    System.IO.File.Copy(exportedContent, destFile, overwrite);
+                                    System.IO.File.Delete(exportedContent);
+                                }
+                            }
+                            else
+                            {
+                                var enc = encoding.Equals("ANSI", StringComparison.OrdinalIgnoreCase)
+                                    ? System.Text.Encoding.GetEncoding(1252)
+                                    : System.Text.Encoding.UTF8;
+                                await System.IO.File.WriteAllTextAsync(destFile, exportedContent, enc);
+                            }
+                            services.LoggerService.Log($"[Export] Subtitle exported: {destFile}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.AppendLine($"Lỗi xuất phụ đề: {ex.Message}");
+                        services.LoggerService.Log($"[Export] Subtitle export error: {ex.Message}");
+                    }
+                }
+
+                // ── Audio export ──────────────────────────────────────────────
+                if (enableAudio && root.TryGetProperty("audioConfig", out var audioConfig))
+                {
+                    try
+                    {
+                        string audioFormat = audioConfig.TryGetProperty("format", out var afProp)
+                            ? afProp.GetString() ?? "WAV" : "WAV";
+                        string audioMode = audioConfig.TryGetProperty("mode", out var amProp)
+                            ? amProp.GetString() ?? "Merge" : "Merge";
+                        string bitrate = audioConfig.TryGetProperty("bitrate", out var brProp)
+                            ? brProp.GetString() ?? "192 kbps" : "192 kbps";
+                        string channels = audioConfig.TryGetProperty("channels", out var chProp)
+                            ? chProp.GetString() ?? "Stereo" : "Stereo";
+                        bool normalizeVolume = !audioConfig.TryGetProperty("normalizeVolume", out var nvProp) || nvProp.GetBoolean();
+
+                        // Tìm session directory của recorder hiện tại
+                        string? sessionId = _workspaceVm.Service?.AudioRecorder?.SessionId;
+                        if (string.IsNullOrEmpty(sessionId))
+                        {
+                            errors.AppendLine("Không có audio session: chưa bắt đầu ghi âm trong phiên này.");
+                        }
+                        else
+                        {
+                            // AudioRecorder lưu tại <workspace>/.mslc/audio/<sessionId>/
+                            string audioDir = System.IO.Path.Combine(
+                                _workspaceVm.Service!.Storage.MslcDir, "audio");
+                            string sessionDir = System.IO.Path.Combine(audioDir, sessionId);
+
+                            if (!System.IO.Directory.Exists(sessionDir))
+                            {
+                                errors.AppendLine($"Thư mục audio không tìm thấy: {sessionDir}");
+                            }
+                            else
+                            {
+                                // Build segment ranges từ DB nếu mode = Segment
+                                System.Collections.Generic.List<MMslcOverlay.Services.Workspace.SegmentTimeRange>? segRanges = null;
+                                if (audioMode.Equals("Segment", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    segRanges = new();
+                                    var mergedSegs = _workspaceVm.Service.SegmentRepo.GetMergedSegments();
+                                    foreach (var seg in mergedSegs)
+                                    {
+                                        if (seg.BaseSegment.AudioSessionId == sessionId)
+                                        {
+                                            long startMs = seg.BaseSegment.AudioOffsetMs ?? seg.BaseSegment.TsStartMs;
+                                            long endMs = seg.BaseSegment.AudioEndOffsetMs ?? seg.BaseSegment.TsEndMs;
+                                            string label = seg.BaseSegment.SpeakerId ?? "unknown";
+                                            segRanges.Add(new MMslcOverlay.Services.Workspace.SegmentTimeRange(label, startMs, endMs));
+                                        }
+                                    }
+                                }
+
+                                var req = new MMslcOverlay.Services.Workspace.AudioExportRequest(
+                                    SessionDir: sessionDir,
+                                    OutputPath: outputPath,
+                                    FileNamePattern: filenamePattern,
+                                    Format: audioFormat,
+                                    Mode: audioMode,
+                                    Channels: channels,
+                                    Bitrate: bitrate,
+                                    NormalizeVolume: normalizeVolume,
+                                    Overwrite: overwrite,
+                                    SegmentRanges: segRanges
+                                );
+
+                                await MMslcOverlay.Services.Workspace.AudioExportService.ExportAsync(req);
+                                services.LoggerService.Log($"[Export] Audio exported to: {outputPath}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.AppendLine($"Lỗi xuất âm thanh: {ex.Message}");
+                        services.LoggerService.Log($"[Export] Audio export error: {ex.Message}");
+                    }
+                }
+
+                // ── Post-export ───────────────────────────────────────────────
+                _workspaceVm.RefreshSessionFiles();
+
+                if (errors.Length > 0)
+                {
+                    await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                        this, "Xuất file hoàn tất (có cảnh báo)", errors.ToString().Trim());
+                }
+                else
+                {
+                    await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                        this, "Xuất file thành công",
+                        $"Dữ liệu đã được lưu vào:\n{outputPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                services.LoggerService.Log($"[Export] ProcessAdvancedExportPayloadAsync failed: {ex.Message}");
+                await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                    this, "Lỗi xuất file", $"Đã xảy ra lỗi không mong đợi:\n{ex.Message}");
+            }
         }
 
         private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()
