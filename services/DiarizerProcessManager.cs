@@ -22,6 +22,10 @@ namespace MMslcOverlay.Services
         private CancellationTokenSource? _cts;
         private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
+        // Used during pre-warm: process is started and ready but audio stream
+        // is paused until user actually starts a session.
+        public bool IsPausedForSession { get; private set; } = false;
+
         public event Action<DiarizerEvent>? OnEvent;
         public event Action<string>? OnLog;
 
@@ -76,6 +80,23 @@ namespace MMslcOverlay.Services
                 }
             };
 
+            // Bug 2: Use TaskCompletionSource so that StartAsync truly awaits until
+            // the Python engine emits {"type":"ready"} — avoids sending audio before
+            // the model is loaded which caused the long perceived startup delay.
+            var readyTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Wire a one-shot handler that signals the TCS on ReadyEvent
+            Action<DiarizerEvent>? readyHandler = null;
+            readyHandler = (evt) =>
+            {
+                if (evt is ReadyEvent)
+                {
+                    readyTcs.TrySetResult(true);
+                    OnEvent -= readyHandler; // unsubscribe after first fire
+                }
+            };
+            OnEvent += readyHandler;
+
             _process.Start();
             _process.BeginErrorReadLine();
             
@@ -83,7 +104,39 @@ namespace MMslcOverlay.Services
 
             _ = Task.Run(() => ReadOutputLoopAsync(_process.StandardOutput, _cts.Token, config.Debug), _cts.Token);
             
-            await Task.CompletedTask;
+            // Wait for ready signal with a 45-second timeout (model load can be slow on first run)
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            try
+            {
+                await readyTcs.Task.WaitAsync(timeoutCts.Token);
+                OnLog?.Invoke("[DIARIZER] Engine ready signal received.");
+            }
+            catch (OperationCanceledException)
+            {
+                OnLog?.Invoke("[DIARIZER] Timeout waiting for ready signal — engine may still be loading.");
+                // Non-fatal: let execution continue; events will still fire when ready
+                OnEvent -= readyHandler;
+            }
+        }
+
+        /// <summary>
+        /// Pre-warm: start process and immediately pause the audio stream.
+        /// Call this at app startup so the model is loaded before the user presses Start Session.
+        /// </summary>
+        public async Task StartPreWarmedAsync(DiarizerConfig config, string pythonExePath, string scriptPath)
+        {
+            await StartAsync(config, pythonExePath, scriptPath);
+            // Pause audio immediately — we only wanted the model to load, not to capture audio yet
+            await SendCommandAsync(new { cmd = "pause_audio" });
+            IsPausedForSession = true;
+            OnLog?.Invoke("[DIARIZER] Pre-warmed: model loaded, audio stream paused until session starts.");
+        }
+
+        /// <summary>Resume audio after pre-warm or soft-pause.</summary>
+        public async Task ResumeAudioAsync()
+        {
+            await SendCommandAsync(new { cmd = "resume_audio" });
+            IsPausedForSession = false;
         }
 
         private async Task ReadOutputLoopAsync(StreamReader stdout, CancellationToken ct, bool debug)

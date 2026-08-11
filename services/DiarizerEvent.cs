@@ -33,6 +33,9 @@ namespace MMslcOverlay.Services
     [JsonDerivedType(typeof(ErrorEvent), "error")]
     [JsonDerivedType(typeof(StoppedEvent), "stopped")]
     [JsonDerivedType(typeof(LcStateEvent), "lc_state")]
+    [JsonDerivedType(typeof(MergeSuggestionsEvent), "merge_suggestions")]
+    [JsonDerivedType(typeof(AudioPausedEvent), "audio_paused")]
+    [JsonDerivedType(typeof(AudioResumedEvent), "audio_resumed")]
     public abstract record DiarizerEvent;
 
     public record ReadyEvent() : DiarizerEvent;
@@ -67,4 +70,28 @@ namespace MMslcOverlay.Services
     ) : DiarizerEvent;
 
     public record StoppedEvent() : DiarizerEvent;
+
+    // ── atom32 misc feature events ──────────────────────────────────────────
+
+    /// <summary>Soft-pause confirmation: audio stream stopped, process still alive.</summary>
+    public record AudioPausedEvent() : DiarizerEvent;
+
+    /// <summary>Resume confirmation: audio stream restarted after soft-pause.</summary>
+    public record AudioResumedEvent() : DiarizerEvent;
+
+    /// <summary>One candidate pair in a merge suggestion list.</summary>
+    public record MergeSuggestionItem(
+        [property: JsonPropertyName("uid1")]  string Uid1,
+        [property: JsonPropertyName("pid1")]  string Pid1,
+        [property: JsonPropertyName("name1")] string Name1,
+        [property: JsonPropertyName("uid2")]  string Uid2,
+        [property: JsonPropertyName("pid2")]  string Pid2,
+        [property: JsonPropertyName("name2")] string Name2,
+        [property: JsonPropertyName("dist")]  float Dist
+    );
+
+    /// <summary>Response to get_merge_suggestions — list of acoustically-similar profile pairs.</summary>
+    public record MergeSuggestionsEvent(
+        [property: JsonPropertyName("suggestions")] List<MergeSuggestionItem> Suggestions
+    ) : DiarizerEvent;
 }

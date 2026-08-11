@@ -550,9 +550,15 @@ namespace m_mslc_overlay
                 }
             };
 
-            this.Opened += (s, e) => {
+            this.Opened += async (s, e) => {
                 InitializeHotkeys();
                 InitializeFocusKeys();
+                // Bug 1: Pre-warm diarizer at app open if enabled, so model is loaded
+                // before user hits Start Session (eliminates the first-session cold-start delay).
+                if (ConfigManager.Current.EnableDiarizer)
+                {
+                    await PreWarmDiarizerAsync();
+                }
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
@@ -1766,6 +1772,31 @@ namespace m_mslc_overlay
                 _workspaceVm.StartRecording();
                 AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
                 
+                // Step 5: Restart pipe if it was stopped during a previous pause
+                // (StartRecording without pipe = silent session)
+                if (!_pipeService.IsRunning)
+                {
+                    _pipeService.Start();
+                    AppendLog($"[{timestamp}] [SESSION] LiveCaption pipe restarted\n");
+                }
+
+                // Step 6: Start/Resume Speaker Diarizer (session-scoped, not overlay-scoped)
+                if (ConfigManager.Current.EnableDiarizer)
+                {
+                    if (_diarizerManager != null)
+                    {
+                        // Diarizer already running (was soft-paused or pre-warmed) → resume audio stream only
+                        await _diarizerManager.ResumeAudioAsync();
+                        AppendLog($"[{timestamp}] [SESSION] Diarizer audio stream resumed\n");
+                    }
+                    else
+                    {
+                        // Edge case: pre-warm failed or was skipped → fresh init
+                        await InitializeDiarizerAsync();
+                        WireDiarizerCallbacks();
+                    }
+                }
+                
                 // Update button to "Pause Recording"
                 _sessionState = SessionState.Recording;
                 btn.IsEnabled = true;
@@ -1775,7 +1806,7 @@ namespace m_mslc_overlay
                 btn.Classes.Add("DangerBtn");
                 ToolTip.SetTip(btn, "Pause recording (stop accepting new segments)");
                 
-                AppendLog($"[{timestamp}] [SESSION] ✅ Session started successfully. Speak to begin transcription.\n");
+                AppendLog($"[{timestamp}] [SESSION] Session started successfully. Speak to begin transcription.\n");
             }
             catch (Exception ex)
             {
@@ -1798,21 +1829,35 @@ namespace m_mslc_overlay
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
                 AppendLog($"[{timestamp}] [SESSION] Pausing recording...\n");
                 
-                // Step 1: Stop recording (but keep workspace open)
+                // Step 1: Stop pipe FIRST — prevent LiveCaption from pushing more text
+                // Bug 3: Without stopping the pipe, LC keeps appending machine text even
+                // while "paused", causing repeat text and diarizer audio noise.
+                _pipeService.Stop();
+                AppendLog($"[{timestamp}] [SESSION] LiveCaption pipe stopped\n");
+                
+                // Step 2: Stop recording workspace
                 if (_workspaceVm.IsRecording)
                 {
                     _workspaceVm.StopRecording();
                     AppendLog($"[{timestamp}] [SESSION] Audio recording stopped\n");
                 }
                 
-                // Step 2: Flush pending edits
+                // Step 2: Soft-pause diarizer — stop audio stream, keep process alive
+                // Engine stays warm so resume is instant (no model reload needed)
+                if (_diarizerManager != null)
+                {
+                    await _diarizerManager.SendCommandAsync(new { cmd = "pause_audio" });
+                    AppendLog($"[{timestamp}] [SESSION] Diarizer audio stream paused (process still alive)\n");
+                }
+                
+                // Step 3: Flush pending edits
                 if (_workspaceVm.IsDirty)
                 {
                     await FlushPendingEditsAsync();
                     AppendLog($"[{timestamp}] [SESSION] Pending edits flushed\n");
                 }
                 
-                // Step 3: Workspace stays OPEN (user can continue editing, export, etc.)
+                // Step 4: Workspace stays OPEN (user can continue editing, export, etc.)
                 // User must explicitly close via File menu or Close Workspace button
                 
                 // Update button state
@@ -1820,7 +1865,7 @@ namespace m_mslc_overlay
                 btn.IsEnabled = true;
                 UpdateButtonLabel(btn, icon, label);
                 
-                AppendLog($"[{timestamp}] [SESSION] ✅ Recording paused. Workspace remains open for editing/export.\n");
+                AppendLog($"[{timestamp}] [SESSION] Recording paused. Workspace remains open for editing/export.\n");
             }
             catch (Exception ex)
             {
@@ -1961,6 +2006,51 @@ namespace m_mslc_overlay
             await _diarizerManager.StartAsync(config, pythonExe, scriptPath);
         }
 
+        /// <summary>
+        /// Bug 1: Pre-warm atom32 at app startup (if enabled in config).
+        /// Starts the Python process and loads the model, then immediately soft-pauses the
+        /// audio stream so no real capture occurs until the user starts a session.
+        /// When Start Session is pressed, engine is already warm — resume_audio is near-instant.
+        /// </summary>
+        private async System.Threading.Tasks.Task PreWarmDiarizerAsync()
+        {
+            if (_diarizerManager != null) return; // Already running (e.g. opened from file)
+            if (!ConfigManager.Current.EnableDiarizer) return;
+
+            // Resolve paths
+            var manifest = await PluginManifestService.LoadManifestAsync();
+            var atom32Entry = manifest?.Atoms.FirstOrDefault(a => a.Id == "atom32");
+            if (atom32Entry == null) return;
+
+            string installDir = PluginManifestService.ResolveInstallDir(atom32Entry.InstallDir);
+            string pythonExe = Path.Combine(installDir, ".venv", "Scripts", "python.exe");
+            string scriptPath = Path.Combine(installDir, atom32Entry.EntryScript);
+
+            if (!File.Exists(pythonExe) || !File.Exists(scriptPath)) return;
+
+            _diarizerManager = new DiarizerProcessManager();
+            _diarizerManager.OnLog += (msg) => AppendLog($"[DIARIZER] {msg}\n");
+            _diarizerManager.OnEvent += HandleDiarizerEvent;
+
+            var config = new DiarizerConfig(DeviceIndex: ConfigManager.Current.DiarizerDeviceIndex, Debug: true);
+
+            AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Pre-warming engine in background (audio paused until session starts)...\n");
+
+            try
+            {
+                // StartPreWarmedAsync: awaits ReadyEvent then issues pause_audio
+                await _diarizerManager.StartPreWarmedAsync(config, pythonExe, scriptPath);
+                WireDiarizerCallbacks();
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Engine pre-warm complete. Ready to start session instantly.\n");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Pre-warm failed: {ex.Message}. Will try again at session start.\n");
+                _diarizerManager?.Dispose();
+                _diarizerManager = null;
+            }
+        }
+
         private async System.Threading.Tasks.Task ShutdownDiarizerAsync()
         {
             if (_diarizerManager != null)
@@ -2054,7 +2144,78 @@ namespace m_mslc_overlay
                 case SessionFlushedEvent flush:
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Session flushed. Speakers: {flush.UidMap.Count}\n");
                     break;
+
+                case AudioPausedEvent:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Audio stream paused (process alive).\n");
+                    break;
+
+                case AudioResumedEvent:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Audio stream resumed.\n");
+                    break;
+
+                case MergeSuggestionsEvent suggestions:
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _workspaceVm.NavPane?.SetMergeSuggestions(suggestions.Suggestions);
+                    });
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Merge suggestions: {suggestions.Suggestions.Count} pair(s).\n");
+                    break;
             }
+        }
+
+        /// <summary>
+        /// Wire NavPane callbacks to atom32 IPC after diarizer is initialized.
+        /// Called once per fresh session start, not on soft-resume.
+        /// </summary>
+        private void WireDiarizerCallbacks()
+        {
+            var navPane = _workspaceVm.NavPane;
+            if (navPane == null || _diarizerManager == null) return;
+
+            // Rename: double-click edit in DocNav -> label_speaker IPC
+            navPane.SpeakerRenameRequested = async (uid, newName) =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "label_speaker", uid, display_name = newName });
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Renamed {uid} -> {newName}\n");
+            };
+
+            // Merge speakers: merge picker -> merge_speakers IPC
+            navPane.SpeakerMergeRequested = async (uidSource, uidTarget) =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "merge_speakers", uid_source = uidSource, uid_target = uidTarget });
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    var toRemove = navPane.Speakers.FirstOrDefault(s => s.SpeakerKey == uidSource);
+                    if (toRemove != null) navPane.Speakers.Remove(toRemove);
+                });
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Merged {uidSource} into {uidTarget}\n");
+            };
+
+            // Reassign segment: segment picker -> reassign_segment IPC
+            navPane.SegmentReassignRequested = async (oldUid, startSec, endSec, newUid) =>
+            {
+                await _diarizerManager.SendCommandAsync(new
+                {
+                    cmd = "reassign_segment",
+                    old_uid = oldUid,
+                    new_uid = newUid,
+                    start_sec = startSec,
+                    end_sec = endSec
+                });
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Reassigned {startSec:F1}-{endSec:F1}s: {oldUid} -> {newUid}\n");
+            };
+
+            // Dismiss suggestion -> dismiss_merge_suggestion IPC
+            navPane.MergeSuggestionDismissRequested = async (pid1, pid2) =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "dismiss_merge_suggestion", pid1, pid2 });
+            };
+
+            // Refresh button -> get_merge_suggestions IPC
+            navPane.RefreshMergeSuggestionsRequested = async () =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "get_merge_suggestions" });
+            };
         }
 
         public AIService AIService => _aiService;
@@ -2082,16 +2243,14 @@ namespace m_mslc_overlay
             }
         }
 
-        private async void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
+        private void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_currentOverlay == null || !_currentOverlay.IsVisible)
             {
                 _currentOverlay = new FloatingTextOverlay(this);
-                _currentOverlay.Closed += async (s, ev) => {
-                    await ShutdownDiarizerAsync();
-                };
                 _currentOverlay.Show();
-                await InitializeDiarizerAsync();
+                // Diarizer lifecycle is managed by Session Start/Stop, NOT by overlay.
+                // Overlay is display-only — it shows captions regardless of diarizer state.
             }
             else
             {
@@ -2453,15 +2612,12 @@ namespace m_mslc_overlay
 
         public void ToggleOverlay()
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(async () => {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                 if (_currentOverlay == null || !_currentOverlay.IsVisible)
                 {
                     _currentOverlay = new FloatingTextOverlay(this);
-                    _currentOverlay.Closed += async (s, ev) => {
-                        await ShutdownDiarizerAsync();
-                    };
                     _currentOverlay.Show();
-                    await InitializeDiarizerAsync();
+                    // Diarizer is session-scoped; hotkey toggling overlay does not affect it.
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Floating Overlay opened.\n");
                 }
                 else
