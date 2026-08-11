@@ -40,9 +40,14 @@ body {
 .machine-segment:hover { background: rgba(249, 115, 22, 0.1); }
 .machine-segment .seg-text {
   cursor: default;
-  font-weight: bold;
+  font-weight: normal;
+  font-family: "Times New Roman", Times, serif;
 }
-.machine-segment .seg-trs,
+.machine-segment .seg-trs {
+  cursor: default;
+  font-style: italic;
+  font-family: "Times New Roman", Times, serif;
+}
 .machine-segment .seg-content {
   cursor: default;
 }
