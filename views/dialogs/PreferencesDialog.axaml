@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:models="using:m_mslc_overlay.core.models"
         x:Class="m_mslc_overlay.views.dialogs.PreferencesDialog"
         Title="{DynamicResource Title_Preferences}"
         Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
@@ -270,6 +271,106 @@
                                 <Button x:Name="RunEnvCheckBtn" Click="RunEnvCheckBtn_Click" Classes="PrimaryBtn" Content="Chạy kiểm tra môi trường (UAC)" Padding="16,8" CornerRadius="6" Cursor="Hand"/>
                             </StackPanel>
                         </Border>
+
+                        <!-- Gemini AI Summary API Key card -->
+                        <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,8,0,0">
+                            <StackPanel Spacing="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Gemini AI Summary" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="API Key dùng cho tính năng tóm tắt nội dung (Doc Nav → AI Summary). Lấy key miễn phí tại Google AI Studio (aistudio.google.com)."
+                                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1" Margin="0,0"/>
+
+                                <!-- API Key input -->
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Gemini API Key" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                                        <TextBox x:Name="GeminiApiKeyBox"
+                                                 Grid.Column="0"
+                                                 PasswordChar="•"
+                                                 Watermark="AIzaSy..."
+                                                 FontSize="12" />
+                                        <Button Grid.Column="1"
+                                                x:Name="TestGeminiKeyBtn"
+                                                Click="TestGeminiKeyBtn_Click"
+                                                Classes="SecondaryBtn"
+                                                Content="Test"
+                                                Padding="16,8" CornerRadius="6" Cursor="Hand"/>
+                                    </Grid>
+                                    <TextBlock x:Name="GeminiKeyStatusText"
+                                               FontSize="11" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Auto-trigger mode selector -->
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Chế độ Auto-Trigger" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"
+                                               Text="Mỗi bản tóm tắt mới đều nhận ngữ cảnh từ bản trước (context-aware chaining) để tránh mồ côi thông tin."/>
+
+                                    <Border BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Height="1"/>
+
+                                    <!-- Mode: By Segments -->
+                                    <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                        <RadioButton x:Name="TriggerModeSegments"
+                                                     Grid.Column="0"
+                                                     GroupName="SummaryTriggerMode"
+                                                     IsChecked="True"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                                                   FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Text="Mỗi N segments mới"/>
+                                        <NumericUpDown x:Name="SummaryTriggerSegmentsBox"
+                                                       Grid.Column="2"
+                                                       Minimum="1" Maximum="500" Increment="5"
+                                                       Width="90" Height="28" FontSize="12"
+                                                       ToolTip.Tip="Tóm tắt sau mỗi N segment được thêm vào transcript."/>
+                                    </Grid>
+
+                                    <!-- Mode: By Words -->
+                                    <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                        <RadioButton x:Name="TriggerModeWords"
+                                                     Grid.Column="0"
+                                                     GroupName="SummaryTriggerMode"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                                                   FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Text="Mỗi N từ mới"/>
+                                        <NumericUpDown x:Name="SummaryTriggerWordsBox"
+                                                       Grid.Column="2"
+                                                       Minimum="10" Maximum="5000" Increment="50"
+                                                       Width="90" Height="28" FontSize="12"
+                                                       ToolTip.Tip="Tóm tắt khi số từ tích lũy vượt ngưỡng này."/>
+                                    </Grid>
+
+                                    <!-- Mode: By Time -->
+                                    <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                        <RadioButton x:Name="TriggerModeTime"
+                                                     Grid.Column="0"
+                                                     GroupName="SummaryTriggerMode"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                                                   FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Text="Mỗi N giây"/>
+                                        <NumericUpDown x:Name="SummaryTriggerTimeBox"
+                                                       Grid.Column="2"
+                                                       Minimum="30" Maximum="3600" Increment="30"
+                                                       Width="90" Height="28" FontSize="12"
+                                                       ToolTip.Tip="Tóm tắt theo khoảng thời gian đều đặn (tính bằng giây)."/>
+                                    </Grid>
+
+                                    <TextBlock FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"
+                                               Text="Chỉ một chế độ hoạt động tại một thời điểm. Input của các chế độ khác vẫn được lưu."/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                     
                     <!-- Advanced Tab -->
@@ -299,25 +400,16 @@
                             
                             <TextBlock Text="{DynamicResource Pref_Hotkeys_ListTitle}" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,0" Foreground="{StaticResource TextPrimaryBrush}"/>
                             
-                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="220,*" Margin="0,4,0,0">
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ToggleOverlay}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Alt + Shift + O" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
-                                
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ToggleTranslate}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Alt + Shift + T" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
-                                
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_CycleLanguage}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Alt + Shift + L" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
-                                
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_ClearText}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="Alt + Shift + C" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
-                                
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_FontSizeUp}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="4" Grid.Column="1" Text="Alt + Shift + Up" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
-                                
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{DynamicResource Pref_Hotkeys_FontSizeDown}" FontWeight="Medium" Padding="0,6"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" Text="Alt + Shift + Down" Foreground="{StaticResource PrimaryBrush}" Padding="0,6"/>
-                            </Grid>
+                            <ItemsControl x:Name="HotkeysItemsControl" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:HotkeyItem">
+                                        <Grid ColumnDefinitions="220,*" Margin="0,4">
+                                            <TextBlock Grid.Column="0" Text="{Binding ActionName}" FontWeight="Medium" VerticalAlignment="Center"/>
+                                            <TextBox Grid.Column="1" Text="{Binding KeyGesture, Mode=OneWay}" IsReadOnly="True" KeyDown="HotkeyInput_KeyDown" Tag="{Binding ActionId}" Watermark="Nhấp vào đây và bấm phím..." Cursor="Hand"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </StackPanel>
                     

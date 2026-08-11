@@ -18,40 +18,57 @@
                       VerticalScrollBarVisibility="Disabled">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
 
-                <!-- Font family dropdown (mockup) -->
-                <Border Width="90" Height="24" CornerRadius="2"
-                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        Background="{StaticResource BgWindowBrush}" Padding="6,0">
-                    <TextBlock Text="Georgia" FontSize="10" VerticalAlignment="Center"
-                               Foreground="{StaticResource TextPrimaryBrush}" />
-                </Border>
+                <!-- Font family dropdown — Global scope only -->
+                <ComboBox x:Name="FontFamilyCombo"
+                          SelectedItem="{Binding GlobalFontFamily}"
+                          Width="96" Height="24" FontSize="10"
+                          CornerRadius="2"
+                          ToolTip.Tip="Font Family (global)">
+                    <ComboBoxItem Content="Georgia"/>
+                    <ComboBoxItem Content="Segoe UI"/>
+                    <ComboBoxItem Content="Consolas"/>
+                    <ComboBoxItem Content="Times New Roman"/>
+                    <ComboBoxItem Content="Arial"/>
+                    <ComboBoxItem Content="Lora"/>
+                </ComboBox>
 
-                <!-- Font size dropdown (mockup) -->
-                <Border Width="38" Height="24" CornerRadius="2"
-                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        Background="{StaticResource BgWindowBrush}" Padding="6,0">
-                    <TextBlock Text="11" FontSize="10" VerticalAlignment="Center"
-                               Foreground="{StaticResource TextPrimaryBrush}" />
-                </Border>
+                <!-- Font size — Global or selection -->
+                <NumericUpDown x:Name="FontSizeNumeric"
+                               Value="{Binding GlobalFontSize}"
+                               Minimum="6" Maximum="72" Increment="0.5"
+                               Width="56" Height="24" FontSize="10"
+                               CornerRadius="2"
+                               FormatString="F0"
+                               ToolTip.Tip="Font Size" />
 
                 <!-- Separator -->
                 <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />
 
-                <!-- B / I / U style toggles -->
-                <Button Content="B" FontWeight="Bold" FontSize="12"
-                        Width="24" Height="24" Padding="0" CornerRadius="2"
-                        Classes="ToolbarToggleBtn" ToolTip.Tip="Bold" />
+                <!-- B / I / U style toggles — bind to global format state -->
+                <ToggleButton x:Name="BoldToggle"
+                              IsChecked="{Binding GlobalBold}"
+                              Width="24" Height="24" Padding="0" CornerRadius="2"
+                              ToolTip.Tip="Bold (global)">
+                    <TextBlock Text="B" FontWeight="Bold" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </ToggleButton>
 
-                <Button Content="I" FontStyle="Italic" FontSize="12"
-                        Width="24" Height="24" Padding="0" CornerRadius="2"
-                        Classes="ToolbarToggleBtn" ToolTip.Tip="Italic" />
+                <ToggleButton x:Name="ItalicToggle"
+                              IsChecked="{Binding GlobalItalic}"
+                              Width="24" Height="24" Padding="0" CornerRadius="2"
+                              ToolTip.Tip="Italic (global)">
+                    <TextBlock Text="I" FontStyle="Italic" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </ToggleButton>
 
-                <Button Width="24" Height="24" Padding="0" CornerRadius="2"
-                        Classes="ToolbarToggleBtn" ToolTip.Tip="Underline">
+                <ToggleButton x:Name="UnderlineToggle"
+                              IsChecked="{Binding GlobalUnderline}"
+                              Width="24" Height="24" Padding="0" CornerRadius="2"
+                              ToolTip.Tip="Underline (global)">
                     <TextBlock Text="U" TextDecorations="Underline" FontSize="12"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{StaticResource TextPrimaryBrush}" />
-                </Button>
+                </ToggleButton>
 
                 <!-- Separator -->
                 <Rectangle Width="1" Height="16" Fill="{StaticResource BorderLightBrush}" />

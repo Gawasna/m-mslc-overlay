@@ -49,6 +49,24 @@ public partial class FloatingTextOverlay : Window
     {
         InitializeComponent();
         
+        var config = ConfigManager.Current;
+        this.OverlayFontSize = config.OverlayFontSize;
+        try
+        {
+            this.OverlayBackground = SolidColorBrush.Parse(config.OverlayBackground);
+        }
+        catch { }
+
+        if (config.OverlayPositionX != -1 && config.OverlayPositionY != -1)
+        {
+            this.Position = new Avalonia.PixelPoint(config.OverlayPositionX, config.OverlayPositionY);
+        }
+        if (config.OverlayWidth > 0 && config.OverlayHeight > 0)
+        {
+            this.Width = config.OverlayWidth;
+            this.Height = config.OverlayHeight;
+        }
+
         // Kích hoạt khi bắt đầu hiển thị Float Widget
         this.Opened += (s, e) => 
         {
@@ -56,6 +74,8 @@ public partial class FloatingTextOverlay : Window
             
             // Xâm nhập Hệ điều hành và đánh cắp Window Container (LiveCaptions), tàng hình ngay lập tức 
             _hiderService.HideTargetApp("LiveCaptions");
+
+            if (ConfigManager.Current.OverlayIsLocked) ApplyLockState();
         };
 
         // Kích hoạt trả lại nguyên trạng Target App khi Float Widget bị tắt đi
@@ -64,6 +84,48 @@ public partial class FloatingTextOverlay : Window
             _hiderService.RestoreTargetApp();
             _hiderService.Dispose();
         };
+
+        this.PositionChanged += (s, e) => {
+            if (this.Position.X >= 0 && this.Position.Y >= 0)
+            {
+                ConfigManager.Current.OverlayPositionX = this.Position.X;
+                ConfigManager.Current.OverlayPositionY = this.Position.Y;
+                ConfigManager.Save();
+            }
+        };
+
+        this.SizeChanged += (s, e) => {
+            ConfigManager.Current.OverlayWidth = this.Width;
+            ConfigManager.Current.OverlayHeight = this.Height;
+            ConfigManager.Save();
+        };
+    }
+
+    public void ToggleLock()
+    {
+        ConfigManager.Current.OverlayIsLocked = !ConfigManager.Current.OverlayIsLocked;
+        ConfigManager.Save();
+        ApplyLockState();
+    }
+
+    private void ApplyLockState()
+    {
+        bool isLocked = ConfigManager.Current.OverlayIsLocked;
+        var hwnd = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        if (hwnd == IntPtr.Zero) return;
+
+        var style = m_mslc_overlay.core.NativeMethods.GetWindowLongPtrSafety(hwnd, m_mslc_overlay.core.NativeMethods.GWL_EXSTYLE).ToInt64();
+        if (isLocked)
+        {
+            style |= m_mslc_overlay.core.NativeMethods.WS_EX_LAYERED | m_mslc_overlay.core.NativeMethods.WS_EX_TRANSPARENT;
+            MainBorder.BorderThickness = new Avalonia.Thickness(0);
+        }
+        else
+        {
+            style &= ~m_mslc_overlay.core.NativeMethods.WS_EX_TRANSPARENT;
+            MainBorder.BorderThickness = new Avalonia.Thickness(1);
+        }
+        m_mslc_overlay.core.NativeMethods.SetWindowLongPtrSafety(hwnd, m_mslc_overlay.core.NativeMethods.GWL_EXSTYLE, new IntPtr(style));
     }
 
     public FloatingTextOverlay(MainWindow mainWindow) : this()
@@ -226,6 +288,8 @@ public partial class FloatingTextOverlay : Window
 
     private void Window_PointerPressed(object sender, Avalonia.Input.PointerPressedEventArgs e)
     {
+        if (ConfigManager.Current.OverlayIsLocked) return;
+
         var point = e.GetCurrentPoint(this);
         if (point.Properties.IsLeftButtonPressed)
         {
@@ -256,6 +320,8 @@ public partial class FloatingTextOverlay : Window
 
     private void Window_PointerMoved(object sender, Avalonia.Input.PointerEventArgs e)
     {
+        if (ConfigManager.Current.OverlayIsLocked) return;
+
         var pos = e.GetPosition(this);
         double width = this.Bounds.Width;
         double height = this.Bounds.Height;
@@ -334,40 +400,56 @@ public partial class FloatingTextOverlay : Window
     private void SetFontSize_Small_Click(object? sender, RoutedEventArgs e)
     {
         OverlayFontSize = 16.0;
+        ConfigManager.Current.OverlayFontSize = 16.0;
+        ConfigManager.Save();
     }
 
     private void SetFontSize_Medium_Click(object? sender, RoutedEventArgs e)
     {
         OverlayFontSize = 20.0;
+        ConfigManager.Current.OverlayFontSize = 20.0;
+        ConfigManager.Save();
     }
 
     private void SetFontSize_Large_Click(object? sender, RoutedEventArgs e)
     {
         OverlayFontSize = 24.0;
+        ConfigManager.Current.OverlayFontSize = 24.0;
+        ConfigManager.Save();
     }
 
     private void SetFontSize_ExtraLarge_Click(object? sender, RoutedEventArgs e)
     {
         OverlayFontSize = 28.0;
+        ConfigManager.Current.OverlayFontSize = 28.0;
+        ConfigManager.Save();
     }
 
     private void SetBgOpacity_100_Click(object? sender, RoutedEventArgs e)
     {
+        ConfigManager.Current.OverlayBackground = "#FF202020";
+        ConfigManager.Save();
         OverlayBackground = SolidColorBrush.Parse("#FF202020");
     }
 
     private void SetBgOpacity_80_Click(object? sender, RoutedEventArgs e)
     {
+        ConfigManager.Current.OverlayBackground = "#CC202020";
+        ConfigManager.Save();
         OverlayBackground = SolidColorBrush.Parse("#CC202020");
     }
 
     private void SetBgOpacity_60_Click(object? sender, RoutedEventArgs e)
     {
+        ConfigManager.Current.OverlayBackground = "#99202020";
+        ConfigManager.Save();
         OverlayBackground = SolidColorBrush.Parse("#99202020");
     }
 
     private void SetBgOpacity_40_Click(object? sender, RoutedEventArgs e)
     {
+        ConfigManager.Current.OverlayBackground = "#66202020";
+        ConfigManager.Save();
         OverlayBackground = SolidColorBrush.Parse("#66202020");
     }
 

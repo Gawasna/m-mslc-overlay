@@ -51,8 +51,9 @@ namespace m_mslc_overlay
         private string _translationDisplayBuffer = "";
         private bool _isTranslationDirty = false;
         
-        // CRITICAL-TEXT-001: Track previous segment end time for continuous timeline
+        // CRITICAL-TEXT-001: Track previous segment end time and utterance boundary for continuous timeline
         private long _lastSegmentEndMs = 0;
+        private ulong _lastUtteranceOffset = 0;  // tracks utterance boundary to detect new utterance vs intra-utterance commit
         
         // FIX V6: Per-segment translation with context hints
         // Translate EACH segment individually (for subtitle export compatibility)
@@ -225,6 +226,11 @@ namespace m_mslc_overlay
             _pipeService.OnPartialCaptionReceived += (txt) => {
                 _lastPartialCaption = txt;
                 _isPartialCaptionDirty = true;
+                // Phase 1 anchor: snapshot recorder offset at first non-empty partial,
+                // before any commit fires. This captures the true audio file position of
+                // utterance onset without back-calculating from SDK-reported duration.
+                if (!string.IsNullOrWhiteSpace(txt))
+                    _workspaceVm.Service?.AudioRecorder?.SnapshotOffsetAtFirstPartial();
             };
 
             // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
@@ -284,12 +290,26 @@ namespace m_mslc_overlay
                             }
                         }
                         
-                        // CRITICAL-TEXT-001 FIX: Use previous segment's end as this segment's start
-                        // If it's the very first segment, use its actual UtteranceOffset instead of 0 to skip the initial silence.
-                        // If there's a huge gap between utterances (e.g. user pauses for a long time), skip the gap.
+                        // tsStartMs selection logic:
+                        // - New utterance  (utteranceOffset changed): use SDK utterance start directly.
+                        //   Reason: the new utterance genuinely starts at a different audio position;
+                        //   using _lastSegmentEndMs would push audioStart past actual speech onset.
+                        // - Same utterance (utteranceOffset unchanged): use _lastSegmentEndMs.
+                        //   Reason: multiple commits within one utterance must be sequential;
+                        //   utteranceOffset stays frozen at utterance start for all of them.
                         long startOffsetMs = (long)(meta.UtteranceOffset / 10000);
-                        long tsStartMs = _lastSegmentEndMs > 0 ? Math.Max(_lastSegmentEndMs, startOffsetMs) : startOffsetMs;
-                        if (tsEndMs < tsStartMs) tsEndMs = tsStartMs; // Enforce monotonicity
+                        bool isNewUtterance = meta.UtteranceOffset != _lastUtteranceOffset;
+                        long tsStartMs;
+                        if (isNewUtterance && startOffsetMs > 0)
+                        {
+                            tsStartMs = startOffsetMs;  // cross-utterance: trust SDK offset
+                        }
+                        else
+                        {
+                            tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : startOffsetMs;  // intra-utterance: chain from previous commit end
+                        }
+                        _lastUtteranceOffset = meta.UtteranceOffset;
+                        if (tsEndMs < tsStartMs) tsEndMs = tsStartMs; // Enforce monotonicity on end only
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
                         // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav
@@ -470,7 +490,8 @@ namespace m_mslc_overlay
                     _segmentTracker.Reset();  // ATOM79: clear stale segments on reconnect
                     _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
                     _segmentIdMap.Clear();
-                    _lastSegmentEndMs = 0;  // CRITICAL-TEXT-001: Reset timing state on reconnect
+                    _lastSegmentEndMs = 0;     // CRITICAL-TEXT-001: Reset timing state on reconnect
+                    _lastUtteranceOffset = 0;  // Reset utterance boundary tracker on reconnect
                     
                     // FIX V6: Clear context hints on reconnect
                     lock (_translationLock)
@@ -2177,6 +2198,42 @@ namespace m_mslc_overlay
             UpdateDynamicStrings();
         }
 
+        private void ResetOverlayPosition_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_currentOverlay != null && _currentOverlay.IsVisible)
+            {
+                var screen = _currentOverlay.Screens.ScreenFromWindow(_currentOverlay) ?? _currentOverlay.Screens.Primary;
+                if (screen != null)
+                {
+                    var x = (screen.Bounds.Width - (int)_currentOverlay.Width) / 2;
+                    var y = (screen.Bounds.Height - (int)_currentOverlay.Height) / 2;
+                    _currentOverlay.Position = new Avalonia.PixelPoint(x, y);
+                    ConfigManager.Current.OverlayPositionX = x;
+                    ConfigManager.Current.OverlayPositionY = y;
+                    ConfigManager.Save();
+                }
+            }
+            else
+            {
+                ConfigManager.Current.OverlayPositionX = -1;
+                ConfigManager.Current.OverlayPositionY = -1;
+                ConfigManager.Save();
+            }
+        }
+
+        private void ToggleOverlayLock_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_currentOverlay != null)
+            {
+                _currentOverlay.ToggleLock();
+            }
+            else
+            {
+                ConfigManager.Current.OverlayIsLocked = !ConfigManager.Current.OverlayIsLocked;
+                ConfigManager.Save();
+            }
+        }
+
         public enum PanelPosition { Left, Right, Top, Bottom }
         public PanelPosition ConfiguredSidePanelPosition = PanelPosition.Right;
         public bool ConfiguredSidePanelTopmost = false;
@@ -2269,25 +2326,28 @@ namespace m_mslc_overlay
 
             try
             {
-                _hotkeyManager = new HotkeyManager(this);
-                _hotkeyManager.Initialize();
+                if (_hotkeyManager == null)
+                {
+                    _hotkeyManager = new HotkeyManager(this);
+                    _hotkeyManager.Initialize();
+                }
 
-                // Register hotkeys: Alt + Shift + O/T/L/C/Up/Down (Temporarily disabled as requested)
-                // 101: Toggle Overlay (Alt + Shift + O)
-                // 102: Toggle Translation (Alt + Shift + T)
-                // 103: Cycle Language (Alt + Shift + L)
-                // 104: Clear Text (Alt + Shift + C)
-                // 105: Increase Font Size (Alt + Shift + Up)
-                // 106: Decrease Font Size (Alt + Shift + Down)
+                if (ConfigManager.Current.Hotkeys != null)
+                {
+                    foreach (var kvp in ConfigManager.Current.Hotkeys)
+                    {
+                        var hotkey = kvp.Value;
+                        if (!hotkey.IsGlobal || string.IsNullOrWhiteSpace(hotkey.KeyGesture)) continue;
 
-                // _hotkeyManager.Register(101, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4F, ToggleOverlay);
-                // _hotkeyManager.Register(102, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x54, ToggleTranslation);
-                // _hotkeyManager.Register(103, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4C, CycleLanguage);
-                // _hotkeyManager.Register(104, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x43, ClearOverlayText);
-                // _hotkeyManager.Register(105, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x26, () => ChangeOverlayFontSize(2.0));
-                // _hotkeyManager.Register(106, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x28, () => ChangeOverlayFontSize(-2.0));
-
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys manager initialized (Alt+Shift+X hotkeys temporarily disabled).\n");
+                        Action? action = GetActionForId(hotkey.ActionId);
+                        if (action != null)
+                        {
+                            _hotkeyManager.TryRegister(hotkey.ActionId, hotkey.KeyGesture, action, out _);
+                        }
+                    }
+                }
+                
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys manager initialized.\n");
             }
             catch (Exception ex)
             {
@@ -2301,23 +2361,28 @@ namespace m_mslc_overlay
             {
                 _focusKeyController = new FocusKeyController(this);
 
-                // 1. Register shortcuts with modifiers (e.g. Ctrl + Key)
-                _focusKeyController.Register(Key.O, KeyModifiers.Control, ToggleOverlay);
-                _focusKeyController.Register(Key.T, KeyModifiers.Control, ToggleTranslation);
-                _focusKeyController.Register(Key.L, KeyModifiers.Control, CycleLanguage);
-                _focusKeyController.Register(Key.C, KeyModifiers.Control, ClearOverlayText);
-                _focusKeyController.Register(Key.Up, KeyModifiers.Control, () => ChangeOverlayFontSize(2.0));
-                _focusKeyController.Register(Key.Down, KeyModifiers.Control, () => ChangeOverlayFontSize(-2.0));
+                if (ConfigManager.Current.Hotkeys != null)
+                {
+                    foreach (var kvp in ConfigManager.Current.Hotkeys)
+                    {
+                        var hotkey = kvp.Value;
+                        if (hotkey.IsGlobal || string.IsNullOrWhiteSpace(hotkey.KeyGesture)) continue;
 
-                // 2. Register fallback keys (Fx, A-Z) without modifiers (bypassed if typing in TextBox)
-                // Fx Keys
-                _focusKeyController.RegisterFallbackKey(Key.F1, ToggleOverlay);
-                _focusKeyController.RegisterFallbackKey(Key.F2, ToggleTranslation);
-                _focusKeyController.RegisterFallbackKey(Key.F3, CycleLanguage);
-                _focusKeyController.RegisterFallbackKey(Key.F4, ClearOverlayText);
-                _focusKeyController.RegisterFallbackKey(Key.F5, () => ChangeOverlayFontSize(2.0));
-                _focusKeyController.RegisterFallbackKey(Key.F6, () => ChangeOverlayFontSize(-2.0));
+                        Action? action = GetActionForId(hotkey.ActionId);
+                        if (action != null)
+                        {
+                            try
+                            {
+                                var gesture = Avalonia.Input.KeyGesture.Parse(hotkey.KeyGesture);
+                                _focusKeyController.Register(gesture.Key, gesture.KeyModifiers, action);
+                            }
+                            catch { /* Ignore invalid parse */ }
+                        }
+                    }
+                }
 
+                // Keep some fallback keys if needed or map everything to config.
+                // For simplicity, we just keep the config-based focus keys.
                 // A-Z Keys (active only when no text box has focus)
                 _focusKeyController.RegisterFallbackKey(Key.O, ToggleOverlay);
                 _focusKeyController.RegisterFallbackKey(Key.T, ToggleTranslation);
@@ -2331,6 +2396,34 @@ namespace m_mslc_overlay
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize focused key controller: {ex.Message}\n");
             }
         }
+        
+        private Action? GetActionForId(string actionId)
+        {
+            return actionId switch
+            {
+                "NewWorkspace" => () => OnNewWorkspaceMenuClick(null, null!),
+                "OpenWorkspace" => () => OnOpenWorkspaceMenuClick(null, null!),
+                "StartSession" => ToggleRecordingSession,
+                "ToggleOverlay" => ToggleOverlay,
+                "ToggleTranslate" => ToggleTranslation,
+                "CycleLanguage" => CycleLanguage,
+                "ClearText" => ClearOverlayText,
+                "FontSizeUp" => () => ChangeOverlayFontSize(2.0),
+                "FontSizeDown" => () => ChangeOverlayFontSize(-2.0),
+                _ => null
+            };
+        }
+        
+        private void ToggleRecordingSession()
+        {
+            if (_workspaceVm.IsOpen)
+            {
+                if (_workspaceVm.IsRecording)
+                    _workspaceVm.StopRecording();
+                else
+                    _workspaceVm.StartRecording();
+            }
+        }
 
         public void UpdateHotkeyRegistration()
         {
@@ -2338,6 +2431,12 @@ namespace m_mslc_overlay
             {
                 if (_hotkeyManager == null)
                 {
+                    InitializeHotkeys();
+                }
+                else 
+                {
+                    // Re-register
+                    _hotkeyManager.UnregisterAll();
                     InitializeHotkeys();
                 }
             }

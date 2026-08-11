@@ -123,6 +123,8 @@
                 </MenuItem>
                 <MenuItem Header="{DynamicResource Menu_View}">
                     <MenuItem Header="{DynamicResource Menu_ToggleFloatingOverlay}" InputGesture="F5" />
+                    <MenuItem Header="Reset Overlay Position to Center" Click="ResetOverlayPosition_Click" />
+                    <MenuItem Header="Lock/Unlock Overlay (Click-through)" Click="ToggleOverlayLock_Click" InputGesture="Ctrl+Shift+L" />
                     <MenuItem Header="{DynamicResource Menu_ToggleDebugWidget}" InputGesture="F6" />
                     <MenuItem Header="Toggle Side Panel (Mockup)" InputGesture="F7" Click="ToggleSidePanel_Click" />
                     <Separator />

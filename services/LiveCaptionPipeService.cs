@@ -266,6 +266,7 @@ namespace m_mslc_overlay.services
                         var commitMeta = CommitMetadata.From(
                             result.CommittedText, "DebounceCommit",
                             acousticEndMs: result.AcousticEndMs, // <--- Add interpolated end MS
+                            utteranceOffset: (ulong)_lastOffset,  // carry last known SDK offset so tsStartMs maps correctly
                             isDangling: result.IsDangling);
                         _udpSender.SendCommit(commitMeta);
                         OnFinalSentenceReceived?.Invoke(commitMeta);

@@ -40,7 +40,19 @@ namespace m_mslc_overlay.viewmodels.transcript
         Glossary            // Term dictionary management
     }
 
-    // ─── Find & Replace state ─────────────────────────────────────────────────
+    // ─── Find & Replace — scope enum ───────────────────────────────────
+
+    /// <summary>
+    /// Controls which segment types are affected by Replace All.
+    /// </summary>
+    public enum ReplaceScope
+    {
+        Both,
+        MachineOnly,
+        HumanOnly
+    }
+
+    // ─── Find & Replace state ───────────────────────────────────
 
     public sealed class FindReplaceState : INotifyPropertyChanged
     {
@@ -49,6 +61,9 @@ namespace m_mslc_overlay.viewmodels.transcript
         private int _matchCount;
         private int _activeMatchIndex;
         private bool _hasSearched;
+        private ReplaceScope _replaceScope;
+        private string _replaceWarning = string.Empty;
+        private bool _hasWarning;
 
         public string FindText
         {
@@ -88,10 +103,14 @@ namespace m_mslc_overlay.viewmodels.transcript
             set { _hasSearched = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResultMessage)); }
         }
 
+        // Allows ReplaceAll to override the result message independently of find state
+        private string? ResultMessage_Override;
+
         public string ResultMessage
         {
             get
             {
+                if (ResultMessage_Override != null) return ResultMessage_Override;
                 if (!_hasSearched || string.IsNullOrWhiteSpace(FindText)) return string.Empty;
                 if (_matchCount == 0) return "No occurrences found.";
                 if (_activeMatchIndex > 0) return $"Match {_activeMatchIndex} of {_matchCount}";
@@ -101,6 +120,39 @@ namespace m_mslc_overlay.viewmodels.transcript
 
         public System.Action<string>? FindNextAction { get; set; }
         public System.Action? ClearFindAction { get; set; }
+
+        // ─── Replace scope & warning ───────────────────────────────
+
+        /// <summary>Filter: which segment types Replace All operates on.</summary>
+        public ReplaceScope ReplaceScope
+        {
+            get => _replaceScope;
+            set { _replaceScope = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>Warning shown before Replace All (e.g. "Will change N segments").</summary>
+        public string ReplaceWarning
+        {
+            get => _replaceWarning;
+            set
+            {
+                _replaceWarning = value;
+                OnPropertyChanged();
+                HasWarning = !string.IsNullOrEmpty(value);
+            }
+        }
+
+        public bool HasWarning
+        {
+            get => _hasWarning;
+            set { _hasWarning = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>Wired by DocumentNavigationPane to preview replace count before executing.</summary>
+        public System.Func<string, ReplaceScope, int>? PreviewReplaceCountAction { get; set; }
+
+        /// <summary>Wired by DocumentNavigationPane to execute ReplaceAll on PaperSheet.</summary>
+        public System.Func<string, string, ReplaceScope, (int count, string message)>? ReplaceAllAction { get; set; }
 
         public void ExecuteFindNext()
         {
@@ -113,11 +165,48 @@ namespace m_mslc_overlay.viewmodels.transcript
             FindNextAction?.Invoke(FindText);
         }
 
+        public void ExecuteReplaceAll()
+        {
+            if (string.IsNullOrWhiteSpace(FindText))
+            {
+                ReplaceWarning = string.Empty;
+                return;
+            }
+
+            if (ReplaceAllAction == null) return;
+
+            // Clear any previous warning, execute, then surface result
+            ReplaceWarning = string.Empty;
+            var (count, msg) = ReplaceAllAction.Invoke(FindText, ReplaceText, ReplaceScope);
+            MatchCount = count;
+            HasSearched = true;
+            ResultMessage_Override = msg;
+            OnPropertyChanged(nameof(ResultMessage));
+        }
+
+        /// <summary>
+        /// Called by UI when FindText or ReplaceScope changes to update the warning banner.
+        /// </summary>
+        public void RefreshWarning()
+        {
+            if (string.IsNullOrWhiteSpace(FindText) || PreviewReplaceCountAction == null)
+            {
+                ReplaceWarning = string.Empty;
+                return;
+            }
+            int preview = PreviewReplaceCountAction.Invoke(FindText, ReplaceScope);
+            ReplaceWarning = preview > 0
+                ? $"This will change {preview} segment(s). Scope: {ReplaceScope}."
+                : string.Empty;
+        }
+
         public void ExecuteClearFind()
         {
             _hasSearched = false;
             _matchCount = 0;
             _activeMatchIndex = 0;
+            ResultMessage_Override = null;
+            ReplaceWarning = string.Empty;
             OnPropertyChanged(nameof(HasSearched));
             OnPropertyChanged(nameof(MatchCount));
             OnPropertyChanged(nameof(ActiveMatchIndex));
@@ -140,6 +229,9 @@ namespace m_mslc_overlay.viewmodels.transcript
         private bool _fixSpelling = true;
         private bool _improveStyle = true;
         private string _correctResultMessage = string.Empty;
+        private string _errorMessage = string.Empty;
+        private bool _hasError;
+        private int _remainingRequests = 5;
 
         public string SelectedModel
         {
@@ -175,6 +267,31 @@ namespace m_mslc_overlay.viewmodels.transcript
         {
             get => _correctResultMessage;
             set { _correctResultMessage = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>Error message from summary service (rate limit, API error, etc.).</summary>
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            set
+            {
+                _errorMessage = value;
+                OnPropertyChanged();
+                HasError = !string.IsNullOrEmpty(value);
+            }
+        }
+
+        public bool HasError
+        {
+            get => _hasError;
+            set { _hasError = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>Remaining requests in the current 60-second rate limit window.</summary>
+        public int RemainingRequests
+        {
+            get => _remainingRequests;
+            set { _remainingRequests = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

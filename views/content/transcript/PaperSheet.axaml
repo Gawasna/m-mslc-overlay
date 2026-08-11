@@ -1,8 +1,17 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:m_mslc_overlay.viewmodels.transcript"
+             xmlns:cv="using:m_mslc_overlay.views.content.transcript"
              x:Class="m_mslc_overlay.views.content.transcript.PaperSheet"
              x:DataType="vm:PaperSheetViewModel">
+
+    <UserControl.Resources>
+        <cv:SegmentSourceToBorderConverter   x:Key="SegmentBorderConv"/>
+        <cv:SegmentSourceFontWeightConverter x:Key="SegmentFontWeightConv"/>
+        <cv:SegmentSourceFontStyleConverter  x:Key="SegmentFontStyleConv"/>
+        <cv:SegmentSourceUnderlineConverter  x:Key="SegmentUnderlineConv"/>
+        <cv:SegmentSourceToBackgroundConverter x:Key="SegmentBgConv"/>
+    </UserControl.Resources>
 
     <!--
         PaperSheet: Scrollable viewport containing the A4 paper.
@@ -72,15 +81,15 @@
                         <ItemsControl x:Name="SegmentList"
                                       ItemsSource="{Binding Segments}">
                             <ItemsControl.DataTemplates>
-                                <DataTemplate x:DataType="vm:TranscriptSegmentItem">
+                            <DataTemplate x:DataType="vm:TranscriptSegmentItem">
 
                                     <!-- Bilingual segment block -->
                                     <Border Margin="0,0,0,20"
                                             Padding="12,10"
                                             CornerRadius="3"
                                             BorderThickness="2,0,0,0"
-                                            BorderBrush="{Binding IsActive, Converter={StaticResource BoolToActiveBorderColorConverter}}"
-                                            Background="{Binding IsActive, Converter={StaticResource BoolToActiveBackgroundConverter}}">
+                                            BorderBrush="{Binding Source, Converter={StaticResource SegmentBorderConv}}"
+                                            Background="{Binding Source, Converter={StaticResource SegmentBgConv}}">
 
                                         <Grid ColumnDefinitions="Auto, *">
 
@@ -102,10 +111,13 @@
                                             <!-- Text content -->
                                             <StackPanel Grid.Column="1" Spacing="6">
 
-                                                <!-- Original -->
+                                                <!-- Original (styling by SegmentSource) -->
                                                 <TextBlock Text="{Binding OriginalText}"
                                                            FontSize="11.5"
                                                            FontFamily="Georgia"
+                                                           FontWeight="{Binding Source, Converter={StaticResource SegmentFontWeightConv}}"
+                                                           FontStyle="{Binding Source, Converter={StaticResource SegmentFontStyleConv}}"
+                                                           TextDecorations="{Binding Source, Converter={StaticResource SegmentUnderlineConv}}"
                                                            Foreground="{StaticResource TextPrimaryBrush}"
                                                            TextWrapping="Wrap"
                                                            LineHeight="20" />
