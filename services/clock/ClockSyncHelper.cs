@@ -282,8 +282,9 @@ namespace MSLCOverlay.Core.Services.Clock
 
         /// <summary>
         /// Calculates target playback position in milliseconds based on current sync mode and SDK offset.
+        /// If audioFileStartSystemTicks > 0, returns the exact offset within the audio file (accounting for late injection).
         /// </summary>
-        public double CalculateTargetPlaybackMs(long wordOffsetSdkTicks, long packetReceivedPreciseTicks = 0)
+        public double CalculateTargetPlaybackMs(long wordOffsetSdkTicks, long packetReceivedPreciseTicks = 0, long audioFileStartSystemTicks = 0)
         {
             lock (_lockObj)
             {
@@ -292,15 +293,20 @@ namespace MSLCOverlay.Core.Services.Clock
                     return wordOffsetSdkTicks / (double)TicksPerMillisecond;
                 }
 
-                long currentPrecise = packetReceivedPreciseTicks > 0 ? packetReceivedPreciseTicks : GetCurrentPreciseTicks();
                 long effectiveSpeechStartTicks = (_currentMode == SyncMode.SoftAnchorGemini)
                     ? (long)Math.Round(_softAnchorMs * TicksPerMillisecond)
                     : _speechStartSystemTicks;
 
-                long realElapsedTicks = currentPrecise - effectiveSpeechStartTicks;
-                long correctedElapsedTicks = realElapsedTicks - AverageIpcLatencyTicks;
+                long absoluteTargetTicks = effectiveSpeechStartTicks + wordOffsetSdkTicks;
 
-                return Math.Max(0.0, correctedElapsedTicks / (double)TicksPerMillisecond);
+                if (audioFileStartSystemTicks > 0)
+                {
+                    // Trừ đi thời gian PCM bắt đầu để có vị trí byte chính xác
+                    return Math.Max(0.0, (absoluteTargetTicks - audioFileStartSystemTicks) / (double)TicksPerMillisecond);
+                }
+
+                // Fallback nếu không truyền audioFileStartSystemTicks (không khuyến khích)
+                return Math.Max(0.0, (absoluteTargetTicks - _audioStartSystemTicks) / (double)TicksPerMillisecond);
             }
         }
 

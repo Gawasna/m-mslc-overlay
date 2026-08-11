@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using m_mslc_overlay.core;
+using m_mslc_overlay.services;
 
 namespace m_mslc_overlay.viewmodels.transcript
 {
@@ -22,6 +23,41 @@ namespace m_mslc_overlay.viewmodels.transcript
         public RecordingSessionViewModel Recording { get; } = new RecordingSessionViewModel();
         public PaperSheetViewModel PaperSheet { get; } = new PaperSheetViewModel();
         public NavPaneViewModel NavPane { get; } = new NavPaneViewModel();
+
+        // ─── Services ──────────────────────────────────────────────
+
+        private readonly GeminiSummaryService _summaryService;
+
+        // ─── Constructor ──────────────────────────────────────────────
+
+        public TranscriptViewportViewModel()
+        {
+            _summaryService = new GeminiSummaryService();
+
+            // Route summary results to NavPane AiPane state
+            _summaryService.OnSummaryReady += text =>
+            {
+                NavPane.AiPane.SummaryText = text;
+                NavPane.AiPane.IsBusy = false;
+                NavPane.AiPane.ErrorMessage = string.Empty;
+            };
+            _summaryService.OnError += msg =>
+            {
+                NavPane.AiPane.IsBusy = false;
+                NavPane.AiPane.ErrorMessage = msg;
+            };
+            _summaryService.OnRemainingRequestsChanged += count =>
+                NavPane.AiPane.RemainingRequests = count;
+
+            // Wire Find & Replace actions so NavPaneViewModel can call PaperSheet
+            NavPane.FindReplace.ReplaceAllAction = (find, replace, scope) =>
+                PaperSheet.ReplaceAll(find, replace, scope);
+            NavPane.FindReplace.PreviewReplaceCountAction = (find, scope) =>
+                PaperSheet.PreviewReplaceCount(find, scope);
+
+            // Activate timer-mode if configured (must run after config is loaded)
+            _summaryService.RefreshTimerMode();
+        }
 
         // ─── Layout mode ──────────────────────────────────────────────────────
 
@@ -72,11 +108,46 @@ namespace m_mslc_overlay.viewmodels.transcript
                 OriginalText = commit.Text,
                 Timestamp = DateTime.Now.TimeOfDay,
                 State = SegmentState.Committed,
-                IsActive = true
+                IsActive = true,
+                Source = SegmentSource.Machine  // LiveCaption pipe segments are Machine
             };
 
             PaperSheet.PushSegment(item);
+            _summaryService.NotifyNewSegment(commit.Text);
         }
+
+        /// <summary>
+        /// Pushes a Human segment (typed manually by operator).
+        /// </summary>
+        public void PushHumanSegment(string text, string? speakerLabel = null)
+        {
+            var item = new TranscriptSegmentItem
+            {
+                SpeakerLabel = speakerLabel ?? "Operator",
+                OriginalText = text,
+                Timestamp = DateTime.Now.TimeOfDay,
+                State = SegmentState.Committed,
+                IsActive = true,
+                Source = SegmentSource.Human
+            };
+            PaperSheet.PushSegment(item);
+        }
+
+        /// <summary>
+        /// Manually request a Gemini summary. Rate-limited to 5/min.
+        /// </summary>
+        public void RequestSummary()
+        {
+            NavPane.AiPane.IsBusy = true;
+            NavPane.AiPane.ErrorMessage = string.Empty;
+            _ = _summaryService.TryRequestSummaryAsync(isAutomatic: false);
+        }
+
+        /// <summary>
+        /// Re-arms the time-based summary timer when trigger mode or interval changes at runtime.
+        /// Safe to call from any thread — delegates to GeminiSummaryService.RefreshTimerMode().
+        /// </summary>
+        public void RefreshSummaryTimer() => _summaryService.RefreshTimerMode();
 
         /// <summary>
         /// Called when translation for a segment arrives.
@@ -104,6 +175,11 @@ namespace m_mslc_overlay.viewmodels.transcript
             PaperSheet.Clear();
             _nextSpeakerIndex = 1;
             Recording.StartRecording(name ?? $"SESSION #{DateTime.Now:MMdd_HHmm}");
+
+            // Clear context chain so the new session starts fresh
+            _summaryService.ResetContext();
+            // Restart time-timer if in ByTime mode
+            _summaryService.RefreshTimerMode();
         }
 
         public void StopSession()
@@ -134,6 +210,7 @@ namespace m_mslc_overlay.viewmodels.transcript
         public void Dispose()
         {
             Recording.Dispose();
+            _summaryService.Dispose();
         }
     }
 }

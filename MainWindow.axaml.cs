@@ -51,8 +51,9 @@ namespace m_mslc_overlay
         private string _translationDisplayBuffer = "";
         private bool _isTranslationDirty = false;
         
-        // CRITICAL-TEXT-001: Track previous segment end time for continuous timeline
+        // CRITICAL-TEXT-001: Track previous segment end time and utterance boundary for continuous timeline
         private long _lastSegmentEndMs = 0;
+        private ulong _lastUtteranceOffset = 0;  // tracks utterance boundary to detect new utterance vs intra-utterance commit
         
         // FIX V6: Per-segment translation with context hints
         // Translate EACH segment individually (for subtitle export compatibility)
@@ -80,6 +81,8 @@ namespace m_mslc_overlay
 
         // Workspace ViewModel — DataContext của MainWindow, quản lý toàn bộ session lifecycle
         private readonly WorkspaceViewModel _workspaceVm = new();
+        // Guard để tránh double-subscribe PaperSheetView.ExportRequested khi workspace reopen
+        private bool _paperSheetExportWired = false;
 
         public MainWindow()
         {
@@ -111,6 +114,14 @@ namespace m_mslc_overlay
                         // Thay đổi DataContext của PaperSheetView thành WorkspaceViewModel thay vì Sheet
                         // Vì PaperSheetView giờ đây là Composite Root bao gồm cả Toolbars (cần WorkspaceViewModel)
                         if (_workspaceVm.IsOpen) paperSheet.DataContext = _workspaceVm;
+
+                        // Wire SubToolbar export → MainWindow handler (once, idempotent via flag)
+                        if (_workspaceVm.IsOpen && !_paperSheetExportWired)
+                        {
+                            paperSheet.ExportRequested += async (payload) =>
+                                await ProcessAdvancedExportPayloadAsync(payload);
+                            _paperSheetExportWired = true;
+                        }
                     }
 
                     // Bug 2 fix: Khi workspace vừa open, sync trạng thái diarizer vào NavPane ngay.
@@ -215,6 +226,11 @@ namespace m_mslc_overlay
             _pipeService.OnPartialCaptionReceived += (txt) => {
                 _lastPartialCaption = txt;
                 _isPartialCaptionDirty = true;
+                // Phase 1 anchor: snapshot recorder offset at first non-empty partial,
+                // before any commit fires. This captures the true audio file position of
+                // utterance onset without back-calculating from SDK-reported duration.
+                if (!string.IsNullOrWhiteSpace(txt))
+                    _workspaceVm.Service?.AudioRecorder?.SnapshotOffsetAtFirstPartial();
             };
 
             // 2. Nhận câu thô hoàn chỉnh (final) từ Extractor
@@ -274,11 +290,26 @@ namespace m_mslc_overlay
                             }
                         }
                         
-                        // CRITICAL-TEXT-001 FIX: Use previous segment's end as this segment's start
-                        // If it's the very first segment, use its actual UtteranceOffset instead of 0 to skip the initial silence.
-                        // If there's a huge gap between utterances (e.g. user pauses for a long time), skip the gap.
+                        // tsStartMs selection logic:
+                        // - New utterance  (utteranceOffset changed): use SDK utterance start directly.
+                        //   Reason: the new utterance genuinely starts at a different audio position;
+                        //   using _lastSegmentEndMs would push audioStart past actual speech onset.
+                        // - Same utterance (utteranceOffset unchanged): use _lastSegmentEndMs.
+                        //   Reason: multiple commits within one utterance must be sequential;
+                        //   utteranceOffset stays frozen at utterance start for all of them.
                         long startOffsetMs = (long)(meta.UtteranceOffset / 10000);
-                        long tsStartMs = _lastSegmentEndMs > 0 ? Math.Max(_lastSegmentEndMs, startOffsetMs) : startOffsetMs;
+                        bool isNewUtterance = meta.UtteranceOffset != _lastUtteranceOffset;
+                        long tsStartMs;
+                        if (isNewUtterance && startOffsetMs > 0)
+                        {
+                            tsStartMs = startOffsetMs;  // cross-utterance: trust SDK offset
+                        }
+                        else
+                        {
+                            tsStartMs = _lastSegmentEndMs > 0 ? _lastSegmentEndMs : startOffsetMs;  // intra-utterance: chain from previous commit end
+                        }
+                        _lastUtteranceOffset = meta.UtteranceOffset;
+                        if (tsEndMs < tsStartMs) tsEndMs = tsStartMs; // Enforce monotonicity on end only
                         _lastSegmentEndMs = tsEndMs;  // Update for next segment
                         
                         // Wire atom32 speaker identification into segment ingestion and sync with Doc Nav
@@ -289,7 +320,6 @@ namespace m_mslc_overlay
                             _workspaceVm.NavPane?.AddOrUpdateSpeaker(resolvedSpeaker, dispName);
                         }
                         
-                        _workspaceVm.Service.IngestionService.ClockSync = _pipeService.ClockSync;
 
                         long dbId = _workspaceVm.Service.IngestionService.IngestSttPayload(
                             tsStartMs: tsStartMs,
@@ -460,7 +490,8 @@ namespace m_mslc_overlay
                     _segmentTracker.Reset();  // ATOM79: clear stale segments on reconnect
                     _revisionWindow.Reset();  // ATOM80: clear pending revision window on reconnect
                     _segmentIdMap.Clear();
-                    _lastSegmentEndMs = 0;  // CRITICAL-TEXT-001: Reset timing state on reconnect
+                    _lastSegmentEndMs = 0;     // CRITICAL-TEXT-001: Reset timing state on reconnect
+                    _lastUtteranceOffset = 0;  // Reset utterance boundary tracker on reconnect
                     
                     // FIX V6: Clear context hints on reconnect
                     lock (_translationLock)
@@ -634,7 +665,231 @@ namespace m_mslc_overlay
 
         private void OnExportAdvancedMenuClick(object? sender, RoutedEventArgs e)
         {
-            // Placeholder for advanced export options dialog
+            _ = ShowAdvancedExportDialogAsync();
+        }
+
+        private async System.Threading.Tasks.Task ShowAdvancedExportDialogAsync()
+        {
+            if (!_workspaceVm.IsOpen)
+            {
+                await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                    this, "Thông báo", "Vui lòng mở một workspace trước khi xuất file.");
+                return;
+            }
+
+            var exportDialog = new m_mslc_overlay.views.dialogs.ExportDialog(
+                async (jsonPayload) => await ProcessAdvancedExportPayloadAsync(jsonPayload)
+            );
+            await exportDialog.ShowDialog(this);
+        }
+
+        private async System.Threading.Tasks.Task ProcessAdvancedExportPayloadAsync(string jsonPayload)
+        {
+            if (_workspaceVm.Service?.SegmentRepo == null)
+            {
+                await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                    this, "Lỗi xuất file", "Workspace chưa có dữ liệu phân đoạn để xuất.");
+                return;
+            }
+
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
+                var root = doc.RootElement;
+
+                string outputPath = root.TryGetProperty("outputPath", out var pathProp)
+                    ? pathProp.GetString() ?? "" : "";
+                string filenamePattern = root.TryGetProperty("fileNamePattern", out var nameProp)
+                    ? nameProp.GetString() ?? "export" : "export";
+                bool overwrite = root.TryGetProperty("overwrite", out var owProp) && owProp.GetBoolean();
+
+                if (string.IsNullOrWhiteSpace(outputPath))
+                {
+                    await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                        this, "Thông báo", "Vui lòng chọn thư mục lưu trữ.");
+                    return;
+                }
+
+                bool enableSub = root.TryGetProperty("enableSubtitle", out var subToggle) && subToggle.GetBoolean();
+                bool enableAudio = root.TryGetProperty("enableAudio", out var audioToggle) && audioToggle.GetBoolean();
+
+                var errors = new System.Text.StringBuilder();
+
+                // ── Text / Subtitle export ────────────────────────────────────
+                if (enableSub && root.TryGetProperty("subtitleConfig", out var subConfig))
+                {
+                    try
+                    {
+                        string format = subConfig.TryGetProperty("format", out var fmtProp)
+                            ? fmtProp.GetString() ?? ".SRT" : ".SRT";
+                        string contentMode = subConfig.TryGetProperty("contentMode", out var modeProp)
+                            ? modeProp.GetString() ?? "Song ngữ (EN + VI)" : "Song ngữ (EN + VI)";
+                        string encoding = subConfig.TryGetProperty("encoding", out var encProp)
+                            ? encProp.GetString() ?? "UTF-8" : "UTF-8";
+                        bool includeStyles = !subConfig.TryGetProperty("includeStyles", out var stylesProp) || stylesProp.GetBoolean();
+
+                        MMslcOverlay.Core.Workspace.Export.IExporter exporter = format.ToUpperInvariant() switch
+                        {
+                            ".TXT"  => new MMslcOverlay.Core.Workspace.Export.TxtExporter(),
+                            ".MD"   => new MMslcOverlay.Core.Workspace.Export.MarkdownExporter(),
+                            ".JSON" => new MMslcOverlay.Core.Workspace.Export.JsonExporter(),
+                            ".PDF"  => new MMslcOverlay.Core.Workspace.Export.PdfExporter(),
+                            ".ASS"  => new MMslcOverlay.Core.Workspace.Export.AssExporter { IncludeStyles = includeStyles },
+                            ".VTT"  => new MMslcOverlay.Core.Workspace.Export.VttExporter(),
+                            _       => new MMslcOverlay.Core.Workspace.Export.SrtExporter()
+                        };
+                        exporter.ContentMode = contentMode;
+
+                        // Flush pending freeform edits before reading segments
+                        await _workspaceVm.FlushPendingAsync();
+
+                        var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
+                        string exportedContent = engine.RunExport(exporter);
+
+                        // Determine actual file extension
+                        string ext = format.ToUpperInvariant() switch
+                        {
+                            ".TXT"  => ".txt",
+                            ".MD"   => ".md",
+                            ".JSON" => ".json",
+                            ".PDF"  => ".pdf",
+                            ".ASS"  => ".ass",
+                            ".VTT"  => ".vtt",
+                            _       => ".srt"
+                        };
+
+                        string destFile = System.IO.Path.Combine(outputPath, filenamePattern + ext);
+
+                        if (System.IO.File.Exists(destFile) && !overwrite)
+                        {
+                            errors.AppendLine($"File đã tồn tại (bỏ qua): {System.IO.Path.GetFileName(destFile)}");
+                        }
+                        else
+                        {
+                            if (ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // PdfExporter trả về path tạm thời
+                                if (System.IO.File.Exists(exportedContent))
+                                {
+                                    System.IO.File.Copy(exportedContent, destFile, overwrite);
+                                    System.IO.File.Delete(exportedContent);
+                                }
+                            }
+                            else
+                            {
+                                var enc = encoding.Equals("ANSI", StringComparison.OrdinalIgnoreCase)
+                                    ? System.Text.Encoding.GetEncoding(1252)
+                                    : System.Text.Encoding.UTF8;
+                                await System.IO.File.WriteAllTextAsync(destFile, exportedContent, enc);
+                            }
+                            services.LoggerService.Log($"[Export] Subtitle exported: {destFile}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.AppendLine($"Lỗi xuất phụ đề: {ex.Message}");
+                        services.LoggerService.Log($"[Export] Subtitle export error: {ex.Message}");
+                    }
+                }
+
+                // ── Audio export ──────────────────────────────────────────────
+                if (enableAudio && root.TryGetProperty("audioConfig", out var audioConfig))
+                {
+                    try
+                    {
+                        string audioFormat = audioConfig.TryGetProperty("format", out var afProp)
+                            ? afProp.GetString() ?? "WAV" : "WAV";
+                        string audioMode = audioConfig.TryGetProperty("mode", out var amProp)
+                            ? amProp.GetString() ?? "Merge" : "Merge";
+                        string bitrate = audioConfig.TryGetProperty("bitrate", out var brProp)
+                            ? brProp.GetString() ?? "192 kbps" : "192 kbps";
+                        string channels = audioConfig.TryGetProperty("channels", out var chProp)
+                            ? chProp.GetString() ?? "Stereo" : "Stereo";
+                        bool normalizeVolume = !audioConfig.TryGetProperty("normalizeVolume", out var nvProp) || nvProp.GetBoolean();
+
+                        // Tìm session directory của recorder hiện tại
+                        string? sessionId = _workspaceVm.Service?.AudioRecorder?.SessionId;
+                        if (string.IsNullOrEmpty(sessionId))
+                        {
+                            errors.AppendLine("Không có audio session: chưa bắt đầu ghi âm trong phiên này.");
+                        }
+                        else
+                        {
+                            // AudioRecorder lưu tại <workspace>/.mslc/audio/<sessionId>/
+                            string audioDir = System.IO.Path.Combine(
+                                _workspaceVm.Service!.Storage.MslcDir, "audio");
+                            string sessionDir = System.IO.Path.Combine(audioDir, sessionId);
+
+                            if (!System.IO.Directory.Exists(sessionDir))
+                            {
+                                errors.AppendLine($"Thư mục audio không tìm thấy: {sessionDir}");
+                            }
+                            else
+                            {
+                                // Build segment ranges từ DB nếu mode = Segment
+                                System.Collections.Generic.List<MMslcOverlay.Services.Workspace.SegmentTimeRange>? segRanges = null;
+                                if (audioMode.Equals("Segment", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    segRanges = new();
+                                    var mergedSegs = _workspaceVm.Service.SegmentRepo.GetMergedSegments();
+                                    foreach (var seg in mergedSegs)
+                                    {
+                                        if (seg.BaseSegment.AudioSessionId == sessionId)
+                                        {
+                                            long startMs = seg.BaseSegment.AudioOffsetMs ?? seg.BaseSegment.TsStartMs;
+                                            long endMs = seg.BaseSegment.AudioEndOffsetMs ?? seg.BaseSegment.TsEndMs;
+                                            string label = seg.BaseSegment.SpeakerId ?? "unknown";
+                                            segRanges.Add(new MMslcOverlay.Services.Workspace.SegmentTimeRange(label, startMs, endMs));
+                                        }
+                                    }
+                                }
+
+                                var req = new MMslcOverlay.Services.Workspace.AudioExportRequest(
+                                    SessionDir: sessionDir,
+                                    OutputPath: outputPath,
+                                    FileNamePattern: filenamePattern,
+                                    Format: audioFormat,
+                                    Mode: audioMode,
+                                    Channels: channels,
+                                    Bitrate: bitrate,
+                                    NormalizeVolume: normalizeVolume,
+                                    Overwrite: overwrite,
+                                    SegmentRanges: segRanges
+                                );
+
+                                await MMslcOverlay.Services.Workspace.AudioExportService.ExportAsync(req);
+                                services.LoggerService.Log($"[Export] Audio exported to: {outputPath}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.AppendLine($"Lỗi xuất âm thanh: {ex.Message}");
+                        services.LoggerService.Log($"[Export] Audio export error: {ex.Message}");
+                    }
+                }
+
+                // ── Post-export ───────────────────────────────────────────────
+                _workspaceVm.RefreshSessionFiles();
+
+                if (errors.Length > 0)
+                {
+                    await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                        this, "Xuất file hoàn tất (có cảnh báo)", errors.ToString().Trim());
+                }
+                else
+                {
+                    await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                        this, "Xuất file thành công",
+                        $"Dữ liệu đã được lưu vào:\n{outputPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                services.LoggerService.Log($"[Export] ProcessAdvancedExportPayloadAsync failed: {ex.Message}");
+                await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
+                    this, "Lỗi xuất file", $"Đã xảy ra lỗi không mong đợi:\n{ex.Message}");
+            }
         }
 
         private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()
@@ -1943,6 +2198,42 @@ namespace m_mslc_overlay
             UpdateDynamicStrings();
         }
 
+        private void ResetOverlayPosition_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_currentOverlay != null && _currentOverlay.IsVisible)
+            {
+                var screen = _currentOverlay.Screens.ScreenFromWindow(_currentOverlay) ?? _currentOverlay.Screens.Primary;
+                if (screen != null)
+                {
+                    var x = (screen.Bounds.Width - (int)_currentOverlay.Width) / 2;
+                    var y = (screen.Bounds.Height - (int)_currentOverlay.Height) / 2;
+                    _currentOverlay.Position = new Avalonia.PixelPoint(x, y);
+                    ConfigManager.Current.OverlayPositionX = x;
+                    ConfigManager.Current.OverlayPositionY = y;
+                    ConfigManager.Save();
+                }
+            }
+            else
+            {
+                ConfigManager.Current.OverlayPositionX = -1;
+                ConfigManager.Current.OverlayPositionY = -1;
+                ConfigManager.Save();
+            }
+        }
+
+        private void ToggleOverlayLock_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_currentOverlay != null)
+            {
+                _currentOverlay.ToggleLock();
+            }
+            else
+            {
+                ConfigManager.Current.OverlayIsLocked = !ConfigManager.Current.OverlayIsLocked;
+                ConfigManager.Save();
+            }
+        }
+
         public enum PanelPosition { Left, Right, Top, Bottom }
         public PanelPosition ConfiguredSidePanelPosition = PanelPosition.Right;
         public bool ConfiguredSidePanelTopmost = false;
@@ -2035,25 +2326,28 @@ namespace m_mslc_overlay
 
             try
             {
-                _hotkeyManager = new HotkeyManager(this);
-                _hotkeyManager.Initialize();
+                if (_hotkeyManager == null)
+                {
+                    _hotkeyManager = new HotkeyManager(this);
+                    _hotkeyManager.Initialize();
+                }
 
-                // Register hotkeys: Alt + Shift + O/T/L/C/Up/Down (Temporarily disabled as requested)
-                // 101: Toggle Overlay (Alt + Shift + O)
-                // 102: Toggle Translation (Alt + Shift + T)
-                // 103: Cycle Language (Alt + Shift + L)
-                // 104: Clear Text (Alt + Shift + C)
-                // 105: Increase Font Size (Alt + Shift + Up)
-                // 106: Decrease Font Size (Alt + Shift + Down)
+                if (ConfigManager.Current.Hotkeys != null)
+                {
+                    foreach (var kvp in ConfigManager.Current.Hotkeys)
+                    {
+                        var hotkey = kvp.Value;
+                        if (!hotkey.IsGlobal || string.IsNullOrWhiteSpace(hotkey.KeyGesture)) continue;
 
-                // _hotkeyManager.Register(101, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4F, ToggleOverlay);
-                // _hotkeyManager.Register(102, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x54, ToggleTranslation);
-                // _hotkeyManager.Register(103, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x4C, CycleLanguage);
-                // _hotkeyManager.Register(104, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x43, ClearOverlayText);
-                // _hotkeyManager.Register(105, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x26, () => ChangeOverlayFontSize(2.0));
-                // _hotkeyManager.Register(106, HotkeyManager.MOD_ALT | HotkeyManager.MOD_SHIFT, 0x28, () => ChangeOverlayFontSize(-2.0));
-
-                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys manager initialized (Alt+Shift+X hotkeys temporarily disabled).\n");
+                        Action? action = GetActionForId(hotkey.ActionId);
+                        if (action != null)
+                        {
+                            _hotkeyManager.TryRegister(hotkey.ActionId, hotkey.KeyGesture, action, out _);
+                        }
+                    }
+                }
+                
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [SYSTEM] Global hotkeys manager initialized.\n");
             }
             catch (Exception ex)
             {
@@ -2067,23 +2361,28 @@ namespace m_mslc_overlay
             {
                 _focusKeyController = new FocusKeyController(this);
 
-                // 1. Register shortcuts with modifiers (e.g. Ctrl + Key)
-                _focusKeyController.Register(Key.O, KeyModifiers.Control, ToggleOverlay);
-                _focusKeyController.Register(Key.T, KeyModifiers.Control, ToggleTranslation);
-                _focusKeyController.Register(Key.L, KeyModifiers.Control, CycleLanguage);
-                _focusKeyController.Register(Key.C, KeyModifiers.Control, ClearOverlayText);
-                _focusKeyController.Register(Key.Up, KeyModifiers.Control, () => ChangeOverlayFontSize(2.0));
-                _focusKeyController.Register(Key.Down, KeyModifiers.Control, () => ChangeOverlayFontSize(-2.0));
+                if (ConfigManager.Current.Hotkeys != null)
+                {
+                    foreach (var kvp in ConfigManager.Current.Hotkeys)
+                    {
+                        var hotkey = kvp.Value;
+                        if (hotkey.IsGlobal || string.IsNullOrWhiteSpace(hotkey.KeyGesture)) continue;
 
-                // 2. Register fallback keys (Fx, A-Z) without modifiers (bypassed if typing in TextBox)
-                // Fx Keys
-                _focusKeyController.RegisterFallbackKey(Key.F1, ToggleOverlay);
-                _focusKeyController.RegisterFallbackKey(Key.F2, ToggleTranslation);
-                _focusKeyController.RegisterFallbackKey(Key.F3, CycleLanguage);
-                _focusKeyController.RegisterFallbackKey(Key.F4, ClearOverlayText);
-                _focusKeyController.RegisterFallbackKey(Key.F5, () => ChangeOverlayFontSize(2.0));
-                _focusKeyController.RegisterFallbackKey(Key.F6, () => ChangeOverlayFontSize(-2.0));
+                        Action? action = GetActionForId(hotkey.ActionId);
+                        if (action != null)
+                        {
+                            try
+                            {
+                                var gesture = Avalonia.Input.KeyGesture.Parse(hotkey.KeyGesture);
+                                _focusKeyController.Register(gesture.Key, gesture.KeyModifiers, action);
+                            }
+                            catch { /* Ignore invalid parse */ }
+                        }
+                    }
+                }
 
+                // Keep some fallback keys if needed or map everything to config.
+                // For simplicity, we just keep the config-based focus keys.
                 // A-Z Keys (active only when no text box has focus)
                 _focusKeyController.RegisterFallbackKey(Key.O, ToggleOverlay);
                 _focusKeyController.RegisterFallbackKey(Key.T, ToggleTranslation);
@@ -2097,6 +2396,34 @@ namespace m_mslc_overlay
                 AppendLog($"[{DateTime.Now:HH:mm:ss}] [ERROR] Failed to initialize focused key controller: {ex.Message}\n");
             }
         }
+        
+        private Action? GetActionForId(string actionId)
+        {
+            return actionId switch
+            {
+                "NewWorkspace" => () => OnNewWorkspaceMenuClick(null, null!),
+                "OpenWorkspace" => () => OnOpenWorkspaceMenuClick(null, null!),
+                "StartSession" => ToggleRecordingSession,
+                "ToggleOverlay" => ToggleOverlay,
+                "ToggleTranslate" => ToggleTranslation,
+                "CycleLanguage" => CycleLanguage,
+                "ClearText" => ClearOverlayText,
+                "FontSizeUp" => () => ChangeOverlayFontSize(2.0),
+                "FontSizeDown" => () => ChangeOverlayFontSize(-2.0),
+                _ => null
+            };
+        }
+        
+        private void ToggleRecordingSession()
+        {
+            if (_workspaceVm.IsOpen)
+            {
+                if (_workspaceVm.IsRecording)
+                    _workspaceVm.StopRecording();
+                else
+                    _workspaceVm.StartRecording();
+            }
+        }
 
         public void UpdateHotkeyRegistration()
         {
@@ -2104,6 +2431,12 @@ namespace m_mslc_overlay
             {
                 if (_hotkeyManager == null)
                 {
+                    InitializeHotkeys();
+                }
+                else 
+                {
+                    // Re-register
+                    _hotkeyManager.UnregisterAll();
                     InitializeHotkeys();
                 }
             }

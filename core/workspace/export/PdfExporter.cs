@@ -10,6 +10,8 @@ namespace MMslcOverlay.Core.Workspace.Export;
 
 public class PdfExporter : IExporter
 {
+    public string ContentMode { get; set; } = "Song ngữ (EN + VI)";
+
     public PdfExporter()
     {
         QuestPDF.Settings.License = LicenseType.Community;

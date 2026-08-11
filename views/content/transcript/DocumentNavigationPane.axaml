@@ -182,6 +182,42 @@
                                      Watermark="Replacement text..." />
                         </StackPanel>
 
+                        <!-- Replace scope selector -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Replace in" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <RadioButton x:Name="ScopeBothRadio"
+                                             Content="Both"
+                                             IsChecked="True"
+                                             GroupName="ReplaceScope"
+                                             FontSize="10"
+                                             Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <RadioButton x:Name="ScopeMachineRadio"
+                                             Content="Machine only"
+                                             GroupName="ReplaceScope"
+                                             FontSize="10"
+                                             Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <RadioButton x:Name="ScopeHumanRadio"
+                                             Content="Human only"
+                                             GroupName="ReplaceScope"
+                                             FontSize="10"
+                                             Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Warning banner: shown before replace when matches detected -->
+                        <Border IsVisible="{Binding FindReplace.HasWarning}"
+                                Background="#FFF3CD"
+                                BorderBrush="#FFEAA7"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="8,5">
+                            <TextBlock Text="{Binding FindReplace.ReplaceWarning}"
+                                       FontSize="10"
+                                       Foreground="#856404"
+                                       TextWrapping="Wrap" />
+                        </Border>
+
                         <!-- Action buttons -->
                         <Grid ColumnDefinitions="*, 8, *">
                             <Button Grid.Column="0" x:Name="FindNextBtn"
@@ -223,6 +259,74 @@
                     </Border>
 
                     <StackPanel Spacing="8" Margin="10">
+
+                        <!-- Rate limit indicator -->
+                        <TextBlock Text="{Binding AiPane.RemainingRequests, StringFormat='Requests left: {0}/5 per min'}"
+                                   FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Right" />
+
+                        <!-- Error banner -->
+                        <Border IsVisible="{Binding AiPane.HasError}"
+                                Background="#FEF2F2"
+                                BorderBrush="#FECACA"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="8,5">
+                            <TextBlock Text="{Binding AiPane.ErrorMessage}"
+                                       FontSize="10" Foreground="#DC2626"
+                                       TextWrapping="Wrap" />
+                        </Border>
+
+                        <!-- Auto-trigger settings (compact sidebar version) -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Auto-trigger mode" FontSize="9" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                            <!-- By Segments -->
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <RadioButton x:Name="NavTriggerModeSegments"
+                                             Grid.Column="0" GroupName="NavSummaryMode"
+                                             IsChecked="True" VerticalAlignment="Center"
+                                             Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="1" Text="Segments" FontSize="10"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <NumericUpDown x:Name="NavTriggerSegmentsInput"
+                                               Grid.Column="2"
+                                               Minimum="1" Maximum="500" Increment="5"
+                                               Width="58" Height="22" FontSize="10" />
+                            </Grid>
+
+                            <!-- By Words -->
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <RadioButton x:Name="NavTriggerModeWords"
+                                             Grid.Column="0" GroupName="NavSummaryMode"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="1" Text="Words" FontSize="10"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <NumericUpDown x:Name="NavTriggerWordsInput"
+                                               Grid.Column="2"
+                                               Minimum="10" Maximum="5000" Increment="50"
+                                               Width="58" Height="22" FontSize="10" />
+                            </Grid>
+
+                            <!-- By Time -->
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <RadioButton x:Name="NavTriggerModeTime"
+                                             Grid.Column="0" GroupName="NavSummaryMode"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="1" Text="Every (sec)" FontSize="10"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <NumericUpDown x:Name="NavTriggerTimeInput"
+                                               Grid.Column="2"
+                                               Minimum="30" Maximum="3600" Increment="30"
+                                               Width="58" Height="22" FontSize="10" />
+                            </Grid>
+                        </StackPanel>
 
                         <!-- Generate button -->
                         <Button x:Name="GenerateSummaryBtn"

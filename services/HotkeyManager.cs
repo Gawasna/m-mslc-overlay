@@ -102,6 +102,93 @@ public class HotkeyManager : IDisposable
             }
         }
         _callbacks.Clear();
+        _actionToIdMap.Clear();
+    }
+
+    private readonly Dictionary<string, int> _actionToIdMap = new();
+    private int _nextId = 1000;
+
+    public static bool TryParseWin32(string gesture, out uint modifiers, out uint vk)
+    {
+        modifiers = 0;
+        vk = 0;
+        if (string.IsNullOrWhiteSpace(gesture)) return false;
+        try
+        {
+            var keyGesture = Avalonia.Input.KeyGesture.Parse(gesture);
+            if (keyGesture.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Alt)) modifiers |= MOD_ALT;
+            if (keyGesture.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control)) modifiers |= MOD_CONTROL;
+            if (keyGesture.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift)) modifiers |= MOD_SHIFT;
+            if (keyGesture.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Meta)) modifiers |= MOD_WIN;
+            
+            vk = VirtualKeyFromKey(keyGesture.Key);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static uint VirtualKeyFromKey(Avalonia.Input.Key key)
+    {
+        if (key >= Avalonia.Input.Key.A && key <= Avalonia.Input.Key.Z)
+            return (uint)(key - Avalonia.Input.Key.A + 0x41);
+        if (key >= Avalonia.Input.Key.D0 && key <= Avalonia.Input.Key.D9)
+            return (uint)(key - Avalonia.Input.Key.D0 + 0x30);
+        if (key >= Avalonia.Input.Key.NumPad0 && key <= Avalonia.Input.Key.NumPad9)
+            return (uint)(key - Avalonia.Input.Key.NumPad0 + 0x60);
+        if (key >= Avalonia.Input.Key.F1 && key <= Avalonia.Input.Key.F24)
+            return (uint)(key - Avalonia.Input.Key.F1 + 0x70);
+        
+        return key switch
+        {
+            Avalonia.Input.Key.Up => 0x26,
+            Avalonia.Input.Key.Down => 0x28,
+            Avalonia.Input.Key.Left => 0x25,
+            Avalonia.Input.Key.Right => 0x27,
+            Avalonia.Input.Key.Escape => 0x1B,
+            Avalonia.Input.Key.Space => 0x20,
+            Avalonia.Input.Key.Enter => 0x0D,
+            Avalonia.Input.Key.Back => 0x08,
+            Avalonia.Input.Key.Tab => 0x09,
+            _ => (uint)key // Fallback
+        };
+    }
+
+    public bool TryRegister(string actionId, string gesture, Action callback, out string error)
+    {
+        error = string.Empty;
+        if (!TryParseWin32(gesture, out uint modifiers, out uint vk))
+        {
+            error = "Invalid key gesture format.";
+            return false;
+        }
+
+        if (_hwnd == IntPtr.Zero) Initialize();
+        if (_hwnd == IntPtr.Zero)
+        {
+            error = "Window handle is not ready.";
+            return false;
+        }
+
+        if (_actionToIdMap.TryGetValue(actionId, out int oldId))
+        {
+            Unregister(oldId);
+            _actionToIdMap.Remove(actionId);
+        }
+
+        int newId = _nextId++;
+        bool success = RegisterHotKey(_hwnd, newId, modifiers | MOD_NOREPEAT, vk);
+        if (success)
+        {
+            _callbacks[newId] = callback;
+            _actionToIdMap[actionId] = newId;
+            return true;
+        }
+        
+        error = "The shortcut may be in use by another application or Windows.";
+        return false;
     }
 
     private IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)

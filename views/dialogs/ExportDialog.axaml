@@ -28,8 +28,20 @@
                             <TextBlock Text="{DynamicResource Export_Format}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                             <ComboBox x:Name="SubtitleFormatCombo" HorizontalAlignment="Stretch" SelectedIndex="0" Height="22" TabIndex="3" FontSize="11">
                                 <ComboBoxItem Content=".SRT"/>
+                                <ComboBoxItem Content=".TXT"/>
+                                <ComboBoxItem Content=".MD"/>
+                                <ComboBoxItem Content=".JSON"/>
                                 <ComboBoxItem Content=".ASS"/>
                                 <ComboBoxItem Content=".VTT"/>
+                            </ComboBox>
+
+                            <TextBlock Text="Chế độ Ngôn ngữ &amp; Nội dung" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <ComboBox x:Name="ContentModeCombo" HorizontalAlignment="Stretch" SelectedIndex="0" Height="22" TabIndex="35" FontSize="11">
+                                <ComboBoxItem Content="Song ngữ (EN + VI)"/>
+                                <ComboBoxItem Content="Chỉ Tiếng Anh (EN)"/>
+                                <ComboBoxItem Content="Chỉ Tiếng Việt (VI)"/>
+                                <ComboBoxItem Content="Chỉ Ghi chú (Notes Only)"/>
+                                <ComboBoxItem Content="Cả 2 (Transcript + Notes)"/>
                             </ComboBox>
 
                             <TextBlock Text="{DynamicResource Export_Encoding}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
@@ -57,6 +69,12 @@
                                 <RadioButton x:Name="AudioFormatMp3" Content="MP3" GroupName="AudioFormat" IsChecked="True" TabIndex="7" FontSize="11"/>
                                 <RadioButton x:Name="AudioFormatWav" Content="WAV" GroupName="AudioFormat" TabIndex="8" FontSize="11"/>
                                 <RadioButton x:Name="AudioFormatFlac" Content="FLAC" GroupName="AudioFormat" TabIndex="9" FontSize="11"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Chế độ Âm thanh" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <RadioButton x:Name="AudioModeMerge" Content="Gộp file" GroupName="AudioModeGroup" IsChecked="True" FontSize="11"/>
+                                <RadioButton x:Name="AudioModeSegment" Content="Tách đoạn" GroupName="AudioModeGroup" FontSize="11"/>
                             </StackPanel>
 
                             <TextBlock Text="{DynamicResource Export_Bitrate}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>

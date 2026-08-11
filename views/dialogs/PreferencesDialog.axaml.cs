@@ -25,6 +25,14 @@ namespace m_mslc_overlay.views.dialogs
                 OfflineTranslationServerManager.OnStateChanged -= OnServerStateChanged;
                 DiarizerProcessManager.OnGlobalStateChanged -= OnAtom32StateChanged;
             };
+
+            this.KeyDown += (s, e) => {
+                if (e.Key == Avalonia.Input.Key.S && e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control))
+                {
+                    SaveSettings();
+                    this.Close();
+                }
+            };
         }
 
         private void OnAtom32StateChanged(DiarizerState state)
@@ -40,6 +48,8 @@ namespace m_mslc_overlay.views.dialogs
                 UpdateServerStateUI(state);
             });
         }
+
+        public System.Collections.ObjectModel.ObservableCollection<m_mslc_overlay.core.models.HotkeyItem> ConfigurableHotkeys { get; set; } = new();
 
         private void LoadSettings()
         {
@@ -73,6 +83,16 @@ namespace m_mslc_overlay.views.dialogs
             VerboseLogCheck.IsChecked = cfg.VerboseLogging;
             EnableHotkeysCheck.IsChecked = cfg.EnableGlobalHotkeys;
 
+            ConfigurableHotkeys.Clear();
+            if (cfg.Hotkeys != null)
+            {
+                foreach (var kvp in cfg.Hotkeys)
+                {
+                    ConfigurableHotkeys.Add(new m_mslc_overlay.core.models.HotkeyItem(kvp.Value.ActionId, kvp.Value.ActionName, kvp.Value.KeyGesture, kvp.Value.IsGlobal));
+                }
+            }
+            if (HotkeysItemsControl != null) HotkeysItemsControl.ItemsSource = ConfigurableHotkeys;
+
             if (cfg.OfflineModel == "OPUS-MT")
             {
                 if (UseOpusRadio != null) UseOpusRadio.IsChecked = true;
@@ -83,6 +103,26 @@ namespace m_mslc_overlay.views.dialogs
             }
 
             if (UtilAtom32Toggle != null) UtilAtom32Toggle.IsChecked = cfg.EnableDiarizer;
+
+            // Gemini Summary settings
+            if (GeminiApiKeyBox != null)        GeminiApiKeyBox.Text = cfg.GeminiApiKey;
+            if (SummaryTriggerSegmentsBox != null) SummaryTriggerSegmentsBox.Value = cfg.SummaryTriggerSegments;
+            if (SummaryTriggerWordsBox != null) SummaryTriggerWordsBox.Value = cfg.SummaryTriggerWords;
+            if (SummaryTriggerTimeBox != null)  SummaryTriggerTimeBox.Value  = cfg.SummaryTriggerTimeSeconds;
+
+            // Set the correct trigger mode RadioButton
+            switch (cfg.SummaryTriggerMode)
+            {
+                case SummaryTriggerMode.ByWords:
+                    if (TriggerModeWords != null) TriggerModeWords.IsChecked = true;
+                    break;
+                case SummaryTriggerMode.ByTime:
+                    if (TriggerModeTime != null) TriggerModeTime.IsChecked = true;
+                    break;
+                default:
+                    if (TriggerModeSegments != null) TriggerModeSegments.IsChecked = true;
+                    break;
+            }
 
             UpdateServerStateUI(OfflineTranslationServerManager.State);
             UpdateAtom32StateUI(DiarizerProcessManager.GlobalState);
@@ -119,7 +159,30 @@ namespace m_mslc_overlay.views.dialogs
             cfg.VerboseLogging = VerboseLogCheck.IsChecked ?? false;
             cfg.EnableGlobalHotkeys = EnableHotkeysCheck.IsChecked ?? true;
             cfg.EnableDiarizer = UtilAtom32Toggle?.IsChecked ?? false;
+
+            // Gemini Summary settings
+            cfg.GeminiApiKey = GeminiApiKeyBox?.Text ?? "";
+            cfg.SummaryTriggerSegments = (int)(SummaryTriggerSegmentsBox?.Value ?? 10);
+            cfg.SummaryTriggerWords    = (int)(SummaryTriggerWordsBox?.Value ?? 200);
+            cfg.SummaryTriggerTimeSeconds = (int)(SummaryTriggerTimeBox?.Value ?? 120);
+
+            // Derive mode from which RadioButton is checked
+            if (TriggerModeWords?.IsChecked == true)
+                cfg.SummaryTriggerMode = SummaryTriggerMode.ByWords;
+            else if (TriggerModeTime?.IsChecked == true)
+                cfg.SummaryTriggerMode = SummaryTriggerMode.ByTime;
+            else
+                cfg.SummaryTriggerMode = SummaryTriggerMode.BySegments;
             
+            if (cfg.Hotkeys == null)
+            {
+                cfg.Hotkeys = new System.Collections.Generic.Dictionary<string, m_mslc_overlay.core.models.HotkeyItem>();
+            }
+            foreach (var item in ConfigurableHotkeys)
+            {
+                cfg.Hotkeys[item.ActionId] = item;
+            }
+
             ConfigManager.Save();
 
             // Quản lý vòng đời Offline Server khi cấu hình Engine thay đổi
@@ -458,6 +521,88 @@ namespace m_mslc_overlay.views.dialogs
         private async void RunEnvCheckBtn_Click(object? sender, RoutedEventArgs e)
         {
             await EnvironmentCheckDialog.ShowDiagnosticAsync(this);
+        }
+
+        private async void TestGeminiKeyBtn_Click(object? sender, RoutedEventArgs e)
+        {
+            if (GeminiKeyStatusText == null || GeminiApiKeyBox == null) return;
+
+            GeminiKeyStatusText.Text = "Đang kiểm tra...";
+            GeminiKeyStatusText.Foreground = Avalonia.Media.Brushes.Gray;
+
+            // Temporarily apply the entered key for the test
+            string originalKey = ConfigManager.Current.GeminiApiKey;
+            ConfigManager.Current.GeminiApiKey = GeminiApiKeyBox.Text?.Trim() ?? "";
+
+            try
+            {
+                using var svc = new m_mslc_overlay.services.GeminiSummaryService();
+                bool ok = await svc.TryRequestSummaryAsync(isAutomatic: false);
+
+                GeminiKeyStatusText.Text = ok
+                    ? "API key hợp lệ. Kết nối thành công."
+                    : "Lỗi: Không thể kết nối. Kiểm tra lại key.";
+                GeminiKeyStatusText.Foreground = ok
+                    ? Avalonia.Media.Brushes.Green
+                    : Avalonia.Media.Brushes.Red;
+            }
+            catch (Exception ex)
+            {
+                GeminiKeyStatusText.Text = $"Lỗi: {ex.Message}";
+                GeminiKeyStatusText.Foreground = Avalonia.Media.Brushes.Red;
+            }
+            finally
+            {
+                // Restore original key (user must click Save to commit)
+                ConfigManager.Current.GeminiApiKey = originalKey;
+            }
+        }
+
+        private void HotkeyInput_KeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+        {
+            if (sender is TextBox textBox && textBox.Tag is string actionId)
+            {
+                e.Handled = true;
+
+                // Ignore bare modifier keys
+                if (e.Key == Avalonia.Input.Key.LeftCtrl || e.Key == Avalonia.Input.Key.RightCtrl ||
+                    e.Key == Avalonia.Input.Key.LeftShift || e.Key == Avalonia.Input.Key.RightShift ||
+                    e.Key == Avalonia.Input.Key.LeftAlt || e.Key == Avalonia.Input.Key.RightAlt ||
+                    e.Key == Avalonia.Input.Key.LWin || e.Key == Avalonia.Input.Key.RWin)
+                {
+                    return;
+                }
+
+                // Ignore LWin/RWin combinations as requested
+                if (e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Meta))
+                {
+                    return;
+                }
+
+                string modifierString = "";
+                if (e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control)) modifierString += "Ctrl+";
+                if (e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Alt)) modifierString += "Alt+";
+                if (e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift)) modifierString += "Shift+";
+
+                string keyString = e.Key.ToString();
+                string finalGesture = modifierString + keyString;
+
+                // Update the ObservableCollection
+                foreach (var item in ConfigurableHotkeys)
+                {
+                    if (item.ActionId == actionId)
+                    {
+                        // We must remove and insert to trigger UI update properly if not using INotifyPropertyChanged
+                        int index = ConfigurableHotkeys.IndexOf(item);
+                        if (index >= 0)
+                        {
+                            var newItem = new m_mslc_overlay.core.models.HotkeyItem(item.ActionId, item.ActionName, finalGesture, item.IsGlobal);
+                            ConfigurableHotkeys[index] = newItem;
+                        }
+                        break;
+                    }
+                }
+            }
         }
     }
 }

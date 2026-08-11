@@ -1,16 +1,24 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
 using MMslcOverlay.ViewModels.Workspace;
 using m_mslc_overlay.views.controls;
+using MMslcOverlay.Views.Workspace.Components;
 
 namespace MMslcOverlay.Views.Workspace;
 
 public partial class PaperSheetView : UserControl
 {
+    /// <summary>
+    /// Bubbles ExportRequested from the embedded SubToolbar.
+    /// Subscribe in the parent window (MainWindow) to perform actual export logic.
+    /// </summary>
+    public event Func<string, Task>? ExportRequested;
+
     public PaperSheetView()
     {
         InitializeComponent();
@@ -41,6 +49,17 @@ public partial class PaperSheetView : UserControl
             {
                 System.Diagnostics.Debug.WriteLine($"[PaperSheetView] asset load failed: {ex.Message}");
             }
+        }
+
+        // Wire SubToolbar ExportRequested bubble-up
+        var subToolbar = this.FindControl<SubToolbar>("WorkspaceSubToolbar");
+        if (subToolbar != null)
+        {
+            subToolbar.ExportRequested += async (payload) =>
+            {
+                if (ExportRequested != null)
+                    await ExportRequested.Invoke(payload);
+            };
         }
 
         this.DataContextChanged += OnDataContextChangedHandler;

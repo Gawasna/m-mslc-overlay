@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using m_mslc_overlay.core;
+using m_mslc_overlay.viewmodels.transcript;
 
 namespace m_mslc_overlay.viewmodels.transcript
 {
@@ -21,6 +22,23 @@ namespace m_mslc_overlay.viewmodels.transcript
         public TimeSpan Timestamp { get; init; }
         public SegmentState State { get; init; } = SegmentState.Committed;
         public bool IsActive { get; init; }
+
+        // ─── Source & per-segment styling ───────────────────────────────────
+
+        /// <summary>Machine (LiveCaption pipe) or Human (manually entered).</summary>
+        public SegmentSource Source { get; init; } = SegmentSource.Machine;
+
+        /// <summary>Per-segment bold override. null = use global setting.</summary>
+        public bool? IsBoldOverride { get; init; }
+
+        /// <summary>Per-segment italic override. null = use global setting.</summary>
+        public bool? IsItalicOverride { get; init; }
+
+        /// <summary>Per-segment underline override. null = use global setting.</summary>
+        public bool? IsUnderlinedOverride { get; init; }
+
+        /// <summary>Per-segment font-size override in points. null = use global setting.</summary>
+        public double? FontSizeOverride { get; init; }
 
         public string TimestampFormatted => Timestamp.ToString(@"hh\:mm\:ss");
         public bool HasTranslation => !string.IsNullOrEmpty(TranslatedText);
@@ -64,6 +82,64 @@ namespace m_mslc_overlay.viewmodels.transcript
         {
             get => _focusMode;
             set { _focusMode = value; OnPropertyChanged(); }
+        }
+
+        // ─── Global text formatting (Word-style toolbar) ───────────────────
+
+        private string _globalFontFamily = "Georgia";
+        /// <summary>Font family applied to all segments (global). Persisted in config.</summary>
+        public string GlobalFontFamily
+        {
+            get => _globalFontFamily;
+            set { _globalFontFamily = value; OnPropertyChanged(); }
+        }
+
+        private double _globalFontSize = 11.5;
+        /// <summary>Base font size in points (global). Clamped 6–72.</summary>
+        public double GlobalFontSize
+        {
+            get => _globalFontSize;
+            set { _globalFontSize = Math.Clamp(value, 6.0, 72.0); OnPropertyChanged(); }
+        }
+
+        private bool _globalBold;
+        /// <summary>Global bold toggle. Applied to segments unless overridden per-segment.</summary>
+        public bool GlobalBold
+        {
+            get => _globalBold;
+            set { _globalBold = value; OnPropertyChanged(); }
+        }
+
+        private bool _globalItalic;
+        public bool GlobalItalic
+        {
+            get => _globalItalic;
+            set { _globalItalic = value; OnPropertyChanged(); }
+        }
+
+        private bool _globalUnderline;
+        public bool GlobalUnderline
+        {
+            get => _globalUnderline;
+            set { _globalUnderline = value; OnPropertyChanged(); }
+        }
+
+        // ─── Segment source highlight toggles ─────────────────────────────
+
+        private bool _highlightMachineSegments = true;
+        /// <summary>Show visual accent (bold + orange border) for Machine segments.</summary>
+        public bool HighlightMachineSegments
+        {
+            get => _highlightMachineSegments;
+            set { _highlightMachineSegments = value; OnPropertyChanged(); }
+        }
+
+        private bool _highlightHumanSegments = true;
+        /// <summary>Show visual accent (italic + underline + blue border) for Human segments.</summary>
+        public bool HighlightHumanSegments
+        {
+            get => _highlightHumanSegments;
+            set { _highlightHumanSegments = value; OnPropertyChanged(); }
         }
 
         private double _zoomLevel = 1.0; // 0.5 – 2.0
@@ -112,17 +188,22 @@ namespace m_mslc_overlay.viewmodels.transcript
             {
                 if (Segments[i].Id == segmentId)
                 {
-                    var updated = new TranscriptSegmentItem
+                    var seg = Segments[i];
+                    Segments[i] = new TranscriptSegmentItem
                     {
-                        Id = Segments[i].Id,
-                        SpeakerLabel = Segments[i].SpeakerLabel,
-                        OriginalText = Segments[i].OriginalText,
-                        TranslatedText = translatedText,
-                        Timestamp = Segments[i].Timestamp,
-                        State = SegmentState.Translated,
-                        IsActive = Segments[i].IsActive
+                        Id                   = seg.Id,
+                        SpeakerLabel         = seg.SpeakerLabel,
+                        OriginalText         = seg.OriginalText,
+                        TranslatedText       = translatedText,
+                        Timestamp            = seg.Timestamp,
+                        State                = SegmentState.Translated,
+                        IsActive             = seg.IsActive,
+                        Source               = seg.Source,
+                        IsBoldOverride       = seg.IsBoldOverride,
+                        IsItalicOverride     = seg.IsItalicOverride,
+                        IsUnderlinedOverride = seg.IsUnderlinedOverride,
+                        FontSizeOverride     = seg.FontSizeOverride
                     };
-                    Segments[i] = updated;
                     return;
                 }
             }
@@ -131,6 +212,77 @@ namespace m_mslc_overlay.viewmodels.transcript
         public void ZoomIn() => ZoomLevel = Math.Round(ZoomLevel + 0.1, 1);
         public void ZoomOut() => ZoomLevel = Math.Round(ZoomLevel - 0.1, 1);
         public void ZoomReset() => ZoomLevel = 1.0;
+
+        // ─── Find & Replace ───────────────────────────────────────────────
+
+        /// <summary>
+        /// Replaces all occurrences of <paramref name="findText"/> in segments
+        /// that match <paramref name="scope"/>.
+        /// Returns (count_changed, result_message).
+        /// </summary>
+        public (int count, string message) ReplaceAll(
+            string findText, string replaceText, ReplaceScope scope)
+        {
+            if (string.IsNullOrEmpty(findText))
+                return (0, "Nothing to replace.");
+
+            int changed = 0;
+            for (int i = 0; i < Segments.Count; i++)
+            {
+                var seg = Segments[i];
+                bool inScope = scope == ReplaceScope.Both
+                    || (scope == ReplaceScope.MachineOnly && seg.Source == SegmentSource.Machine)
+                    || (scope == ReplaceScope.HumanOnly  && seg.Source == SegmentSource.Human);
+
+                if (!inScope) continue;
+                if (!seg.OriginalText.Contains(findText, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Immutable swap via object initializer
+                Segments[i] = new TranscriptSegmentItem
+                {
+                    Id                = seg.Id,
+                    SpeakerLabel      = seg.SpeakerLabel,
+                    OriginalText      = seg.OriginalText.Replace(
+                                            findText, replaceText,
+                                            StringComparison.OrdinalIgnoreCase),
+                    TranslatedText    = seg.TranslatedText,
+                    Timestamp         = seg.Timestamp,
+                    State             = seg.State,
+                    IsActive          = seg.IsActive,
+                    Source            = seg.Source,
+                    IsBoldOverride    = seg.IsBoldOverride,
+                    IsItalicOverride  = seg.IsItalicOverride,
+                    IsUnderlinedOverride = seg.IsUnderlinedOverride,
+                    FontSizeOverride  = seg.FontSizeOverride
+                };
+                changed++;
+            }
+
+            string msg = changed == 0
+                ? "No matches found in selected scope."
+                : $"Replaced {changed} occurrence(s) successfully.";
+            return (changed, msg);
+        }
+
+        /// <summary>
+        /// Preview how many segments would be affected by a replace operation
+        /// without modifying any data. Used to show warning before Replace All.
+        /// </summary>
+        public int PreviewReplaceCount(string findText, ReplaceScope scope)
+        {
+            if (string.IsNullOrEmpty(findText)) return 0;
+            int count = 0;
+            foreach (var seg in Segments)
+            {
+                bool inScope = scope == ReplaceScope.Both
+                    || (scope == ReplaceScope.MachineOnly && seg.Source == SegmentSource.Machine)
+                    || (scope == ReplaceScope.HumanOnly  && seg.Source == SegmentSource.Human);
+                if (inScope && seg.OriginalText.Contains(findText, StringComparison.OrdinalIgnoreCase))
+                    count++;
+            }
+            return count;
+        }
 
         public void Clear()
         {

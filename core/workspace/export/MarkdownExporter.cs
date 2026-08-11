@@ -6,6 +6,8 @@ namespace MMslcOverlay.Core.Workspace.Export;
 
 public class MarkdownExporter : IExporter
 {
+    public string ContentMode { get; set; } = "Song ngữ (EN + VI)";
+
     public string Export(IEnumerable<MergedSegment> segments, IEnumerable<FreeformBlock>? blocks = null)
     {
         var sb = new StringBuilder();
