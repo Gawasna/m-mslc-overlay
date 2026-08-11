@@ -72,4 +72,26 @@ public class Segment
     /// Values: "HardCommit", "SoftCommit", "DebounceCommit", "OffsetChange"
     /// </summary>
     public string CommitReason { get; set; } = "UNKNOWN";
+
+    /// <summary>UI/export timeline: audio session offset when recording, else STT clock.</summary>
+    public long GetMediaStartMs()
+        => AudioOffsetMs ?? TsStartMs;
+
+    public long GetMediaEndMs()
+    {
+        if (AudioEndOffsetMs.HasValue)
+        {
+            long end = AudioEndOffsetMs.Value;
+            long start = GetMediaStartMs();
+            return end >= start ? end : start;
+        }
+
+        if (AudioOffsetMs.HasValue)
+        {
+            long duration = Math.Max(0, TsEndMs - TsStartMs);
+            return AudioOffsetMs.Value + duration;
+        }
+
+        return TsEndMs >= TsStartMs ? TsEndMs : TsStartMs;
+    }
 }

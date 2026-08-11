@@ -459,8 +459,8 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                 msg.Segments.Add(new BridgeSegment
                 {
                     SegId = seg.BaseSegment.Id.ToString(),
-                    TsStartMs = seg.BaseSegment.TsStartMs,
-                    TsEndMs = seg.BaseSegment.TsEndMs,
+                    TsStartMs = seg.BaseSegment.GetMediaStartMs(),
+                    TsEndMs = seg.BaseSegment.GetMediaEndMs(),
                     SpeakerId = string.IsNullOrEmpty(seg.BaseSegment.SpeakerId) ? "UNK" : seg.BaseSegment.SpeakerId,
                     TextSrc = seg.TextSrc,
                     TextTrs = seg.TextTrs
@@ -520,11 +520,10 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         {
             Type = "INSERT_MACHINE_SEGMENT",
             SegId = segment.Id.ToString(),
-            TsStartMs = segment.TsStartMs,
-            TsEndMs = segment.TsEndMs,
+            TsStartMs = segment.GetMediaStartMs(),
+            TsEndMs = segment.GetMediaEndMs(),
             SpeakerId = string.IsNullOrEmpty(segment.SpeakerId) ? "UNK" : segment.SpeakerId,
             TextSrc = segment.TextSrc
-            // No trs yet from ingestion
         };
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
