@@ -183,6 +183,11 @@
                                                                  Foreground="{StaticResource TextPrimaryBrush}" />
                                                     </Panel>
 
+                                                    <TextBlock Text="{Binding SegCountLabel}"
+                                                               FontSize="9"
+                                                               Foreground="{StaticResource TextTertiaryBrush}"
+                                                               Margin="0,2,0,0"
+                                                               IsVisible="{Binding HasSegments}" />
                                                 </StackPanel>
 
                                                 <!-- Merge button -->
@@ -349,10 +354,10 @@
                 </StackPanel>
 
                 <!-- ══ STATE 3: AI Summary ════════════════════════════════════ -->
-                <StackPanel IsVisible="{Binding ShowAiSummary}" Spacing="0">
+                <Grid IsVisible="{Binding ShowAiSummary}" RowDefinitions="Auto, *">
 
                     <!-- Header -->
-                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                    <Border Grid.Row="0" Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
                             BorderThickness="0,0,0,1" Padding="10,6">
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBlock Grid.Column="0" Text="AI Summary"
@@ -364,7 +369,8 @@
                         </Grid>
                     </Border>
 
-                    <StackPanel Spacing="8" Margin="10">
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Spacing="8" Margin="10">
 
                         <!-- Generate button -->
                         <Button x:Name="GenerateSummaryBtn"
@@ -438,7 +444,8 @@
                         </Border>
 
                     </StackPanel>
-                </StackPanel>
+                    </ScrollViewer>
+                </Grid>
 
                 <!-- ══ STATE 4: AI Auto-Correct ═══════════════════════════════ -->
                 <StackPanel IsVisible="{Binding ShowAiAutoCorrect}" Spacing="0">

@@ -318,11 +318,11 @@ namespace m_mslc_overlay.services
                 sb.AppendLine(priorContext);
                 sb.AppendLine("=== KẾT THÚC NGỮ CẢNH ===");
                 sb.AppendLine();
-                sb.AppendLine("Dưới đây là nội dung MỚI cần tóm tắt (chỉ phần này, không lặp lại ngữ cảnh trước):");
+                sb.AppendLine("Dưới đây là nội dung MỚI cần tóm tắt (chỉ phần này, không lặp lại ngữ cảnh trước, BẮT BUỘC TRẢ LỜI HOÀN TOÀN BẰNG TIẾNG VIỆT):");
             }
             else
             {
-                sb.AppendLine("Tóm tắt ngắn gọn (3–5 câu) nội dung cuộc hội thoại sau bằng cùng ngôn ngữ với nội dung đó:");
+                sb.AppendLine("Tóm tắt ngắn gọn (3–5 câu) nội dung cuộc hội thoại sau, BẮT BUỘC TRẢ LỜI HOÀN TOÀN BẰNG TIẾNG VIỆT:");
             }
 
             sb.AppendLine();

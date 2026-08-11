@@ -22,13 +22,22 @@ namespace MMslcOverlay.ViewModels.Workspace
             set { _displayName = value; OnPropertyChanged(); }
         }
 
+        private int _segCount = 0;
+        public int SegCount
+        {
+            get => _segCount;
+            set { _segCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(SegCountLabel)); OnPropertyChanged(nameof(HasSegments)); }
+        }
+
+        public string SegCountLabel => $"{_segCount} segments";
+
         /// <summary>Color dot assigned on creation — stable per session.</summary>
         public string ColorHex { get; init; } = "#4E9EF5";
 
         /// <summary>Recent timeline segments for reassign affordance.</summary>
         public System.Collections.ObjectModel.ObservableCollection<SpeakerSegmentSlice> Segments { get; } = new();
 
-        public bool HasSegments => Segments.Count > 0;
+        public bool HasSegments => _segCount > 0;
 
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? name = null)
@@ -506,6 +515,7 @@ namespace MMslcOverlay.ViewModels.Workspace
                 // Update segment slices (keep last 10 for reassign UI)
                 var existing = FindSpeaker(uid);
                 if (existing == null) continue;
+                existing.SegCount = segs[^1].SegCount;
                 existing.Segments.Clear();
                 int start = System.Math.Max(0, segs.Count - 10);
                 for (int i = start; i < segs.Count; i++)
