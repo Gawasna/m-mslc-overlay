@@ -33,6 +33,24 @@ public partial class FloatingTextOverlay : Window
         set => SetValue(OverlayBackgroundProperty, value);
     }
 
+    public static readonly StyledProperty<IBrush> OverlayTextColorProperty =
+        AvaloniaProperty.Register<FloatingTextOverlay, IBrush>(nameof(OverlayTextColor), defaultValue: SolidColorBrush.Parse("#E5E5E5"));
+
+    public IBrush OverlayTextColor
+    {
+        get => GetValue(OverlayTextColorProperty);
+        set => SetValue(OverlayTextColorProperty, value);
+    }
+
+    public static readonly StyledProperty<FontFamily> OverlayFontFamilyProperty =
+        AvaloniaProperty.Register<FloatingTextOverlay, FontFamily>(nameof(OverlayFontFamily), defaultValue: new FontFamily("Segoe UI"));
+
+    public FontFamily OverlayFontFamily
+    {
+        get => GetValue(OverlayFontFamilyProperty);
+        set => SetValue(OverlayFontFamilyProperty, value);
+    }
+
     private readonly MainWindow? _mainWindow;
     private DispatcherTimer? _typewriterTimer;
     private int _typewriterIndex = 0;
@@ -56,6 +74,21 @@ public partial class FloatingTextOverlay : Window
             this.OverlayBackground = SolidColorBrush.Parse(config.OverlayBackground);
         }
         catch { }
+
+        try
+        {
+            this.OverlayTextColor = SolidColorBrush.Parse(config.OverlayTextColor);
+        }
+        catch { }
+        
+        if (!string.IsNullOrWhiteSpace(config.OverlayFontFamily))
+        {
+            try
+            {
+                this.OverlayFontFamily = new FontFamily(config.OverlayFontFamily);
+            }
+            catch { }
+        }
 
         if (config.OverlayPositionX != -1 && config.OverlayPositionY != -1)
         {
@@ -451,6 +484,62 @@ public partial class FloatingTextOverlay : Window
         ConfigManager.Current.OverlayBackground = "#66202020";
         ConfigManager.Save();
         OverlayBackground = SolidColorBrush.Parse("#66202020");
+    }
+
+    private void SetFont_SegoeUI_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayFontFamily = "Segoe UI";
+        ConfigManager.Save();
+        OverlayFontFamily = new FontFamily("Segoe UI");
+    }
+
+    private void SetFont_Arial_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayFontFamily = "Arial";
+        ConfigManager.Save();
+        OverlayFontFamily = new FontFamily("Arial");
+    }
+
+    private void SetFont_TimesNewRoman_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayFontFamily = "Times New Roman";
+        ConfigManager.Save();
+        OverlayFontFamily = new FontFamily("Times New Roman");
+    }
+
+    private void SetFont_Consolas_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayFontFamily = "Consolas";
+        ConfigManager.Save();
+        OverlayFontFamily = new FontFamily("Consolas");
+    }
+
+    private void SetColor_White_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayTextColor = "#E5E5E5";
+        ConfigManager.Save();
+        OverlayTextColor = SolidColorBrush.Parse("#E5E5E5");
+    }
+
+    private void SetColor_Yellow_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayTextColor = "#F1C40F";
+        ConfigManager.Save();
+        OverlayTextColor = SolidColorBrush.Parse("#F1C40F");
+    }
+
+    private void SetColor_Green_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayTextColor = "#2ECC71";
+        ConfigManager.Save();
+        OverlayTextColor = SolidColorBrush.Parse("#2ECC71");
+    }
+
+    private void SetColor_Cyan_Click(object? sender, RoutedEventArgs e)
+    {
+        ConfigManager.Current.OverlayTextColor = "#00E5FF";
+        ConfigManager.Save();
+        OverlayTextColor = SolidColorBrush.Parse("#00E5FF");
     }
 
     private void SetEffect_Typewriter_Click(object? sender, RoutedEventArgs e)

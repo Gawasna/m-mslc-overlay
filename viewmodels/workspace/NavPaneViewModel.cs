@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using MMslcOverlay.Services;
 
 namespace MMslcOverlay.ViewModels.Workspace
@@ -112,6 +113,13 @@ namespace MMslcOverlay.ViewModels.Workspace
             set { _replaceText = value; OnPropertyChanged(); }
         }
 
+        private int _replaceScope = 0; // 0=Both, 1=Machine, 2=Human
+        public int ReplaceScope
+        {
+            get => _replaceScope;
+            set { _replaceScope = value; OnPropertyChanged(); }
+        }
+
         public int MatchCount
         {
             get => _matchCount;
@@ -130,19 +138,27 @@ namespace MMslcOverlay.ViewModels.Workspace
             set { _hasSearched = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResultMessage)); }
         }
 
+        private string _customResultMessage = string.Empty;
         public string ResultMessage
         {
             get
             {
+                if (!string.IsNullOrEmpty(_customResultMessage)) return _customResultMessage;
                 if (!_hasSearched || string.IsNullOrWhiteSpace(FindText)) return string.Empty;
                 if (_matchCount == 0) return "No occurrences found.";
                 if (_activeMatchIndex > 0) return $"Match {_activeMatchIndex} of {_matchCount}";
                 return $"Found {_matchCount} occurrences.";
             }
+            set
+            {
+                _customResultMessage = value;
+                OnPropertyChanged();
+            }
         }
 
         public System.Action<string>? FindNextAction { get; set; }
         public System.Action? ClearFindAction { get; set; }
+        public System.Action<string, string, int>? ReplaceAllAction { get; set; }
 
         public void ExecuteFindNext()
         {
@@ -193,6 +209,80 @@ namespace MMslcOverlay.ViewModels.Workspace
         {
             get => _summaryText;
             set { _summaryText = value; OnPropertyChanged(); }
+        }
+
+        public string GeminiApiKey
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.GeminiApiKey;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.GeminiApiKey = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
+        }
+
+        public int SummaryTriggerModeIndex
+        {
+            get => (int)m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerMode;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerMode = (m_mslc_overlay.services.SummaryTriggerMode)value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsModeSegments));
+                OnPropertyChanged(nameof(IsModeWords));
+                OnPropertyChanged(nameof(IsModeTime));
+            }
+        }
+
+        public bool IsModeSegments 
+        { 
+            get => SummaryTriggerModeIndex == 0; 
+            set { if (value) SummaryTriggerModeIndex = 0; }
+        }
+        public bool IsModeWords 
+        { 
+            get => SummaryTriggerModeIndex == 1; 
+            set { if (value) SummaryTriggerModeIndex = 1; }
+        }
+        public bool IsModeTime 
+        { 
+            get => SummaryTriggerModeIndex == 2; 
+            set { if (value) SummaryTriggerModeIndex = 2; }
+        }
+
+        public int SummaryTriggerSegments
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerSegments;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerSegments = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
+        }
+
+        public int SummaryTriggerWords
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerWords;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerWords = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
+        }
+
+        public int SummaryTriggerTimeSeconds
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerTimeSeconds;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerTimeSeconds = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
         }
 
         public bool IsBusy
@@ -274,6 +364,8 @@ namespace MMslcOverlay.ViewModels.Workspace
         public FindReplaceState FindReplace { get; } = new FindReplaceState();
         public AiPaneState AiPane { get; } = new AiPaneState();
         public System.Collections.ObjectModel.ObservableCollection<GlossaryEntry> GlossaryEntries { get; } = new();
+
+        public System.Func<System.Threading.Tasks.Task>? GenerateSummaryAction { get; set; }
 
         /// <summary>Speaker list fed from diarizer events.</summary>
         public System.Collections.ObjectModel.ObservableCollection<SpeakerAnnotation> Speakers { get; } = new();

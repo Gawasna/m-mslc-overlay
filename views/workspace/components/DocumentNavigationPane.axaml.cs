@@ -70,6 +70,29 @@ namespace MMslcOverlay.Views.Workspace.Components
             if (findBtn != null)
                 findBtn.Click += (_, _) => Vm()?.FindReplace.ExecuteFindNext();
 
+            var replaceAllBtn = this.Find<Button>("ReplaceAllBtn");
+            if (replaceAllBtn != null)
+            {
+                replaceAllBtn.Click += (_, _) => 
+                {
+                    var fr = Vm()?.FindReplace;
+                    if (fr != null && fr.ReplaceAllAction != null)
+                    {
+                        fr.ReplaceAllAction(fr.FindText, fr.ReplaceText, fr.ReplaceScope);
+                    }
+                };
+            }
+
+            var generateSummaryBtn = this.Find<Button>("GenerateSummaryBtn");
+            if (generateSummaryBtn != null)
+            {
+                generateSummaryBtn.Click += async (_, _) => 
+                {
+                    var action = Vm()?.GenerateSummaryAction;
+                    if (action != null) await action();
+                };
+            }
+
             var findBox = this.Find<TextBox>("FindTextBox");
             if (findBox != null)
             {

@@ -112,7 +112,8 @@
             <ScrollViewer x:Name="TextScrollViewer" Grid.Column="0" Margin="0,0,24,0" VerticalAlignment="Center" Height="170" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <TextBlock x:Name="DisplayTextBlock" 
                            FontSize="{Binding OverlayFontSize, ElementName=RootWindow}"
-                           Foreground="#E5E5E5"
+                           Foreground="{Binding OverlayTextColor, ElementName=RootWindow}"
+                           FontFamily="{Binding OverlayFontFamily, ElementName=RootWindow}"
                            TextWrapping="Wrap"
                            TextAlignment="Center"
                            VerticalAlignment="Center"/>
@@ -150,6 +151,24 @@
                                 <MenuItem Header="{DynamicResource Menu_FontSizeMedium}" Click="SetFontSize_Medium_Click"/>
                                 <MenuItem Header="{DynamicResource Menu_FontSizeLarge}" Click="SetFontSize_Large_Click"/>
                                 <MenuItem Header="{DynamicResource Menu_FontSizeExtraLarge}" Click="SetFontSize_ExtraLarge_Click"/>
+                            </MenuItem>
+                            <MenuItem Header="Font Family">
+                                <MenuItem.Icon>
+                                    <materialIcons:MaterialIcon Kind="FormatFont" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </MenuItem.Icon>
+                                <MenuItem Header="Segoe UI" Click="SetFont_SegoeUI_Click"/>
+                                <MenuItem Header="Arial" Click="SetFont_Arial_Click"/>
+                                <MenuItem Header="Times New Roman" Click="SetFont_TimesNewRoman_Click"/>
+                                <MenuItem Header="Consolas" Click="SetFont_Consolas_Click"/>
+                            </MenuItem>
+                            <MenuItem Header="Text Color">
+                                <MenuItem.Icon>
+                                    <materialIcons:MaterialIcon Kind="FormatColorText" Width="16" Height="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </MenuItem.Icon>
+                                <MenuItem Header="White/Gray" Click="SetColor_White_Click"/>
+                                <MenuItem Header="Yellow" Click="SetColor_Yellow_Click"/>
+                                <MenuItem Header="Green" Click="SetColor_Green_Click"/>
+                                <MenuItem Header="Cyan" Click="SetColor_Cyan_Click"/>
                             </MenuItem>
                             <MenuItem Header="{DynamicResource Menu_TextEffect}">
                                 <MenuItem.Icon>

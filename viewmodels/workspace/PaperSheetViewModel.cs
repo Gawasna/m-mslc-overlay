@@ -62,6 +62,82 @@ public class PaperSheetViewModel : INotifyPropertyChanged
         set { if (_autoScroll != value) { _autoScroll = value; OnPropertyChanged(); } }
     }
 
+    private string _globalFontFamily = "Georgia";
+    public string GlobalFontFamily
+    {
+        get => _globalFontFamily;
+        set 
+        { 
+            if (_globalFontFamily != value) 
+            { 
+                _globalFontFamily = value; 
+                OnPropertyChanged(); 
+                SendToEditor(new BridgeMessage { Type = "SET_GLOBAL_FONT_FAMILY", Value = value });
+            } 
+        }
+    }
+
+    private double _globalFontSize = 11;
+    public double GlobalFontSize
+    {
+        get => _globalFontSize;
+        set 
+        { 
+            if (_globalFontSize != value) 
+            { 
+                _globalFontSize = value; 
+                OnPropertyChanged(); 
+                SendToEditor(new BridgeMessage { Type = "EXECUTE_COMMAND", Command = "SET_FONT_SIZE", Value = value.ToString() });
+                SendToEditor(new BridgeMessage { Type = "SET_GLOBAL_FONT_SIZE", Value = value.ToString() });
+            } 
+        }
+    }
+
+    private bool _globalBold;
+    public bool GlobalBold
+    {
+        get => _globalBold;
+        set 
+        { 
+            if (_globalBold != value) 
+            { 
+                _globalBold = value; 
+                OnPropertyChanged(); 
+                SendToEditor(new BridgeMessage { Type = "EXECUTE_COMMAND", Command = "TOGGLE_BOLD" });
+            } 
+        }
+    }
+
+    private bool _globalItalic;
+    public bool GlobalItalic
+    {
+        get => _globalItalic;
+        set 
+        { 
+            if (_globalItalic != value) 
+            { 
+                _globalItalic = value; 
+                OnPropertyChanged(); 
+                SendToEditor(new BridgeMessage { Type = "EXECUTE_COMMAND", Command = "TOGGLE_ITALIC" });
+            } 
+        }
+    }
+
+    private bool _globalUnderline;
+    public bool GlobalUnderline
+    {
+        get => _globalUnderline;
+        set 
+        { 
+            if (_globalUnderline != value) 
+            { 
+                _globalUnderline = value; 
+                OnPropertyChanged(); 
+                SendToEditor(new BridgeMessage { Type = "EXECUTE_COMMAND", Command = "TOGGLE_UNDERLINE" });
+            } 
+        }
+    }
+
     private bool _focusMode = false;
     public bool FocusMode
     {
@@ -116,6 +192,10 @@ public class PaperSheetViewModel : INotifyPropertyChanged
             {
                 SendToEditor(new BridgeMessage { Type = "CLEAR_FIND" });
             };
+            _owner.NavPane.FindReplace.ReplaceAllAction = (find, replace, scope) =>
+            {
+                ReplaceAll(find, replace, scope);
+            };
         }
     }
 
@@ -157,6 +237,11 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                 NewValue = newTextTrs
             });
         }
+    }
+
+    public void ReplaceAll(string find, string replace, int scope)
+    {
+        SendToEditor(new BridgeMessage { Type = "REPLACE_ALL", Find = find, Replace = replace, Scope = scope });
     }
 
     public void SendToEditor(BridgeMessage msg)
@@ -416,6 +501,17 @@ public class PaperSheetViewModel : INotifyPropertyChanged
                         {
                             _owner.NavPane.FindReplace.MatchCount = msg.MatchCount ?? 0;
                             _owner.NavPane.FindReplace.ActiveMatchIndex = msg.ActiveMatchIndex ?? 0;
+                        });
+                    }
+                    break;
+                case "REPLACE_RESULT":
+                    if (_owner?.NavPane?.FindReplace != null)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            int count = msg.Count ?? (msg.MatchCount ?? 0);
+                            _owner.NavPane.FindReplace.ResultMessage = $"Replaced {count} instances.";
+                            _owner.NavPane.FindReplace.HasSearched = true;
                         });
                     }
                     break;

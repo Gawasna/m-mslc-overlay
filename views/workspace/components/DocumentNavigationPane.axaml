@@ -183,31 +183,6 @@
                                                                  Foreground="{StaticResource TextPrimaryBrush}" />
                                                     </Panel>
 
-                                                    <!-- Recent segments (last 5, for reassign) -->
-                                                    <ItemsControl ItemsSource="{Binding Segments}"
-                                                                  IsVisible="{Binding HasSegments}">
-                                                        <ItemsControl.DataTemplates>
-                                                            <DataTemplate x:DataType="vm:SpeakerSegmentSlice">
-                                                                <Border Padding="0,1">
-                                                                    <Grid ColumnDefinitions="*, Auto">
-                                                                        <TextBlock Grid.Column="0"
-                                                                                   Text="{Binding TimeLabel}"
-                                                                                   FontSize="9"
-                                                                                   Foreground="{StaticResource TextTertiaryBrush}" />
-                                                                        <Button Grid.Column="1"
-                                                                                x:Name="ReassignSegBtn"
-                                                                                Content="..."
-                                                                                FontSize="9"
-                                                                                Padding="4,0"
-                                                                                Height="14"
-                                                                                Classes="NavTabBtn"
-                                                                                ToolTip.Tip="Reassign this segment to another speaker"
-                                                                                Tag="{Binding}"/>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.DataTemplates>
-                                                    </ItemsControl>
                                                 </StackPanel>
 
                                                 <!-- Merge button -->
@@ -337,6 +312,18 @@
                                      Watermark="Replacement text..." />
                         </StackPanel>
 
+                        <!-- Replace Scope field -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Scope" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <ComboBox x:Name="ScopeComboBox"
+                                      SelectedIndex="{Binding FindReplace.ReplaceScope}"
+                                      FontSize="11" Height="28" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="All Segments (Both)" />
+                                <ComboBoxItem Content="Machine Segments Only" />
+                                <ComboBoxItem Content="Human Segments Only" />
+                            </ComboBox>
+                        </StackPanel>
+
                         <!-- Action buttons -->
                         <Grid ColumnDefinitions="*, 8, *">
                             <Button Grid.Column="0" x:Name="FindNextBtn"
@@ -388,6 +375,48 @@
                                 Padding="0,6"
                                 Classes="PrimaryBtn" CornerRadius="3"
                                 IsEnabled="{Binding !AiPane.IsBusy}" />
+
+                        <!-- Configuration expander -->
+                        <Expander Header="Configuration (Auto-Trigger)" FontSize="10" 
+                                  Padding="5,0" Margin="0" MinHeight="24"
+                                  BorderThickness="1" BorderBrush="{StaticResource BorderLightBrush}" 
+                                  Background="{StaticResource BgWindowBrush}" CornerRadius="3">
+                            <StackPanel Spacing="6" Margin="0,5,0,0">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="Gemini API Key" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBox Text="{Binding AiPane.GeminiApiKey}" PasswordChar="•" FontSize="10" Height="24" Watermark="Enter API key..." />
+                                </StackPanel>
+
+                                <TextBlock Text="Auto-trigger rule:" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0" />
+                                
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <RadioButton Grid.Column="0" Content="By Segments" GroupName="TriggerMode" 
+                                                 IsChecked="{Binding AiPane.IsModeSegments}" FontSize="10" />
+                                    <NumericUpDown Grid.Column="1" Value="{Binding AiPane.SummaryTriggerSegments}" 
+                                                   Minimum="0" Maximum="1000" FormatString="0" 
+                                                   IsEnabled="{Binding AiPane.IsModeSegments}"
+                                                   Height="24" FontSize="10" Margin="10,0,0,0" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <RadioButton Grid.Column="0" Content="By Words" GroupName="TriggerMode" 
+                                                 IsChecked="{Binding AiPane.IsModeWords}" FontSize="10" />
+                                    <NumericUpDown Grid.Column="1" Value="{Binding AiPane.SummaryTriggerWords}" 
+                                                   Minimum="0" Maximum="10000" FormatString="0" 
+                                                   IsEnabled="{Binding AiPane.IsModeWords}"
+                                                   Height="24" FontSize="10" Margin="10,0,0,0" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <RadioButton Grid.Column="0" Content="By Time (s)" GroupName="TriggerMode" 
+                                                 IsChecked="{Binding AiPane.IsModeTime}" FontSize="10" />
+                                    <NumericUpDown Grid.Column="1" Value="{Binding AiPane.SummaryTriggerTimeSeconds}" 
+                                                   Minimum="0" Maximum="3600" FormatString="0" 
+                                                   IsEnabled="{Binding AiPane.IsModeTime}"
+                                                   Height="24" FontSize="10" Margin="10,0,0,0" />
+                                </Grid>
+                            </StackPanel>
+                        </Expander>
 
                         <!-- Busy indicator -->
                         <ProgressBar IsVisible="{Binding AiPane.IsBusy}"

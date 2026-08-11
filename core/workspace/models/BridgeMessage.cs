@@ -94,6 +94,32 @@ public class BridgeMessage
     [JsonPropertyName("activeMatchIndex")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? ActiveMatchIndex { get; set; }
+
+    // EXECUTE_COMMAND & SET_GLOBAL_FONT_*
+    [JsonPropertyName("command")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Command { get; set; }
+
+    [JsonPropertyName("value")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Value { get; set; }
+
+    // REPLACE_ALL
+    [JsonPropertyName("find")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Find { get; set; }
+
+    [JsonPropertyName("replace")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Replace { get; set; }
+
+    [JsonPropertyName("scope")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Scope { get; set; }
+
+    [JsonPropertyName("count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Count { get; set; }
 }
 
 public class BridgeSegment

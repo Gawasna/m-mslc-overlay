@@ -41,6 +41,7 @@ namespace m_mslc_overlay.services
         public double OverlayFontSize { get; set; } = 20.0;
         public string OverlayBackground { get; set; } = "#CC202020";
         public string OverlayTextColor { get; set; } = "#E5E5E5";
+        public string OverlayFontFamily { get; set; } = "Segoe UI";
         
         public int OverlayPositionX { get; set; } = -1;
         public int OverlayPositionY { get; set; } = -1;
