@@ -129,9 +129,6 @@ namespace MMslcOverlay.Views.Workspace.Components
 
             var speakerList = this.Get<ItemsControl>("SpeakerList");
 
-            // DoubleTapped on NameLabel → activate inline editor
-            speakerList.AddHandler(DoubleTappedEvent, OnSpeakerLabelDoubleTapped, RoutingStrategies.Bubble);
-
             // KeyDown on NameEditor → commit on Enter, cancel on Escape
             speakerList.AddHandler(KeyDownEvent, OnSpeakerEditorKeyDown, RoutingStrategies.Bubble);
 
@@ -151,23 +148,6 @@ namespace MMslcOverlay.Views.Workspace.Components
         }
 
         // ─── Inline edit handlers ─────────────────────────────────────────────
-
-        private void OnSpeakerLabelDoubleTapped(object? sender, TappedEventArgs e)
-        {
-            if (e.Source is TextBlock label && label.Name == "NameLabel")
-            {
-                var panel = label.Parent as Panel;
-                var editor = panel?.Find<TextBox>("NameEditor");
-                if (editor == null) return;
-
-                label.IsVisible = false;
-                editor.IsVisible = true;
-                editor.Text = label.Text;
-                editor.Focus();
-                editor.SelectAll();
-                e.Handled = true;
-            }
-        }
 
         private void OnSpeakerEditorKeyDown(object? sender, KeyEventArgs e)
         {
@@ -201,7 +181,6 @@ namespace MMslcOverlay.Views.Workspace.Components
             var speakerAnnotation = FindAncestorDataContext<SpeakerAnnotation>(editor);
             if (speakerAnnotation == null)
             {
-                RestoreLabel(editor);
                 return;
             }
 
@@ -209,23 +188,22 @@ namespace MMslcOverlay.Views.Workspace.Components
             if (string.IsNullOrWhiteSpace(newName)) newName = speakerAnnotation.DisplayName;
 
             speakerAnnotation.DisplayName = newName;
-            RestoreLabel(editor);
 
             if (vm.SpeakerRenameRequested != null)
                 await vm.SpeakerRenameRequested(speakerAnnotation.SpeakerKey, newName);
+            
+            // clear focus so it doesn't stay trapped
+            this.Focus();
         }
 
         private void CancelSpeakerEdit(TextBox editor)
         {
-            RestoreLabel(editor);
-        }
-
-        private static void RestoreLabel(TextBox editor)
-        {
-            var panel = editor.Parent as Panel;
-            var label = panel?.Find<TextBlock>("NameLabel");
-            if (label != null) label.IsVisible = true;
-            editor.IsVisible = false;
+            var speakerAnnotation = FindAncestorDataContext<SpeakerAnnotation>(editor);
+            if (speakerAnnotation != null)
+            {
+                editor.Text = speakerAnnotation.DisplayName;
+            }
+            this.Focus();
         }
 
         // ─── Merge speaker handlers ───────────────────────────────────────────

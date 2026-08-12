@@ -123,9 +123,18 @@ namespace MMslcOverlay.Services
         /// Pre-warm: start process and immediately pause the audio stream.
         /// Call this at app startup so the model is loaded before the user presses Start Session.
         /// </summary>
+        private bool _skipPreWarmPause = false;
+
         public async Task StartPreWarmedAsync(DiarizerConfig config, string pythonExePath, string scriptPath)
         {
             await StartAsync(config, pythonExePath, scriptPath);
+            
+            if (_skipPreWarmPause)
+            {
+                OnLog?.Invoke("[DIARIZER] Session already started during pre-warm, skipping pause.");
+                return;
+            }
+
             // Pause audio immediately — we only wanted the model to load, not to capture audio yet
             await SendCommandAsync(new { cmd = "pause_audio" });
             IsPausedForSession = true;
@@ -135,6 +144,7 @@ namespace MMslcOverlay.Services
         /// <summary>Resume audio after pre-warm or soft-pause.</summary>
         public async Task ResumeAudioAsync()
         {
+            _skipPreWarmPause = true; // Avoid race condition if called while StartPreWarmedAsync is still pending
             await SendCommandAsync(new { cmd = "resume_audio" });
             IsPausedForSession = false;
         }

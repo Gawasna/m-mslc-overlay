@@ -698,6 +698,9 @@ namespace m_mslc_overlay
                 return;
             }
 
+            var loadingDialog = new m_mslc_overlay.views.dialogs.LoadingDialog();
+            _ = loadingDialog.ShowDialog(this);
+
             try
             {
                 using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
@@ -711,17 +714,19 @@ namespace m_mslc_overlay
 
                 if (string.IsNullOrWhiteSpace(outputPath))
                 {
+                    loadingDialog.Close();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
                         this, "Thông báo", "Vui lòng chọn thư mục lưu trữ.");
                     return;
                 }
 
-                bool enableSub = root.TryGetProperty("enableSubtitle", out var subToggle) && subToggle.GetBoolean();
-                bool enableAudio = root.TryGetProperty("enableAudio", out var audioToggle) && audioToggle.GetBoolean();
+                bool enableSub   = root.TryGetProperty("enableSubtitle", out var subToggle)   && subToggle.GetBoolean();
+                bool enableAudio = root.TryGetProperty("enableAudio",    out var audioToggle) && audioToggle.GetBoolean();
 
                 var errors = new System.Text.StringBuilder();
+                var notes  = new System.Text.StringBuilder();
 
-                // ── Text / Subtitle export ────────────────────────────────────
+                // ── Text / Subtitle export ────────────────────────────
                 if (enableSub && root.TryGetProperty("subtitleConfig", out var subConfig))
                 {
                     try
@@ -752,7 +757,6 @@ namespace m_mslc_overlay
                         var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
                         string exportedContent = engine.RunExport(exporter);
 
-                        // Determine actual file extension
                         string ext = format.ToUpperInvariant() switch
                         {
                             ".TXT"  => ".txt",
@@ -774,7 +778,6 @@ namespace m_mslc_overlay
                         {
                             if (ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
                             {
-                                // PdfExporter trả về path tạm thời
                                 if (System.IO.File.Exists(exportedContent))
                                 {
                                     System.IO.File.Copy(exportedContent, destFile, overwrite);
@@ -798,74 +801,90 @@ namespace m_mslc_overlay
                     }
                 }
 
-                // ── Audio export ──────────────────────────────────────────────
+                // ── Audio export ───────────────────────────────────
                 if (enableAudio && root.TryGetProperty("audioConfig", out var audioConfig))
                 {
                     try
                     {
-                        string audioFormat = audioConfig.TryGetProperty("format", out var afProp)
-                            ? afProp.GetString() ?? "WAV" : "WAV";
-                        string audioMode = audioConfig.TryGetProperty("mode", out var amProp)
-                            ? amProp.GetString() ?? "Merge" : "Merge";
-                        string bitrate = audioConfig.TryGetProperty("bitrate", out var brProp)
-                            ? brProp.GetString() ?? "192 kbps" : "192 kbps";
-                        string channels = audioConfig.TryGetProperty("channels", out var chProp)
-                            ? chProp.GetString() ?? "Stereo" : "Stereo";
-                        bool normalizeVolume = !audioConfig.TryGetProperty("normalizeVolume", out var nvProp) || nvProp.GetBoolean();
+                        string audioFormat    = audioConfig.TryGetProperty("format",          out var afProp) ? afProp.GetString()  ?? "WAV"       : "WAV";
+                        string audioMode      = audioConfig.TryGetProperty("mode",            out var amProp) ? amProp.GetString()  ?? "Merge"     : "Merge";
+                        string bitrate        = audioConfig.TryGetProperty("bitrate",         out var brProp) ? brProp.GetString()  ?? "192 kbps"  : "192 kbps";
+                        string channels       = audioConfig.TryGetProperty("channels",        out var chProp) ? chProp.GetString()  ?? "Stereo"    : "Stereo";
+                        bool normalizeVolume  = !audioConfig.TryGetProperty("normalizeVolume", out var nvProp) || nvProp.GetBoolean();
 
-                        // Tìm session directory của recorder hiện tại
-                        string? sessionId = _workspaceVm.Service?.AudioRecorder?.SessionId;
-                        if (string.IsNullOrEmpty(sessionId))
+                        string audioBaseDir = System.IO.Path.Combine(
+                            _workspaceVm.Service!.Storage.MslcDir, "audio");
+
+                        // Preferred: session currently in memory
+                        string? preferredSessionId = _workspaceVm.Service?.AudioRecorder?.SessionId;
+
+                        // FindBestAudioSessionDir: chon session co audio data, fallback scan all sessions
+                        string? sessionDir = FindBestAudioSessionDir(audioBaseDir, preferredSessionId);
+
+                        if (sessionDir == null)
                         {
-                            errors.AppendLine("Không có audio session: chưa bắt đầu ghi âm trong phiên này.");
+                            errors.AppendLine("Không có dữ liệu âm thanh: chưa bắt đầu ghi âm trong phiên này.");
                         }
                         else
                         {
-                            // AudioRecorder lưu tại <workspace>/.mslc/audio/<sessionId>/
-                            string audioDir = System.IO.Path.Combine(
-                                _workspaceVm.Service!.Storage.MslcDir, "audio");
-                            string sessionDir = System.IO.Path.Combine(audioDir, sessionId);
-
-                            if (!System.IO.Directory.Exists(sessionDir))
+                            // Build segment ranges tu DB neu mode = Segment
+                            System.Collections.Generic.List<MMslcOverlay.Services.Workspace.SegmentTimeRange>? segRanges = null;
+                            if (audioMode.Equals("Segment", StringComparison.OrdinalIgnoreCase))
                             {
-                                errors.AppendLine($"Thư mục audio không tìm thấy: {sessionDir}");
-                            }
-                            else
-                            {
-                                // Build segment ranges từ DB nếu mode = Segment
-                                System.Collections.Generic.List<MMslcOverlay.Services.Workspace.SegmentTimeRange>? segRanges = null;
-                                if (audioMode.Equals("Segment", StringComparison.OrdinalIgnoreCase))
+                                segRanges = new();
+                                string sessionIdName = System.IO.Path.GetFileName(sessionDir);
+                                var mergedSegs = _workspaceVm.Service!.SegmentRepo!.GetMergedSegments();
+                                foreach (var seg in mergedSegs)
                                 {
-                                    segRanges = new();
-                                    var mergedSegs = _workspaceVm.Service.SegmentRepo.GetMergedSegments();
-                                    foreach (var seg in mergedSegs)
-                                    {
-                                        if (seg.BaseSegment.AudioSessionId == sessionId)
-                                        {
-                                            long startMs = seg.BaseSegment.AudioOffsetMs ?? seg.BaseSegment.TsStartMs;
-                                            long endMs = seg.BaseSegment.AudioEndOffsetMs ?? seg.BaseSegment.TsEndMs;
-                                            string label = seg.BaseSegment.SpeakerId ?? "unknown";
-                                            segRanges.Add(new MMslcOverlay.Services.Workspace.SegmentTimeRange(label, startMs, endMs));
-                                        }
-                                    }
+                                    // Accept segments that belong to this session, OR segments with no session assignment
+                                    // (legacy data pre audio-session-tracking). Use AudioOffset when available, fallback to TsMs.
+                                    bool belongsToSession = string.IsNullOrEmpty(seg.BaseSegment.AudioSessionId)
+                                        || seg.BaseSegment.AudioSessionId == sessionIdName;
+
+                                    if (!belongsToSession) continue;
+
+                                    long startMs = seg.BaseSegment.AudioOffsetMs    ?? seg.BaseSegment.TsStartMs;
+                                    long endMs   = seg.BaseSegment.AudioEndOffsetMs ?? seg.BaseSegment.TsEndMs;
+                                    string label = seg.BaseSegment.SpeakerId ?? "unknown";
+
+                                    // Skip zero-duration or invalid ranges
+                                    if (endMs <= startMs) continue;
+
+                                    segRanges.Add(new MMslcOverlay.Services.Workspace.SegmentTimeRange(label, startMs, endMs));
                                 }
 
-                                var req = new MMslcOverlay.Services.Workspace.AudioExportRequest(
-                                    SessionDir: sessionDir,
-                                    OutputPath: outputPath,
-                                    FileNamePattern: filenamePattern,
-                                    Format: audioFormat,
-                                    Mode: audioMode,
-                                    Channels: channels,
-                                    Bitrate: bitrate,
-                                    NormalizeVolume: normalizeVolume,
-                                    Overwrite: overwrite,
-                                    SegmentRanges: segRanges
-                                );
-
-                                await MMslcOverlay.Services.Workspace.AudioExportService.ExportAsync(req);
-                                services.LoggerService.Log($"[Export] Audio exported to: {outputPath}");
+                                if (segRanges.Count == 0)
+                                {
+                                    // No valid segments — fallback to Merge mode
+                                    services.LoggerService.Log("[Export] Segment mode: no valid segments found, falling back to Merge mode.");
+                                    notes.AppendLine("Chế độ Tách đoạn: không có đoạn hợp lệ, tự động chuyển sang Gộp file.");
+                                    segRanges = null;
+                                    audioMode = "Merge";
+                                }
                             }
+
+                            var progress = new Progress<int>(pct =>
+                                services.LoggerService.Log($"[Export] Audio progress: {pct}%"));
+
+                            var req = new MMslcOverlay.Services.Workspace.AudioExportRequest(
+                                SessionDir:      sessionDir,
+                                OutputPath:      outputPath,
+                                FileNamePattern: filenamePattern,
+                                Format:          audioFormat,
+                                Mode:            audioMode,
+                                Channels:        channels,
+                                Bitrate:         bitrate,
+                                NormalizeVolume: normalizeVolume,
+                                Overwrite:       overwrite,
+                                SegmentRanges:   segRanges
+                            );
+
+                            await MMslcOverlay.Services.Workspace.AudioExportService.ExportAsync(req, progress);
+                            services.LoggerService.Log($"[Export] Audio exported to: {outputPath}");
+
+                            // FLAC uses WAV container internally (NAudio limitation)
+                            if (audioFormat.Equals("FLAC", StringComparison.OrdinalIgnoreCase))
+                                notes.AppendLine("FLAC: file đuợc lưu dưới dạng WAV PCM (NAudio không hỗ trợ FLAC encoder). Dùng ffmpeg để chuyển đổi nếu cần.");
                         }
                     }
                     catch (Exception ex)
@@ -875,27 +894,118 @@ namespace m_mslc_overlay
                     }
                 }
 
-                // ── Post-export ───────────────────────────────────────────────
+                // ── Post-export ────────────────────────────────────────
                 _workspaceVm.RefreshSessionFiles();
+
+                loadingDialog.Close();
 
                 if (errors.Length > 0)
                 {
+                    string detail = errors.ToString().Trim();
+                    if (notes.Length > 0) detail += "\n\n[Ghi chú] " + notes.ToString().Trim();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
-                        this, "Xuất file hoàn tất (có cảnh báo)", errors.ToString().Trim());
+                        this, "Xuất file hoàn tất (có cảnh báo)", detail);
                 }
                 else
                 {
+                    string successMsg = $"Đã lưu vào:\n{outputPath}";
+                    if (notes.Length > 0) successMsg += "\n\n[Ghi chú] " + notes.ToString().Trim();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
-                        this, "Xuất file thành công",
-                        $"Dữ liệu đã được lưu vào:\n{outputPath}");
+                        this, "Xuất file thành công", successMsg);
                 }
             }
             catch (Exception ex)
             {
+                loadingDialog.Close();
                 services.LoggerService.Log($"[Export] ProcessAdvancedExportPayloadAsync failed: {ex.Message}");
                 await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
                     this, "Lỗi xuất file", $"Đã xảy ra lỗi không mong đợi:\n{ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Scan audioBaseDir for the session with actual audio data (at least 1 chunk with SizeBytes > 0).
+        /// Prefer preferredSessionId if it already has data; otherwise pick the session with the
+        /// largest TotalDurationMs as fallback (most complete recording in the workspace).
+        /// Returns null if no session with audio data exists.
+        /// </summary>
+        private static string? FindBestAudioSessionDir(string audioBaseDir, string? preferredSessionId)
+        {
+            if (!System.IO.Directory.Exists(audioBaseDir))
+                return null;
+
+            // Helper: check if a sessionDir has at least one PCM chunk with data
+            static bool HasAudioData(string sessionDir)
+            {
+                string metaPath = System.IO.Path.Combine(sessionDir, "metadata.json");
+                if (!System.IO.File.Exists(metaPath)) return false;
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(metaPath));
+                    var root = doc.RootElement;
+                    if (!root.TryGetProperty("Chunks", out var chunksEl) &&
+                        !root.TryGetProperty("chunks", out chunksEl)) return false;
+                    foreach (var chunk in chunksEl.EnumerateArray())
+                    {
+                        long size = 0;
+                        if (chunk.TryGetProperty("SizeBytes", out var sbEl) ||
+                            chunk.TryGetProperty("sizeBytes", out sbEl))
+                            size = sbEl.GetInt64();
+                        if (size > 0) return true;
+
+                        // Also check actual file on disk
+                        string? fileName = null;
+                        if (chunk.TryGetProperty("FileName", out var fnEl) ||
+                            chunk.TryGetProperty("fileName", out fnEl))
+                            fileName = fnEl.GetString();
+                        if (fileName != null)
+                        {
+                            string chunkPath = System.IO.Path.Combine(sessionDir, fileName);
+                            if (System.IO.File.Exists(chunkPath) && new System.IO.FileInfo(chunkPath).Length > 0)
+                                return true;
+                        }
+                    }
+                }
+                catch { /* malformed metadata — skip */ }
+                return false;
+            }
+
+            // 1. Try preferred session first
+            if (!string.IsNullOrEmpty(preferredSessionId))
+            {
+                string preferred = System.IO.Path.Combine(audioBaseDir, preferredSessionId);
+                if (HasAudioData(preferred)) return preferred;
+            }
+
+            // 2. Scan all subdirs and pick the one with the most audio data
+            string? bestDir = null;
+            long bestDuration = 0;
+
+            foreach (string dir in System.IO.Directory.GetDirectories(audioBaseDir))
+            {
+                if (!HasAudioData(dir)) continue;
+
+                // Read TotalDurationMs for ranking
+                long duration = 0;
+                string metaPath = System.IO.Path.Combine(dir, "metadata.json");
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(metaPath));
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("TotalDurationMs", out var d) ||
+                        root.TryGetProperty("totalDurationMs", out d))
+                        duration = d.GetInt64();
+                }
+                catch { }
+
+                if (duration >= bestDuration)
+                {
+                    bestDuration = duration;
+                    bestDir = dir;
+                }
+            }
+
+            return bestDir;
         }
 
         private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()
