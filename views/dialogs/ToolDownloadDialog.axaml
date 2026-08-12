@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="m_mslc_overlay.views.dialogs.ToolDownloadDialog"
+        Title="Đang chuẩn bị..."
+        Icon="avares://m-mslc-overlay/assets/icons/app-icon.ico"
+        Width="420" Height="180"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{StaticResource BgWindowBrush}">
+    <Grid RowDefinitions="Auto, Auto, Auto, *" Margin="18">
+        <TextBlock x:Name="TitleText" Text="Đang chuẩn bị công cụ xử lý video"
+                   FontSize="13" FontWeight="SemiBold"
+                   Foreground="{StaticResource TextPrimaryBrush}"
+                   TextWrapping="Wrap" Margin="0,0,0,10"/>
+
+        <ProgressBar x:Name="ProgressBar" Grid.Row="1" Minimum="0" Maximum="100" Height="14"
+                     Value="0" Margin="0,0,0,8"/>
+
+        <TextBlock x:Name="StatusText" Grid.Row="2"
+                   Text="Vui lòng chờ..."
+                   FontSize="11" TextWrapping="Wrap"
+                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+
+        <Button Grid.Row="3" x:Name="CancelBtn" Content="Hủy" HorizontalAlignment="Right"
+                MinWidth="96" Height="28" Padding="14,4" Classes="SecondaryBtn" Click="CancelBtn_Click"/>
+    </Grid>
+</Window>

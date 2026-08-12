@@ -20,7 +20,7 @@ public class TxtExporter : IExporter
         {
             foreach (var seg in segments)
             {
-                var time = System.TimeSpan.FromMilliseconds(seg.BaseSegment.TsStartMs).ToString(@"hh\:mm\:ss");
+                var time = System.TimeSpan.FromMilliseconds(seg.BaseSegment.GetMediaStartMs()).ToString(@"hh\:mm\:ss");
                 sb.AppendLine($"[{time}] [{seg.BaseSegment.SpeakerId}]");
 
                 if (enOnly)

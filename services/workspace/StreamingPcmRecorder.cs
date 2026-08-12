@@ -335,37 +335,28 @@ public class StreamingPcmRecorder : IDisposable
     /// </summary>
     public void SnapshotOffsetAtFirstPartial()
     {
-        if (_firstPartialSnapshotMs >= 0) return; // only once
+        if (_firstPartialSnapshotMs >= 0) return;
         _firstPartialSnapshotMs = _sessionOffsetMs;
-        System.Diagnostics.Debug.WriteLine(
-            $"[StreamingPcmRecorder] FirstPartial snapshot: sessionOffset={_sessionOffsetMs}ms");
     }
 
     /// <summary>
-    /// Phase 2: confirm anchor with SDK tsStartMs on first commit.
-    /// _anchorAudioMs = snapshot taken at first partial (= real audio start of utterance).
-    /// _anchorTsMs    = SDK tsStartMs of that utterance.
+    /// Confirm STT↔audio anchor on first commit.
+    /// Prefer first-partial snapshot; else back-calculate from session position.
     /// </summary>
     public void SetFirstUtteranceAnchor(long tsStartMs, long tsEndMs)
     {
-        if (_anchorAudioMs >= 0) return; // only once
+        if (_anchorAudioMs >= 0) return;
 
-        // Use the pre-commit snapshot if available — it captures the actual audio file position
-        // at utterance onset without depending on SDK duration accuracy.
-        // Fallback to back-calculation only if snapshot was never taken.
         if (_firstPartialSnapshotMs >= 0)
         {
             _anchorAudioMs = _firstPartialSnapshotMs;
         }
         else
         {
-            // Fallback (should not happen if SnapshotOffsetAtFirstPartial was called correctly)
             long utteranceDurationMs = Math.Max(0, tsEndMs - tsStartMs);
             _anchorAudioMs = Math.Max(0, _sessionOffsetMs - utteranceDurationMs);
         }
         _anchorTsMs = tsStartMs;
-        System.Diagnostics.Debug.WriteLine(
-            $"[StreamingPcmRecorder] Anchor confirmed: anchorAudioMs={_anchorAudioMs}ms, anchorTsMs={_anchorTsMs}ms (snapshot={_firstPartialSnapshotMs}ms)");
     }
     
     /// <summary>

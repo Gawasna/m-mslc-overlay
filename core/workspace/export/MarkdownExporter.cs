@@ -43,7 +43,7 @@ public class MarkdownExporter : IExporter
 
         foreach (var seg in segments)
         {
-            var time = System.TimeSpan.FromMilliseconds(seg.BaseSegment.TsStartMs).ToString(@"hh\:mm\:ss");
+            var time = System.TimeSpan.FromMilliseconds(seg.BaseSegment.GetMediaStartMs()).ToString(@"hh\:mm\:ss");
             sb.AppendLine($"**[{time}] [{seg.BaseSegment.SpeakerId}]**");
             sb.AppendLine($"> {seg.TextSrc}");
             if (!string.IsNullOrEmpty(seg.TextTrs))

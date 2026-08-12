@@ -31,8 +31,8 @@ public class VttExporter : IExporter
         {
             foreach (var seg in segments)
             {
-                var start = TimeSpan.FromMilliseconds(seg.BaseSegment.TsStartMs);
-                var end = TimeSpan.FromMilliseconds(seg.BaseSegment.TsEndMs);
+                var start = TimeSpan.FromMilliseconds(seg.BaseSegment.GetMediaStartMs());
+                var end = TimeSpan.FromMilliseconds(seg.BaseSegment.GetMediaEndMs());
 
                 string cueText;
                 if (enOnly)

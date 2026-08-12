@@ -14,7 +14,8 @@ namespace m_mslc_overlay.views.dialogs
             InitializeComponent();
         }
 
-        public MessageDialog(string title, string message, bool showCancel = false) : this()
+        public MessageDialog(string title, string message, bool showCancel = false,
+            string? okText = null, string? cancelText = null) : this()
         {
             Title = title;
             if (MessageText != null)
@@ -24,6 +25,12 @@ namespace m_mslc_overlay.views.dialogs
             if (CancelBtn != null)
             {
                 CancelBtn.IsVisible = showCancel;
+                if (!string.IsNullOrWhiteSpace(cancelText))
+                    CancelBtn.Content = cancelText;
+            }
+            if (OkBtn != null && !string.IsNullOrWhiteSpace(okText))
+            {
+                OkBtn.Content = okText;
             }
         }
 
@@ -39,9 +46,10 @@ namespace m_mslc_overlay.views.dialogs
             Close();
         }
 
-        public static async Task<bool> ShowAsync(Window owner, string title, string message, bool showCancel = false)
+        public static async Task<bool> ShowAsync(Window owner, string title, string message, bool showCancel = false,
+            string? okText = null, string? cancelText = null)
         {
-            var dialog = new MessageDialog(title, message, showCancel);
+            var dialog = new MessageDialog(title, message, showCancel, okText, cancelText);
             await dialog.ShowDialog(owner);
             return dialog.Result;
         }
