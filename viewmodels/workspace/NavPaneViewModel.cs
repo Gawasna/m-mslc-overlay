@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using MMslcOverlay.Services;
 
 namespace MMslcOverlay.ViewModels.Workspace
 {
@@ -12,7 +14,7 @@ namespace MMslcOverlay.ViewModels.Workspace
     {
         private string _displayName = string.Empty;
 
-        public string SpeakerKey { get; init; } = string.Empty; // e.g. "SPEAKER 1"
+        public string SpeakerKey { get; init; } = string.Empty; // e.g. UUID uid from atom32
 
         public string DisplayName
         {
@@ -20,9 +22,59 @@ namespace MMslcOverlay.ViewModels.Workspace
             set { _displayName = value; OnPropertyChanged(); }
         }
 
+        private int _segCount = 0;
+        public int SegCount
+        {
+            get => _segCount;
+            set { _segCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(SegCountLabel)); OnPropertyChanged(nameof(HasSegments)); }
+        }
+
+        public string SegCountLabel => $"{_segCount} segments";
+
+        /// <summary>Color dot assigned on creation — stable per session.</summary>
+        public string ColorHex { get; init; } = "#4E9EF5";
+
+        /// <summary>Recent timeline segments for reassign affordance.</summary>
+        public System.Collections.ObjectModel.ObservableCollection<SpeakerSegmentSlice> Segments { get; } = new();
+
+        public bool HasSegments => _segCount > 0;
+
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    /// <summary>Represents a single audio segment slice for a speaker (from TimelineUpdateEvent).</summary>
+    public sealed class SpeakerSegmentSlice : INotifyPropertyChanged
+    {
+        public float StartSec { get; init; }
+        public float EndSec   { get; init; }
+
+        public string TimeLabel => $"{FormatSec(StartSec)} – {FormatSec(EndSec)}";
+
+        private static string FormatSec(float s)
+        {
+            int m = (int)(s / 60), sec = (int)(s % 60);
+            return m > 0 ? $"{m}:{sec:D2}" : $"{sec}s";
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    /// <summary>A merge suggestion pair returned by atom32 get_merge_suggestions.</summary>
+    public sealed class MergeSuggestion : INotifyPropertyChanged
+    {
+        public string Uid1  { get; init; } = string.Empty;
+        public string Pid1  { get; init; } = string.Empty;
+        public string Name1 { get; init; } = string.Empty;
+        public string Uid2  { get; init; } = string.Empty;
+        public string Pid2  { get; init; } = string.Empty;
+        public string Name2 { get; init; } = string.Empty;
+        public float  Dist  { get; init; }
+
+        public string Label => $"{Name1}  ↔  {Name2}  ({Dist:F2})";
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     // ─── Nav pane state enum ──────────────────────────────────────────────────
@@ -70,6 +122,13 @@ namespace MMslcOverlay.ViewModels.Workspace
             set { _replaceText = value; OnPropertyChanged(); }
         }
 
+        private int _replaceScope = 0; // 0=Both, 1=Machine, 2=Human
+        public int ReplaceScope
+        {
+            get => _replaceScope;
+            set { _replaceScope = value; OnPropertyChanged(); }
+        }
+
         public int MatchCount
         {
             get => _matchCount;
@@ -88,19 +147,27 @@ namespace MMslcOverlay.ViewModels.Workspace
             set { _hasSearched = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResultMessage)); }
         }
 
+        private string _customResultMessage = string.Empty;
         public string ResultMessage
         {
             get
             {
+                if (!string.IsNullOrEmpty(_customResultMessage)) return _customResultMessage;
                 if (!_hasSearched || string.IsNullOrWhiteSpace(FindText)) return string.Empty;
                 if (_matchCount == 0) return "No occurrences found.";
                 if (_activeMatchIndex > 0) return $"Match {_activeMatchIndex} of {_matchCount}";
                 return $"Found {_matchCount} occurrences.";
             }
+            set
+            {
+                _customResultMessage = value;
+                OnPropertyChanged();
+            }
         }
 
         public System.Action<string>? FindNextAction { get; set; }
         public System.Action? ClearFindAction { get; set; }
+        public System.Action<string, string, int>? ReplaceAllAction { get; set; }
 
         public void ExecuteFindNext()
         {
@@ -151,6 +218,80 @@ namespace MMslcOverlay.ViewModels.Workspace
         {
             get => _summaryText;
             set { _summaryText = value; OnPropertyChanged(); }
+        }
+
+        public string GeminiApiKey
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.GeminiApiKey;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.GeminiApiKey = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
+        }
+
+        public int SummaryTriggerModeIndex
+        {
+            get => (int)m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerMode;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerMode = (m_mslc_overlay.services.SummaryTriggerMode)value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsModeSegments));
+                OnPropertyChanged(nameof(IsModeWords));
+                OnPropertyChanged(nameof(IsModeTime));
+            }
+        }
+
+        public bool IsModeSegments 
+        { 
+            get => SummaryTriggerModeIndex == 0; 
+            set { if (value) SummaryTriggerModeIndex = 0; }
+        }
+        public bool IsModeWords 
+        { 
+            get => SummaryTriggerModeIndex == 1; 
+            set { if (value) SummaryTriggerModeIndex = 1; }
+        }
+        public bool IsModeTime 
+        { 
+            get => SummaryTriggerModeIndex == 2; 
+            set { if (value) SummaryTriggerModeIndex = 2; }
+        }
+
+        public int SummaryTriggerSegments
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerSegments;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerSegments = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
+        }
+
+        public int SummaryTriggerWords
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerWords;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerWords = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
+        }
+
+        public int SummaryTriggerTimeSeconds
+        {
+            get => m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerTimeSeconds;
+            set 
+            { 
+                m_mslc_overlay.services.ConfigManager.Current.SummaryTriggerTimeSeconds = value; 
+                m_mslc_overlay.services.ConfigManager.Save(); 
+                OnPropertyChanged(); 
+            }
         }
 
         public bool IsBusy
@@ -218,17 +359,28 @@ namespace MMslcOverlay.ViewModels.Workspace
         private bool _isVisible = true;
         private bool _isCompact;
 
+        // ─── Stable speaker color palette ─────────────────────────────────
+        private static readonly string[] SpeakerPalette =
+        [
+            "#4E9EF5", "#F5A623", "#7ED321", "#BD10E0",
+            "#50E3C2", "#F5515F", "#9B59B6", "#1ABC9C",
+        ];
+        private int _colorIndex = 0;
+        private int _unkCounter = 0;
+
         // ─── Sub-state objects ────────────────────────────────────────────
 
         public FindReplaceState FindReplace { get; } = new FindReplaceState();
         public AiPaneState AiPane { get; } = new AiPaneState();
         public System.Collections.ObjectModel.ObservableCollection<GlossaryEntry> GlossaryEntries { get; } = new();
 
-        /// <summary>
-        /// Speaker list fed from PaperSheetViewModel whenever new speakers are detected.
-        /// Updated externally via AddOrUpdateSpeaker().
-        /// </summary>
+        public System.Func<System.Threading.Tasks.Task>? GenerateSummaryAction { get; set; }
+
+        /// <summary>Speaker list fed from diarizer events.</summary>
         public System.Collections.ObjectModel.ObservableCollection<SpeakerAnnotation> Speakers { get; } = new();
+
+        /// <summary>Merge suggestions from atom32 get_merge_suggestions command.</summary>
+        public System.Collections.ObjectModel.ObservableCollection<MergeSuggestion> MergeSuggestions { get; } = new();
 
         // ─── Active state ─────────────────────────────────────────────────
 
@@ -283,7 +435,6 @@ namespace MMslcOverlay.ViewModels.Workspace
 
         public bool ShowSplitter => _isVisible && !_isCompact;
 
-
         // ─── Commands ─────────────────────────────────────────────────────
 
         public void SwitchState(NavPaneState state) => ActiveState = state;
@@ -295,9 +446,21 @@ namespace MMslcOverlay.ViewModels.Workspace
             GlossaryEntries.Add(new GlossaryEntry { Term = term, Definition = definition });
         }
 
+        // ─── Speaker management ───────────────────────────────────────────
+
+        /// <summary>
+        /// Callbacks wired by MainWindow to forward operations to atom32 IPC.
+        /// All are async — MainWindow assigns them after diarizer init.
+        /// </summary>
+        public System.Func<string, string, System.Threading.Tasks.Task>? SpeakerRenameRequested  { get; set; }
+        public System.Func<string, string, System.Threading.Tasks.Task>? SpeakerMergeRequested   { get; set; }
+        public System.Func<string, float, float, string, System.Threading.Tasks.Task>? SegmentReassignRequested { get; set; }
+        public System.Func<string, string, System.Threading.Tasks.Task>? MergeSuggestionDismissRequested { get; set; }
+        public System.Func<System.Threading.Tasks.Task>? RefreshMergeSuggestionsRequested { get; set; }
+
         /// <summary>
         /// Add or update a speaker in the Speakers collection.
-        /// Used by diarization pipeline to sync speaker identities.
+        /// If displayName is empty, assigns UNK# as the default label.
         /// </summary>
         public void AddOrUpdateSpeaker(string speakerKey, string displayName)
         {
@@ -305,69 +468,119 @@ namespace MMslcOverlay.ViewModels.Workspace
             {
                 if (s.SpeakerKey == speakerKey)
                 {
-                    s.DisplayName = displayName;
+                    // Only update display name if we now have a real identity (not UNK)
+                    if (!string.IsNullOrWhiteSpace(displayName) && !displayName.StartsWith("UNK"))
+                        s.DisplayName = displayName;
                     return;
                 }
             }
+
+            // New speaker: assign UNK# default if no identity yet
+            string effectiveName = string.IsNullOrWhiteSpace(displayName)
+                ? $"UNK{++_unkCounter}"
+                : displayName;
+
+            string color = SpeakerPalette[_colorIndex % SpeakerPalette.Length];
+            _colorIndex++;
+
             Speakers.Add(new SpeakerAnnotation
             {
-                SpeakerKey = speakerKey,
-                DisplayName = displayName
+                SpeakerKey  = speakerKey,
+                DisplayName = effectiveName,
+                ColorHex    = color,
             });
         }
 
         /// <summary>
         /// Sync speakers from diarization timeline segments.
-        /// Extracts unique speaker UIDs and updates the Speakers collection.
+        /// Also updates per-speaker Segments list for reassign affordance.
         /// </summary>
-        public void SyncSpeakers(System.Collections.Generic.List<MMslcOverlay.Services.SegmentInfo> segments)
+        public void SyncSpeakers(System.Collections.Generic.List<SegmentInfo> segments)
         {
-            var seen = new System.Collections.Generic.HashSet<string>();
+            // Build a lookup of uid → latest segments from timeline
+            var byUid = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<SegmentInfo>>();
             foreach (var seg in segments)
             {
-                if (seen.Add(seg.Uid))
-                    AddOrUpdateSpeaker(seg.Uid, seg.Identity);
+                if (!byUid.TryGetValue(seg.Uid, out var list))
+                    byUid[seg.Uid] = list = new();
+                list.Add(seg);
+            }
+
+            foreach (var (uid, segs) in byUid)
+            {
+                // Ensure speaker entry exists
+                var identity = segs[^1].Identity; // use last segment's identity
+                AddOrUpdateSpeaker(uid, identity);
+
+                // Update segment slices (keep last 10 for reassign UI)
+                var existing = FindSpeaker(uid);
+                if (existing == null) continue;
+                existing.SegCount = segs[^1].SegCount;
+                existing.Segments.Clear();
+                int start = System.Math.Max(0, segs.Count - 10);
+                for (int i = start; i < segs.Count; i++)
+                {
+                    existing.Segments.Add(new SpeakerSegmentSlice
+                    {
+                        StartSec = segs[i].Start,
+                        EndSec   = segs[i].End,
+                    });
+                }
             }
         }
+
+        private SpeakerAnnotation? FindSpeaker(string speakerKey)
+        {
+            foreach (var s in Speakers)
+                if (s.SpeakerKey == speakerKey) return s;
+            return null;
+        }
+
+        /// <summary>Update merge suggestions list from atom32 response.</summary>
+        public void SetMergeSuggestions(System.Collections.Generic.List<MergeSuggestionItem> items)
+        {
+            MergeSuggestions.Clear();
+            foreach (var item in items)
+            {
+                MergeSuggestions.Add(new MergeSuggestion
+                {
+                    Uid1  = item.Uid1,
+                    Pid1  = item.Pid1,
+                    Name1 = item.Name1,
+                    Uid2  = item.Uid2,
+                    Pid2  = item.Pid2,
+                    Name2 = item.Name2,
+                    Dist  = item.Dist,
+                });
+            }
+            OnPropertyChanged(nameof(HasMergeSuggestions));
+        }
+
+        public bool HasMergeSuggestions => MergeSuggestions.Count > 0;
 
         // ─── P3.4: Diarizer Availability State ────────────────────────────
 
         private bool _isDiarizerAvailable = true;
         private string _diarizerUnavailableReason = string.Empty;
 
-        /// <summary>
-        /// Indicates whether speaker diarization is currently available.
-        /// Set to false when atom32 plugin is not installed or failed to start.
-        /// </summary>
         public bool IsDiarizerAvailable
         {
             get => _isDiarizerAvailable;
             private set { _isDiarizerAvailable = value; OnPropertyChanged(); }
         }
 
-        /// <summary>
-        /// Human-readable reason why diarization is unavailable.
-        /// </summary>
         public string DiarizerUnavailableReason
         {
             get => _diarizerUnavailableReason;
             private set { _diarizerUnavailableReason = value; OnPropertyChanged(); }
         }
 
-        /// <summary>
-        /// Mark diarization as unavailable with a specific reason.
-        /// Typically called from MainWindow when atom32 init fails.
-        /// </summary>
         public void SetDiarizerUnavailable(string reason)
         {
             IsDiarizerAvailable = false;
             DiarizerUnavailableReason = reason;
         }
 
-        /// <summary>
-        /// Mark diarization as available (engine ready).
-        /// Called from MainWindow when atom32 fires ReadyEvent.
-        /// </summary>
         public void SetDiarizerAvailable()
         {
             IsDiarizerAvailable = true;
@@ -377,7 +590,8 @@ namespace MMslcOverlay.ViewModels.Workspace
         // ─── INotifyPropertyChanged ──────────────────────────────────────
 
         public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null)
+        // internal so views can trigger manual property notifications (e.g. after collection.Remove())
+        internal void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

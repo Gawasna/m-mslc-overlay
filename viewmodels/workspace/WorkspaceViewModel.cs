@@ -10,6 +10,7 @@ using MMslcOverlay.Core.Workspace.Export;
 using MMslcOverlay.Core.Workspace.Models;
 using MMslcOverlay.Core.Workspace.Storage;
 using MMslcOverlay.Services.Workspace;
+using m_mslc_overlay.services;
 
 namespace MMslcOverlay.ViewModels.Workspace;
 
@@ -44,6 +45,8 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>Danh sách file trong workspace root và exports/ hiển thị trên Sidebar.</summary>
     public ObservableCollection<WorkspaceFileItem> SessionFiles { get; } = new();
+
+    public GeminiSummaryService SummaryService { get; } = new GeminiSummaryService();
 
     private string _selectedAiModel = "Gemini 1.5 Pro";
     public string SelectedAiModel
@@ -176,6 +179,11 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         ExportTxtCommand  = new RelayCommand(() => _ = ExportAsync(new TxtExporter(),      "txt",  "Text (.txt)"),      () => IsOpen);
         ExportMdCommand   = new RelayCommand(() => _ = ExportAsync(new MarkdownExporter(), "md",   "Markdown (.md)"),   () => IsOpen);
         ExportPdfCommand  = new RelayCommand(() => _ = ExportAsync(new PdfExporter(),      "pdf",  "PDF (.pdf)"),       () => IsOpen);
+
+        SummaryService.OnSummaryReady += text => NavPane.AiPane.SummaryText = text;
+        SummaryService.OnError += err => NavPane.AiPane.SummaryText = $"[Error] {err}";
+        // Bind IsBusy
+        NavPane.GenerateSummaryAction = () => SummaryService.TryRequestSummaryAsync(isAutomatic: false);
     }
 
     public void OpenOrCreate(string workspaceRoot)
@@ -193,6 +201,12 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
             State = WorkspaceState.Active;
             ClearDirty();
 
+            if (_service.IngestionService != null)
+            {
+                _service.IngestionService.SegmentAdded -= OnSegmentAdded;
+                _service.IngestionService.SegmentAdded += OnSegmentAdded;
+            }
+
             RefreshSessionFiles();
             UpdateLastModified(workspaceRoot);
 
@@ -204,6 +218,14 @@ public class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         {
             System.Diagnostics.Debug.WriteLine($"Failed to open workspace: {ex.Message}");
             throw;
+        }
+    }
+
+    private void OnSegmentAdded(MMslcOverlay.Core.Workspace.Models.Segment obj)
+    {
+        if (!string.IsNullOrWhiteSpace(obj.TextSrc))
+        {
+            SummaryService.NotifyNewSegment(obj.TextSrc);
         }
     }
 

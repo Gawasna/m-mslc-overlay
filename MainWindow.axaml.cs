@@ -550,9 +550,15 @@ namespace m_mslc_overlay
                 }
             };
 
-            this.Opened += (s, e) => {
+            this.Opened += async (s, e) => {
                 InitializeHotkeys();
                 InitializeFocusKeys();
+                // Bug 1: Pre-warm diarizer at app open if enabled, so model is loaded
+                // before user hits Start Session (eliminates the first-session cold-start delay).
+                if (ConfigManager.Current.EnableDiarizer)
+                {
+                    await PreWarmDiarizerAsync();
+                }
             };
 
             // Dò tìm PID lúc khởi động (nếu đã bật sẵn Live Captions)
@@ -692,6 +698,9 @@ namespace m_mslc_overlay
                 return;
             }
 
+            var loadingDialog = new m_mslc_overlay.views.dialogs.LoadingDialog();
+            _ = loadingDialog.ShowDialog(this);
+
             try
             {
                 using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
@@ -705,22 +714,24 @@ namespace m_mslc_overlay
 
                 if (string.IsNullOrWhiteSpace(outputPath))
                 {
+                    loadingDialog.Close();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
                         this, "Thông báo", "Vui lòng chọn thư mục lưu trữ.");
                     return;
                 }
 
-                bool enableSub = root.TryGetProperty("enableSubtitle", out var subToggle) && subToggle.GetBoolean();
-                bool enableAudio = root.TryGetProperty("enableAudio", out var audioToggle) && audioToggle.GetBoolean();
-                bool enableVideoSub = root.TryGetProperty("enableVideoSubtitle", out var videoToggle) && videoToggle.GetBoolean();
+                bool enableSub      = root.TryGetProperty("enableSubtitle",      out var subToggle)   && subToggle.GetBoolean();
+                bool enableAudio    = root.TryGetProperty("enableAudio",          out var audioToggle) && audioToggle.GetBoolean();
+                bool enableVideoSub = root.TryGetProperty("enableVideoSubtitle", out var videoToggle)  && videoToggle.GetBoolean();
 
-                var errors = new System.Text.StringBuilder();
+                var errors    = new System.Text.StringBuilder();
+                var notes     = new System.Text.StringBuilder();
                 var successes = new System.Text.StringBuilder();
 
                 if (enableSub || enableVideoSub)
                     await _workspaceVm.FlushPendingAsync();
 
-                // ── Text / Subtitle export ────────────────────────────────────
+                // ── Text / Subtitle export ────────────────────────────
                 if (enableSub && root.TryGetProperty("subtitleConfig", out var subConfig))
                 {
                     try
@@ -754,7 +765,6 @@ namespace m_mslc_overlay
                         var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
                         string exportedContent = engine.RunExport(exporter);
 
-                        // Determine actual file extension
                         string ext = format.ToUpperInvariant() switch
                         {
                             ".TXT"  => ".txt",
@@ -776,7 +786,6 @@ namespace m_mslc_overlay
                         {
                             if (ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
                             {
-                                // PdfExporter trả về path tạm thời
                                 if (System.IO.File.Exists(exportedContent))
                                 {
                                     System.IO.File.Copy(exportedContent, destFile, overwrite);
@@ -801,75 +810,91 @@ namespace m_mslc_overlay
                     }
                 }
 
-                // ── Audio export ──────────────────────────────────────────────
+                // ── Audio export ───────────────────────────────────
                 if (enableAudio && root.TryGetProperty("audioConfig", out var audioConfig))
                 {
                     try
                     {
-                        string audioFormat = audioConfig.TryGetProperty("format", out var afProp)
-                            ? afProp.GetString() ?? "WAV" : "WAV";
-                        string audioMode = audioConfig.TryGetProperty("mode", out var amProp)
-                            ? amProp.GetString() ?? "Merge" : "Merge";
-                        string bitrate = audioConfig.TryGetProperty("bitrate", out var brProp)
-                            ? brProp.GetString() ?? "192 kbps" : "192 kbps";
-                        string channels = audioConfig.TryGetProperty("channels", out var chProp)
-                            ? chProp.GetString() ?? "Stereo" : "Stereo";
-                        bool normalizeVolume = !audioConfig.TryGetProperty("normalizeVolume", out var nvProp) || nvProp.GetBoolean();
+                        string audioFormat    = audioConfig.TryGetProperty("format",          out var afProp) ? afProp.GetString()  ?? "WAV"       : "WAV";
+                        string audioMode      = audioConfig.TryGetProperty("mode",            out var amProp) ? amProp.GetString()  ?? "Merge"     : "Merge";
+                        string bitrate        = audioConfig.TryGetProperty("bitrate",         out var brProp) ? brProp.GetString()  ?? "192 kbps"  : "192 kbps";
+                        string channels       = audioConfig.TryGetProperty("channels",        out var chProp) ? chProp.GetString()  ?? "Stereo"    : "Stereo";
+                        bool normalizeVolume  = !audioConfig.TryGetProperty("normalizeVolume", out var nvProp) || nvProp.GetBoolean();
 
-                        // Tìm session directory của recorder hiện tại
-                        string? sessionId = _workspaceVm.Service?.AudioRecorder?.SessionId;
-                        if (string.IsNullOrEmpty(sessionId))
+                        string audioBaseDir = System.IO.Path.Combine(
+                            _workspaceVm.Service!.Storage.MslcDir, "audio");
+
+                        // Preferred: session currently in memory
+                        string? preferredSessionId = _workspaceVm.Service?.AudioRecorder?.SessionId;
+
+                        // FindBestAudioSessionDir: chon session co audio data, fallback scan all sessions
+                        string? sessionDir = FindBestAudioSessionDir(audioBaseDir, preferredSessionId);
+
+                        if (sessionDir == null)
                         {
-                            errors.AppendLine("Không có audio session: chưa bắt đầu ghi âm trong phiên này.");
+                            errors.AppendLine("Không có dữ liệu âm thanh: chưa bắt đầu ghi âm trong phiên này.");
                         }
                         else
                         {
-                            // AudioRecorder lưu tại <workspace>/.mslc/audio/<sessionId>/
-                            string audioDir = System.IO.Path.Combine(
-                                _workspaceVm.Service!.Storage.MslcDir, "audio");
-                            string sessionDir = System.IO.Path.Combine(audioDir, sessionId);
-
-                            if (!System.IO.Directory.Exists(sessionDir))
+                            // Build segment ranges tu DB neu mode = Segment
+                            System.Collections.Generic.List<MMslcOverlay.Services.Workspace.SegmentTimeRange>? segRanges = null;
+                            if (audioMode.Equals("Segment", StringComparison.OrdinalIgnoreCase))
                             {
-                                errors.AppendLine($"Thư mục audio không tìm thấy: {sessionDir}");
-                            }
-                            else
-                            {
-                                // Build segment ranges từ DB nếu mode = Segment
-                                System.Collections.Generic.List<MMslcOverlay.Services.Workspace.SegmentTimeRange>? segRanges = null;
-                                if (audioMode.Equals("Segment", StringComparison.OrdinalIgnoreCase))
+                                segRanges = new();
+                                string sessionIdName = System.IO.Path.GetFileName(sessionDir);
+                                var mergedSegs = _workspaceVm.Service!.SegmentRepo!.GetMergedSegments();
+                                foreach (var seg in mergedSegs)
                                 {
-                                    segRanges = new();
-                                    var mergedSegs = _workspaceVm.Service.SegmentRepo.GetMergedSegments();
-                                    foreach (var seg in mergedSegs)
-                                    {
-                                        if (seg.BaseSegment.AudioSessionId == sessionId)
-                                        {
-                                            long startMs = seg.BaseSegment.AudioOffsetMs ?? seg.BaseSegment.TsStartMs;
-                                            long endMs = seg.BaseSegment.AudioEndOffsetMs ?? seg.BaseSegment.TsEndMs;
-                                            string label = seg.BaseSegment.SpeakerId ?? "unknown";
-                                            segRanges.Add(new MMslcOverlay.Services.Workspace.SegmentTimeRange(label, startMs, endMs));
-                                        }
-                                    }
+                                    // Accept segments that belong to this session, OR segments with no session assignment
+                                    // (legacy data pre audio-session-tracking). Use AudioOffset when available, fallback to TsMs.
+                                    bool belongsToSession = string.IsNullOrEmpty(seg.BaseSegment.AudioSessionId)
+                                        || seg.BaseSegment.AudioSessionId == sessionIdName;
+
+                                    if (!belongsToSession) continue;
+
+                                    long startMs = seg.BaseSegment.AudioOffsetMs    ?? seg.BaseSegment.TsStartMs;
+                                    long endMs   = seg.BaseSegment.AudioEndOffsetMs ?? seg.BaseSegment.TsEndMs;
+                                    string label = seg.BaseSegment.SpeakerId ?? "unknown";
+
+                                    // Skip zero-duration or invalid ranges
+                                    if (endMs <= startMs) continue;
+
+                                    segRanges.Add(new MMslcOverlay.Services.Workspace.SegmentTimeRange(label, startMs, endMs));
                                 }
 
-                                var req = new MMslcOverlay.Services.Workspace.AudioExportRequest(
-                                    SessionDir: sessionDir,
-                                    OutputPath: outputPath,
-                                    FileNamePattern: filenamePattern,
-                                    Format: audioFormat,
-                                    Mode: audioMode,
-                                    Channels: channels,
-                                    Bitrate: bitrate,
-                                    NormalizeVolume: normalizeVolume,
-                                    Overwrite: overwrite,
-                                    SegmentRanges: segRanges
-                                );
-
-                                await MMslcOverlay.Services.Workspace.AudioExportService.ExportAsync(req);
-                                successes.AppendLine(outputPath);
-                                services.LoggerService.Log($"[Export] Audio exported to: {outputPath}");
+                                if (segRanges.Count == 0)
+                                {
+                                    // No valid segments — fallback to Merge mode
+                                    services.LoggerService.Log("[Export] Segment mode: no valid segments found, falling back to Merge mode.");
+                                    notes.AppendLine("Chế độ Tách đoạn: không có đoạn hợp lệ, tự động chuyển sang Gộp file.");
+                                    segRanges = null;
+                                    audioMode = "Merge";
+                                }
                             }
+
+                            var progress = new Progress<int>(pct =>
+                                services.LoggerService.Log($"[Export] Audio progress: {pct}%"));
+
+                            var req = new MMslcOverlay.Services.Workspace.AudioExportRequest(
+                                SessionDir:      sessionDir,
+                                OutputPath:      outputPath,
+                                FileNamePattern: filenamePattern,
+                                Format:          audioFormat,
+                                Mode:            audioMode,
+                                Channels:        channels,
+                                Bitrate:         bitrate,
+                                NormalizeVolume: normalizeVolume,
+                                Overwrite:       overwrite,
+                                SegmentRanges:   segRanges
+                            );
+
+                            await MMslcOverlay.Services.Workspace.AudioExportService.ExportAsync(req, progress);
+                            successes.AppendLine(outputPath);
+                            services.LoggerService.Log($"[Export] Audio exported to: {outputPath}");
+
+                            // FLAC uses WAV container internally (NAudio limitation)
+                            if (audioFormat.Equals("FLAC", StringComparison.OrdinalIgnoreCase))
+                                notes.AppendLine("FLAC: file đuợc lưu dưới dạng WAV PCM (NAudio không hỗ trợ FLAC encoder). Dùng ffmpeg để chuyển đổi nếu cần.");
                         }
                     }
                     catch (Exception ex)
@@ -992,33 +1017,123 @@ namespace m_mslc_overlay
                     }
                 }
 
-                // ── Post-export ───────────────────────────────────────────────
+                // ── Post-export ────────────────────────────────────────
                 _workspaceVm.RefreshSessionFiles();
+
+                loadingDialog.Close();
 
                 if (errors.Length > 0)
                 {
-                    string body = errors.ToString().Trim();
+                    string detail = errors.ToString().Trim();
                     if (successes.Length > 0)
-                        body = "Một phần thành công:\n" + successes.ToString().Trim() + "\n\nCảnh báo:\n" + body;
+                        detail = "Một phần thành công:\n" + successes.ToString().Trim() + "\n\nCảnh báo:\n" + detail;
+                    if (notes.Length > 0) detail += "\n\n[Ghi chú] " + notes.ToString().Trim();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
-                        this, "Xuất file hoàn tất (có cảnh báo)", body);
+                        this, "Xuất file hoàn tất (có cảnh báo)", detail);
                 }
                 else
                 {
-                    string body = successes.Length > 0
+                    string successMsg = successes.Length > 0
                         ? successes.ToString().Trim()
                         : outputPath;
+                    if (notes.Length > 0) successMsg += "\n\n[Ghi chú] " + notes.ToString().Trim();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
                         this, "Xuất file thành công",
-                        $"Dữ liệu đã được lưu:\n{body}");
+                        $"Dữ liệu đã được lưu:\n{successMsg}");
                 }
             }
             catch (Exception ex)
             {
+                loadingDialog.Close();
                 services.LoggerService.Log($"[Export] ProcessAdvancedExportPayloadAsync failed: {ex.Message}");
                 await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
                     this, "Lỗi xuất file", $"Đã xảy ra lỗi không mong đợi:\n{ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Scan audioBaseDir for the session with actual audio data (at least 1 chunk with SizeBytes > 0).
+        /// Prefer preferredSessionId if it already has data; otherwise pick the session with the
+        /// largest TotalDurationMs as fallback (most complete recording in the workspace).
+        /// Returns null if no session with audio data exists.
+        /// </summary>
+        private static string? FindBestAudioSessionDir(string audioBaseDir, string? preferredSessionId)
+        {
+            if (!System.IO.Directory.Exists(audioBaseDir))
+                return null;
+
+            // Helper: check if a sessionDir has at least one PCM chunk with data
+            static bool HasAudioData(string sessionDir)
+            {
+                string metaPath = System.IO.Path.Combine(sessionDir, "metadata.json");
+                if (!System.IO.File.Exists(metaPath)) return false;
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(metaPath));
+                    var root = doc.RootElement;
+                    if (!root.TryGetProperty("Chunks", out var chunksEl) &&
+                        !root.TryGetProperty("chunks", out chunksEl)) return false;
+                    foreach (var chunk in chunksEl.EnumerateArray())
+                    {
+                        long size = 0;
+                        if (chunk.TryGetProperty("SizeBytes", out var sbEl) ||
+                            chunk.TryGetProperty("sizeBytes", out sbEl))
+                            size = sbEl.GetInt64();
+                        if (size > 0) return true;
+
+                        // Also check actual file on disk
+                        string? fileName = null;
+                        if (chunk.TryGetProperty("FileName", out var fnEl) ||
+                            chunk.TryGetProperty("fileName", out fnEl))
+                            fileName = fnEl.GetString();
+                        if (fileName != null)
+                        {
+                            string chunkPath = System.IO.Path.Combine(sessionDir, fileName);
+                            if (System.IO.File.Exists(chunkPath) && new System.IO.FileInfo(chunkPath).Length > 0)
+                                return true;
+                        }
+                    }
+                }
+                catch { /* malformed metadata — skip */ }
+                return false;
+            }
+
+            // 1. Try preferred session first
+            if (!string.IsNullOrEmpty(preferredSessionId))
+            {
+                string preferred = System.IO.Path.Combine(audioBaseDir, preferredSessionId);
+                if (HasAudioData(preferred)) return preferred;
+            }
+
+            // 2. Scan all subdirs and pick the one with the most audio data
+            string? bestDir = null;
+            long bestDuration = 0;
+
+            foreach (string dir in System.IO.Directory.GetDirectories(audioBaseDir))
+            {
+                if (!HasAudioData(dir)) continue;
+
+                // Read TotalDurationMs for ranking
+                long duration = 0;
+                string metaPath = System.IO.Path.Combine(dir, "metadata.json");
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(metaPath));
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("TotalDurationMs", out var d) ||
+                        root.TryGetProperty("totalDurationMs", out d))
+                        duration = d.GetInt64();
+                }
+                catch { }
+
+                if (duration >= bestDuration)
+                {
+                    bestDuration = duration;
+                    bestDir = dir;
+                }
+            }
+
+            return bestDir;
         }
 
         private async System.Threading.Tasks.Task NewWorkspaceFlowAsync()
@@ -1895,6 +2010,31 @@ namespace m_mslc_overlay
                 _workspaceVm.StartRecording();
                 AppendLog($"[{timestamp}] [SESSION] Audio recording started\n");
                 
+                // Step 5: Restart pipe if it was stopped during a previous pause
+                // (StartRecording without pipe = silent session)
+                if (!_pipeService.IsRunning)
+                {
+                    _pipeService.Start();
+                    AppendLog($"[{timestamp}] [SESSION] LiveCaption pipe restarted\n");
+                }
+
+                // Step 6: Start/Resume Speaker Diarizer (session-scoped, not overlay-scoped)
+                if (ConfigManager.Current.EnableDiarizer)
+                {
+                    if (_diarizerManager != null)
+                    {
+                        // Diarizer already running (was soft-paused or pre-warmed) → resume audio stream only
+                        await _diarizerManager.ResumeAudioAsync();
+                        AppendLog($"[{timestamp}] [SESSION] Diarizer audio stream resumed\n");
+                    }
+                    else
+                    {
+                        // Edge case: pre-warm failed or was skipped → fresh init
+                        await InitializeDiarizerAsync();
+                        WireDiarizerCallbacks();
+                    }
+                }
+                
                 // Update button to "Pause Recording"
                 _sessionState = SessionState.Recording;
                 btn.IsEnabled = true;
@@ -1904,7 +2044,7 @@ namespace m_mslc_overlay
                 btn.Classes.Add("DangerBtn");
                 ToolTip.SetTip(btn, "Pause recording (stop accepting new segments)");
                 
-                AppendLog($"[{timestamp}] [SESSION] ✅ Session started successfully. Speak to begin transcription.\n");
+                AppendLog($"[{timestamp}] [SESSION] Session started successfully. Speak to begin transcription.\n");
             }
             catch (Exception ex)
             {
@@ -1927,21 +2067,35 @@ namespace m_mslc_overlay
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
                 AppendLog($"[{timestamp}] [SESSION] Pausing recording...\n");
                 
-                // Step 1: Stop recording (but keep workspace open)
+                // Step 1: Stop pipe FIRST — prevent LiveCaption from pushing more text
+                // Bug 3: Without stopping the pipe, LC keeps appending machine text even
+                // while "paused", causing repeat text and diarizer audio noise.
+                _pipeService.Stop();
+                AppendLog($"[{timestamp}] [SESSION] LiveCaption pipe stopped\n");
+                
+                // Step 2: Stop recording workspace
                 if (_workspaceVm.IsRecording)
                 {
                     _workspaceVm.StopRecording();
                     AppendLog($"[{timestamp}] [SESSION] Audio recording stopped\n");
                 }
                 
-                // Step 2: Flush pending edits
+                // Step 2: Soft-pause diarizer — stop audio stream, keep process alive
+                // Engine stays warm so resume is instant (no model reload needed)
+                if (_diarizerManager != null)
+                {
+                    await _diarizerManager.SendCommandAsync(new { cmd = "pause_audio" });
+                    AppendLog($"[{timestamp}] [SESSION] Diarizer audio stream paused (process still alive)\n");
+                }
+                
+                // Step 3: Flush pending edits
                 if (_workspaceVm.IsDirty)
                 {
                     await FlushPendingEditsAsync();
                     AppendLog($"[{timestamp}] [SESSION] Pending edits flushed\n");
                 }
                 
-                // Step 3: Workspace stays OPEN (user can continue editing, export, etc.)
+                // Step 4: Workspace stays OPEN (user can continue editing, export, etc.)
                 // User must explicitly close via File menu or Close Workspace button
                 
                 // Update button state
@@ -1949,7 +2103,7 @@ namespace m_mslc_overlay
                 btn.IsEnabled = true;
                 UpdateButtonLabel(btn, icon, label);
                 
-                AppendLog($"[{timestamp}] [SESSION] ✅ Recording paused. Workspace remains open for editing/export.\n");
+                AppendLog($"[{timestamp}] [SESSION] Recording paused. Workspace remains open for editing/export.\n");
             }
             catch (Exception ex)
             {
@@ -2090,6 +2244,51 @@ namespace m_mslc_overlay
             await _diarizerManager.StartAsync(config, pythonExe, scriptPath);
         }
 
+        /// <summary>
+        /// Bug 1: Pre-warm atom32 at app startup (if enabled in config).
+        /// Starts the Python process and loads the model, then immediately soft-pauses the
+        /// audio stream so no real capture occurs until the user starts a session.
+        /// When Start Session is pressed, engine is already warm — resume_audio is near-instant.
+        /// </summary>
+        private async System.Threading.Tasks.Task PreWarmDiarizerAsync()
+        {
+            if (_diarizerManager != null) return; // Already running (e.g. opened from file)
+            if (!ConfigManager.Current.EnableDiarizer) return;
+
+            // Resolve paths
+            var manifest = await PluginManifestService.LoadManifestAsync();
+            var atom32Entry = manifest?.Atoms.FirstOrDefault(a => a.Id == "atom32");
+            if (atom32Entry == null) return;
+
+            string installDir = PluginManifestService.ResolveInstallDir(atom32Entry.InstallDir);
+            string pythonExe = Path.Combine(installDir, ".venv", "Scripts", "python.exe");
+            string scriptPath = Path.Combine(installDir, atom32Entry.EntryScript);
+
+            if (!File.Exists(pythonExe) || !File.Exists(scriptPath)) return;
+
+            _diarizerManager = new DiarizerProcessManager();
+            _diarizerManager.OnLog += (msg) => AppendLog($"[DIARIZER] {msg}\n");
+            _diarizerManager.OnEvent += HandleDiarizerEvent;
+
+            var config = new DiarizerConfig(DeviceIndex: ConfigManager.Current.DiarizerDeviceIndex, Debug: true);
+
+            AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Pre-warming engine in background (audio paused until session starts)...\n");
+
+            try
+            {
+                // StartPreWarmedAsync: awaits ReadyEvent then issues pause_audio
+                await _diarizerManager.StartPreWarmedAsync(config, pythonExe, scriptPath);
+                WireDiarizerCallbacks();
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Engine pre-warm complete. Ready to start session instantly.\n");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Pre-warm failed: {ex.Message}. Will try again at session start.\n");
+                _diarizerManager?.Dispose();
+                _diarizerManager = null;
+            }
+        }
+
         private async System.Threading.Tasks.Task ShutdownDiarizerAsync()
         {
             if (_diarizerManager != null)
@@ -2183,7 +2382,78 @@ namespace m_mslc_overlay
                 case SessionFlushedEvent flush:
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Session flushed. Speakers: {flush.UidMap.Count}\n");
                     break;
+
+                case AudioPausedEvent:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Audio stream paused (process alive).\n");
+                    break;
+
+                case AudioResumedEvent:
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Audio stream resumed.\n");
+                    break;
+
+                case MergeSuggestionsEvent suggestions:
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _workspaceVm.NavPane?.SetMergeSuggestions(suggestions.Suggestions);
+                    });
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Merge suggestions: {suggestions.Suggestions.Count} pair(s).\n");
+                    break;
             }
+        }
+
+        /// <summary>
+        /// Wire NavPane callbacks to atom32 IPC after diarizer is initialized.
+        /// Called once per fresh session start, not on soft-resume.
+        /// </summary>
+        private void WireDiarizerCallbacks()
+        {
+            var navPane = _workspaceVm.NavPane;
+            if (navPane == null || _diarizerManager == null) return;
+
+            // Rename: double-click edit in DocNav -> label_speaker IPC
+            navPane.SpeakerRenameRequested = async (uid, newName) =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "label_speaker", uid, display_name = newName });
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Renamed {uid} -> {newName}\n");
+            };
+
+            // Merge speakers: merge picker -> merge_speakers IPC
+            navPane.SpeakerMergeRequested = async (uidSource, uidTarget) =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "merge_speakers", uid_source = uidSource, uid_target = uidTarget });
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    var toRemove = navPane.Speakers.FirstOrDefault(s => s.SpeakerKey == uidSource);
+                    if (toRemove != null) navPane.Speakers.Remove(toRemove);
+                });
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Merged {uidSource} into {uidTarget}\n");
+            };
+
+            // Reassign segment: segment picker -> reassign_segment IPC
+            navPane.SegmentReassignRequested = async (oldUid, startSec, endSec, newUid) =>
+            {
+                await _diarizerManager.SendCommandAsync(new
+                {
+                    cmd = "reassign_segment",
+                    old_uid = oldUid,
+                    new_uid = newUid,
+                    start_sec = startSec,
+                    end_sec = endSec
+                });
+                AppendLog($"[{DateTime.Now:HH:mm:ss}] [DIARIZER] Reassigned {startSec:F1}-{endSec:F1}s: {oldUid} -> {newUid}\n");
+            };
+
+            // Dismiss suggestion -> dismiss_merge_suggestion IPC
+            navPane.MergeSuggestionDismissRequested = async (pid1, pid2) =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "dismiss_merge_suggestion", pid1, pid2 });
+            };
+
+            // Refresh button -> get_merge_suggestions IPC
+            navPane.RefreshMergeSuggestionsRequested = async () =>
+            {
+                await _diarizerManager.SendCommandAsync(new { cmd = "get_merge_suggestions" });
+            };
         }
 
         public AIService AIService => _aiService;
@@ -2211,16 +2481,14 @@ namespace m_mslc_overlay
             }
         }
 
-        private async void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
+        private void OpenOverlayBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_currentOverlay == null || !_currentOverlay.IsVisible)
             {
                 _currentOverlay = new FloatingTextOverlay(this);
-                _currentOverlay.Closed += async (s, ev) => {
-                    await ShutdownDiarizerAsync();
-                };
                 _currentOverlay.Show();
-                await InitializeDiarizerAsync();
+                // Diarizer lifecycle is managed by Session Start/Stop, NOT by overlay.
+                // Overlay is display-only — it shows captions regardless of diarizer state.
             }
             else
             {
@@ -2582,15 +2850,12 @@ namespace m_mslc_overlay
 
         public void ToggleOverlay()
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(async () => {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                 if (_currentOverlay == null || !_currentOverlay.IsVisible)
                 {
                     _currentOverlay = new FloatingTextOverlay(this);
-                    _currentOverlay.Closed += async (s, ev) => {
-                        await ShutdownDiarizerAsync();
-                    };
                     _currentOverlay.Show();
-                    await InitializeDiarizerAsync();
+                    // Diarizer is session-scoped; hotkey toggling overlay does not affect it.
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] [HOTKEY] Floating Overlay opened.\n");
                 }
                 else

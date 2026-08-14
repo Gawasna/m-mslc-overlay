@@ -45,8 +45,8 @@ public class AssExporter : IExporter
         sb.AppendLine("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
 
         bool notesOnly = ContentMode.Contains("Notes");
-        bool enOnly = ContentMode.Contains("English") || (ContentMode.Contains("EN") && !ContentMode.Contains("EN + VI"));
-        bool viOnly = ContentMode.Contains("Vietnamese") || ContentMode.Contains("VI");
+        bool enOnly   = ContentMode == "Chỉ Tiếng Anh (EN)";
+        bool viOnly   = ContentMode == "Chỉ Tiếng Việt (VI)";
 
         if (!notesOnly)
         {

@@ -3,7 +3,7 @@ import { EditorView, Decoration, DecorationSet } from "prosemirror-view";
 import { Schema, DOMParser, DOMSerializer } from "prosemirror-model";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { baseKeymap } from "prosemirror-commands";
+import { baseKeymap, toggleMark } from "prosemirror-commands";
 
 // 1. Define Schema
 const schema = new Schema({
@@ -43,7 +43,7 @@ const schema = new Schema({
         anchorAfter: { default: null },
       },
       content: "inline*",
-      marks: "strong em",
+      marks: "strong em underline fontSize",
       group: "block",
       toDOM(node) { return ["div", { class: "freeform-block", "data-block-id": node.attrs.blockId }, 0]; }
     },
@@ -73,6 +73,15 @@ const schema = new Schema({
       parseDOM: [{ tag: "i" }, { tag: "em" }],
       toDOM() { return ["em", 0] }
     },
+    underline: {
+      parseDOM: [{ tag: "u" }],
+      toDOM() { return ["u", 0] }
+    },
+    fontSize: {
+      attrs: { size: { default: "11pt" } },
+      parseDOM: [{ style: "font-size", getAttrs: value => ({ size: value }) }],
+      toDOM(mark) { return ["span", { style: `font-size: ${mark.attrs.size}` }, 0] }
+    }
   }
 });
 
@@ -915,6 +924,71 @@ window.__bridge = {
         } else if (msg.type === "CLEAR_FIND") {
             view.dispatch(view.state.tr.setMeta(searchPluginKey, { type: "CLEAR_FIND" }));
             sendToHost({ type: "FIND_RESULT", matchCount: 0, activeMatchIndex: 0 });
+        } else if (msg.type === "EXECUTE_COMMAND") {
+            const { command, value } = msg;
+            if (command === "TOGGLE_BOLD") {
+                toggleMark(schema.marks.strong)(view.state, view.dispatch);
+            } else if (command === "TOGGLE_ITALIC") {
+                toggleMark(schema.marks.em)(view.state, view.dispatch);
+            } else if (command === "TOGGLE_UNDERLINE") {
+                toggleMark(schema.marks.underline)(view.state, view.dispatch);
+            } else if (command === "SET_FONT_SIZE") {
+                const markType = schema.marks.fontSize;
+                const { empty, $cursor, ranges } = view.state.selection;
+                if (empty && $cursor) {
+                    view.dispatch(view.state.tr.addStoredMark(markType.create({ size: value + "pt" })));
+                } else {
+                    let tr = view.state.tr;
+                    for (let i = 0; i < ranges.length; i++) {
+                        const { $from, $to } = ranges[i];
+                        tr.addMark($from.pos, $to.pos, markType.create({ size: value + "pt" }));
+                    }
+                    view.dispatch(tr.scrollIntoView());
+                }
+            }
+        } else if (msg.type === "SET_GLOBAL_FONT_FAMILY") {
+            document.getElementById("editor").style.fontFamily = msg.value;
+        } else if (msg.type === "SET_GLOBAL_FONT_SIZE") {
+            document.getElementById("editor").style.fontSize = msg.value + "pt";
+        } else if (msg.type === "REPLACE_ALL") {
+            const { find, replace, scope } = msg; // scope: 0=Both, 1=Machine, 2=Human
+            if (!find) return;
+            const lowerFind = find.toLowerCase();
+            const findLen = find.length;
+            let tr = view.state.tr;
+            let replacements = [];
+            
+            view.state.doc.descendants((node, pos) => {
+                if (node.isText && node.text) {
+                    let inMachine = false;
+                    let inHuman = false;
+                    let $pos = view.state.doc.resolve(pos);
+                    for (let d = $pos.depth; d > 0; d--) {
+                        let pNode = $pos.node(d);
+                        if (pNode.type.name === "machine_segment") inMachine = true;
+                        if (pNode.type.name === "freeform_block") inHuman = true;
+                    }
+                    if (scope === 1 && !inMachine) return;
+                    if (scope === 2 && !inHuman) return;
+
+                    const text = node.text;
+                    const lowerText = text.toLowerCase();
+                    let idx = lowerText.indexOf(lowerFind);
+                    while (idx !== -1) {
+                        replacements.push({ from: pos + idx, to: pos + idx + findLen });
+                        idx = lowerText.indexOf(lowerFind, idx + 1);
+                    }
+                }
+            });
+
+            for (let i = replacements.length - 1; i >= 0; i--) {
+                const { from, to } = replacements[i];
+                tr.replaceWith(from, to, schema.text(replace));
+            }
+            if (replacements.length > 0) {
+                dispatchBridge(tr);
+            }
+            sendToHost({ type: "REPLACE_RESULT", count: replacements.length });
         }
         } catch (e) {
             sendToHost({ type: "JS_ERROR", message: e.toString(), stack: e.stack });

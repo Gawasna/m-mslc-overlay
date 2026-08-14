@@ -173,6 +173,14 @@ public static class AudioExportService
             _          => 192
         };
 
+        // MP3 with bitrates > 160kbps requires higher sample rates (e.g. 44100Hz).
+        // Since our source is 16000Hz, MediaFoundationEncoder.SelectMediaType would return null
+        // for 192/320kbps. We resample to 44100Hz to guarantee support for all bitrates.
+        if (source.WaveFormat.SampleRate < 44100)
+        {
+            source = new WdlResamplingSampleProvider(source, 44100);
+        }
+
         try
         {
             MediaFoundationApi.Startup();
@@ -192,8 +200,7 @@ public static class AudioExportService
                 System.Diagnostics.Debug.WriteLine("[AudioExportService] MP3 MF codec unavailable, falling back to WAV");
                 string wavFallback = Path.ChangeExtension(outFile, ".wav");
                 WaveFileWriter.CreateWaveFile16(wavFallback, source);
-                if (File.Exists(outFile)) File.Delete(outFile);
-                File.Move(wavFallback, outFile);
+                // DO NOT rename WAV to MP3, otherwise the file is unplayable.
                 return;
             }
 

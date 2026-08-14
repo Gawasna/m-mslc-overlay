@@ -34,10 +34,20 @@ body {
   border-radius: 4px;
   transition: background 0.15s;
   -webkit-user-modify: read-only;
+  border-left: 3px solid rgba(249, 115, 22, 0.7); /* Orange */
+  background: rgba(249, 115, 22, 0.05);
 }
-.machine-segment:hover { background: rgba(34, 197, 94, 0.03); }
-.machine-segment .seg-text,
-.machine-segment .seg-trs,
+.machine-segment:hover { background: rgba(249, 115, 22, 0.1); }
+.machine-segment .seg-text {
+  cursor: default;
+  font-weight: normal;
+  font-family: "Times New Roman", Times, serif;
+}
+.machine-segment .seg-trs {
+  cursor: default;
+  font-style: italic;
+  font-family: "Times New Roman", Times, serif;
+}
 .machine-segment .seg-content {
   cursor: default;
 }
@@ -87,6 +97,12 @@ body {
   color: #1F2937;
   min-height: 1.5em;
   cursor: text;
+  font-style: italic;
+  text-decoration: underline;
+  border-left: 3px solid rgba(59, 130, 246, 0.7); /* Blue */
+  background: rgba(59, 130, 246, 0.05);
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 /* Magic cursor indicator */

@@ -24,7 +24,7 @@ namespace m_mslc_overlay.services
     public sealed class GeminiSummaryService : IDisposable
     {
         private const string GeminiEndpoint =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/interactions";
 
         private readonly HttpClient _http;
         private readonly SlidingWindowRateLimiter _rateLimiter;
@@ -266,23 +266,12 @@ namespace m_mslc_overlay.services
 
             var payload = new
             {
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[] { new { text = prompt } }
-                    }
-                },
-                generationConfig = new
-                {
-                    maxOutputTokens = 512,
-                    temperature     = 0.3
-                }
+                model = "gemini-3.5-flash",
+                input = prompt
             };
 
-            var req = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"{GeminiEndpoint}?key={apiKey}");
+            var req = new HttpRequestMessage(HttpMethod.Post, GeminiEndpoint);
+            req.Headers.Add("x-goog-api-key", apiKey);
             req.Content = new StringContent(
                 JsonSerializer.Serialize(payload),
                 Encoding.UTF8,
@@ -299,12 +288,17 @@ namespace m_mslc_overlay.services
 
             string json = await resp.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
-            return doc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString() ?? "(no summary returned)";
+            
+            var steps = doc.RootElement.GetProperty("steps");
+            foreach (var step in steps.EnumerateArray())
+            {
+                if (step.GetProperty("type").GetString() == "model_output")
+                {
+                    return step.GetProperty("content")[0].GetProperty("text").GetString() ?? "(no summary returned)";
+                }
+            }
+            
+            return "(no summary returned)";
         }
 
         /// <summary>
@@ -324,11 +318,11 @@ namespace m_mslc_overlay.services
                 sb.AppendLine(priorContext);
                 sb.AppendLine("=== KẾT THÚC NGỮ CẢNH ===");
                 sb.AppendLine();
-                sb.AppendLine("Dưới đây là nội dung MỚI cần tóm tắt (chỉ phần này, không lặp lại ngữ cảnh trước):");
+                sb.AppendLine("Dưới đây là nội dung MỚI cần tóm tắt (chỉ phần này, không lặp lại ngữ cảnh trước, BẮT BUỘC TRẢ LỜI HOÀN TOÀN BẰNG TIẾNG VIỆT):");
             }
             else
             {
-                sb.AppendLine("Tóm tắt ngắn gọn (3–5 câu) nội dung cuộc hội thoại sau bằng cùng ngôn ngữ với nội dung đó:");
+                sb.AppendLine("Tóm tắt ngắn gọn (3–5 câu) nội dung cuộc hội thoại sau, BẮT BUỘC TRẢ LỜI HOÀN TOÀN BẰNG TIẾNG VIỆT:");
             }
 
             sb.AppendLine();

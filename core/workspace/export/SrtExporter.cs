@@ -16,9 +16,9 @@ public class SrtExporter : IExporter
         var sb = new StringBuilder();
         int index = 1;
 
-        bool notesOnly = ContentMode.Contains("Notes");
-        bool enOnly = ContentMode.Contains("English") || ContentMode.Contains("EN");
-        bool viOnly = ContentMode.Contains("Vietnamese") || ContentMode.Contains("VI");
+        bool notesOnly  = ContentMode.Contains("Notes");
+        bool enOnly   = ContentMode == "Chỉ Tiếng Anh (EN)";
+        bool viOnly   = ContentMode == "Chỉ Tiếng Việt (VI)";
 
         if (!notesOnly)
         {

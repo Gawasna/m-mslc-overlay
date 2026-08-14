@@ -7,9 +7,10 @@
 
     <UserControl.Resources>
         <cv:SegmentSourceToBorderConverter   x:Key="SegmentBorderConv"/>
-        <cv:SegmentSourceFontWeightConverter x:Key="SegmentFontWeightConv"/>
-        <cv:SegmentSourceFontStyleConverter  x:Key="SegmentFontStyleConv"/>
-        <cv:SegmentSourceUnderlineConverter  x:Key="SegmentUnderlineConv"/>
+        <cv:SegmentMultiFontWeightConverter  x:Key="SegmentMultiFontWeightConv"/>
+        <cv:SegmentMultiFontStyleConverter   x:Key="SegmentMultiFontStyleConv"/>
+        <cv:SegmentMultiUnderlineConverter   x:Key="SegmentMultiUnderlineConv"/>
+        <cv:SegmentMultiFontSizeConverter    x:Key="SegmentMultiFontSizeConv"/>
         <cv:SegmentSourceToBackgroundConverter x:Key="SegmentBgConv"/>
     </UserControl.Resources>
 
@@ -111,16 +112,40 @@
                                             <!-- Text content -->
                                             <StackPanel Grid.Column="1" Spacing="6">
 
-                                                <!-- Original (styling by SegmentSource) -->
+                                                <!-- Original (styling by MultiBinding combining global + override + source defaults) -->
                                                 <TextBlock Text="{Binding OriginalText}"
-                                                           FontSize="11.5"
-                                                           FontFamily="Georgia"
-                                                           FontWeight="{Binding Source, Converter={StaticResource SegmentFontWeightConv}}"
-                                                           FontStyle="{Binding Source, Converter={StaticResource SegmentFontStyleConv}}"
-                                                           TextDecorations="{Binding Source, Converter={StaticResource SegmentUnderlineConv}}"
+                                                           FontFamily="{Binding $parent[UserControl].((vm:PaperSheetViewModel)DataContext).GlobalFontFamily}"
                                                            Foreground="{StaticResource TextPrimaryBrush}"
                                                            TextWrapping="Wrap"
-                                                           LineHeight="20" />
+                                                           LineHeight="20">
+                                                    <TextBlock.FontSize>
+                                                        <MultiBinding Converter="{StaticResource SegmentMultiFontSizeConv}">
+                                                            <Binding Path="FontSizeOverride" />
+                                                            <Binding Path="$parent[UserControl].((vm:PaperSheetViewModel)DataContext).GlobalFontSize" />
+                                                        </MultiBinding>
+                                                    </TextBlock.FontSize>
+                                                    <TextBlock.FontWeight>
+                                                        <MultiBinding Converter="{StaticResource SegmentMultiFontWeightConv}">
+                                                            <Binding Path="Source" />
+                                                            <Binding Path="IsBoldOverride" />
+                                                            <Binding Path="$parent[UserControl].((vm:PaperSheetViewModel)DataContext).GlobalBold" />
+                                                        </MultiBinding>
+                                                    </TextBlock.FontWeight>
+                                                    <TextBlock.FontStyle>
+                                                        <MultiBinding Converter="{StaticResource SegmentMultiFontStyleConv}">
+                                                            <Binding Path="Source" />
+                                                            <Binding Path="IsItalicOverride" />
+                                                            <Binding Path="$parent[UserControl].((vm:PaperSheetViewModel)DataContext).GlobalItalic" />
+                                                        </MultiBinding>
+                                                    </TextBlock.FontStyle>
+                                                    <TextBlock.TextDecorations>
+                                                        <MultiBinding Converter="{StaticResource SegmentMultiUnderlineConv}">
+                                                            <Binding Path="Source" />
+                                                            <Binding Path="IsUnderlinedOverride" />
+                                                            <Binding Path="$parent[UserControl].((vm:PaperSheetViewModel)DataContext).GlobalUnderline" />
+                                                        </MultiBinding>
+                                                    </TextBlock.TextDecorations>
+                                                </TextBlock>
 
                                                 <!-- Translation (when available) -->
                                                 <Border IsVisible="{Binding HasTranslation}"

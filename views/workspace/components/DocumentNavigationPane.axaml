@@ -102,70 +102,182 @@
 
             <Panel>
 
-                <!-- ══ STATE 1: Speaker Annotation ════════════════════════════ -->
-                <StackPanel IsVisible="{Binding ShowSpeakerAnnotation}"
-                            Spacing="0">
+                <!-- == STATE 1: Speaker Annotation ============================================ -->
+                <Grid IsVisible="{Binding ShowSpeakerAnnotation}" RowDefinitions="Auto, *, Auto">
 
                     <!-- Header -->
-                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                    <Border Grid.Row="0"
+                            Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
                             BorderThickness="0,0,0,1" Padding="10,6">
-                        <TextBlock Text="Speaker Annotation"
-                                   FontSize="11" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Column="0" Text="Speaker Annotation"
+                                       FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}" />
+                            <!-- Refresh suggestions button -->
+                            <Button Grid.Column="1" x:Name="RefreshSuggestionsBtn"
+                                    Width="22" Height="22" Padding="0" CornerRadius="3"
+                                    ToolTip.Tip="Refresh merge suggestions"
+                                    Classes="NavTabBtn"
+                                    IsVisible="{Binding IsDiarizerAvailable}">
+                                <mi:MaterialIcon Kind="Refresh" Width="14" Height="14" />
+                            </Button>
+                        </Grid>
                     </Border>
 
-                    <!-- P3.5: Fallback panel when diarizer unavailable -->
-                    <StackPanel IsVisible="{Binding !IsDiarizerAvailable}" Margin="10,12" Spacing="6">
-                        <TextBlock Text="Speaker Diarization không khả dụng."
-                                   FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
-                        <TextBlock Text="{Binding DiarizerUnavailableReason}"
-                                   FontSize="10" TextWrapping="Wrap"
-                                   Foreground="{StaticResource TextTertiaryBrush}" />
-                        <Button Content="Mở Preferences để cài đặt"
-                                Click="OpenPreferencesBtn_Click"
-                                Classes="LinkBtn" FontSize="11" 
-                                HorizontalAlignment="Left" Margin="0,4,0,0" />
-                    </StackPanel>
+                    <!-- Scrollable speaker list + suggestions -->
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Spacing="0">
 
-                    <!-- Speaker list (visible when diarizer available) -->
-                    <ItemsControl ItemsSource="{Binding Speakers}"
-                                  IsVisible="{Binding IsDiarizerAvailable}"
-                                  Padding="0">
-                        <ItemsControl.DataTemplates>
-                            <DataTemplate x:DataType="vm:SpeakerAnnotation">
-                                <Border BorderBrush="{StaticResource BgWindowBrush}" BorderThickness="0,0,0,1" Padding="10,8">
-                                    <Grid ColumnDefinitions="Auto, *">
-                                        <!-- Speaker color dot -->
-                                        <Ellipse Grid.Column="0"
-                                                 Width="10" Height="10"
-                                                 Fill="{StaticResource PrimaryBrush}"
-                                                 VerticalAlignment="Center"
-                                                 Margin="0,0,8,0" />
-                                        <!-- Editable display name -->
-                                        <StackPanel Grid.Column="1" Spacing="1">
-                                            <TextBlock Text="{Binding SpeakerKey}"
-                                                       FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
-                                            <TextBox Text="{Binding DisplayName}"
-                                                     FontSize="11"
-                                                     Padding="2,1"
-                                                     Background="Transparent"
-                                                     BorderThickness="0,0,0,1"
-                                                     BorderBrush="{StaticResource BorderBrush}"
-                                                     Foreground="{StaticResource TextPrimaryBrush}" />
-                                        </StackPanel>
-                                    </Grid>
+                            <!-- P3.5: Fallback panel when diarizer unavailable -->
+                            <StackPanel IsVisible="{Binding !IsDiarizerAvailable}" Margin="10,12" Spacing="6">
+                                <TextBlock Text="Speaker Diarization không khả dụng."
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                                <TextBlock Text="{Binding DiarizerUnavailableReason}"
+                                           MaxWidth="{Binding Bounds.Width, ElementName=OpenPreferencesBtn}"
+                                           FontSize="10" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextTertiaryBrush}" />
+                                <Button x:Name="OpenPreferencesBtn"
+                                        Content="Mở Preferences để cài đặt"
+                                        Click="OpenPreferencesBtn_Click"
+                                        Classes="LinkBtn" FontSize="11"
+                                        HorizontalAlignment="Left" Margin="0,4,0,0" />
+                            </StackPanel>
+
+                            <!-- Speaker list (visible when diarizer available) -->
+                            <ItemsControl x:Name="SpeakerList"
+                                          ItemsSource="{Binding Speakers}"
+                                          IsVisible="{Binding IsDiarizerAvailable}"
+                                          Padding="0">
+                                <ItemsControl.DataTemplates>
+                                    <DataTemplate x:DataType="vm:SpeakerAnnotation">
+                                        <Border BorderBrush="{StaticResource BgWindowBrush}"
+                                                BorderThickness="0,0,0,1" Padding="10,6">
+                                            <Grid ColumnDefinitions="Auto, *, Auto">
+
+                                                <!-- Color dot -->
+                                                <Ellipse Grid.Column="0"
+                                                         Width="8" Height="8"
+                                                         Fill="{Binding ColorHex}"
+                                                         VerticalAlignment="Top"
+                                                         Margin="0,4,8,0" />
+
+                                                <!-- Name + segments -->
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBox x:Name="NameEditor"
+                                                             Text="{Binding DisplayName, Mode=TwoWay}"
+                                                             FontSize="11"
+                                                             FontWeight="Medium"
+                                                             Padding="0"
+                                                             MinHeight="0"
+                                                             Background="Transparent"
+                                                             BorderThickness="0"
+                                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                                             VerticalAlignment="Center"
+                                                             ToolTip.Tip="Click to edit speaker name" />
+
+                                                    <TextBlock Text="{Binding SegCountLabel}"
+                                                               FontSize="9"
+                                                               Foreground="{StaticResource TextTertiaryBrush}"
+                                                               Margin="0,2,0,0"
+                                                               IsVisible="{Binding HasSegments}" />
+                                                </StackPanel>
+
+                                                <!-- Merge button -->
+                                                <Button Grid.Column="2"
+                                                        x:Name="MergeSpeakerBtn"
+                                                        Width="22" Height="22"
+                                                        Padding="0" CornerRadius="3"
+                                                        Classes="NavTabBtn"
+                                                        VerticalAlignment="Top"
+                                                        ToolTip.Tip="Merge into another speaker"
+                                                        Tag="{Binding SpeakerKey}">
+                                                    <mi:MaterialIcon Kind="MergeType" Width="14" Height="14" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.DataTemplates>
+                            </ItemsControl>
+
+                            <!-- Hint when empty and diarizer is running -->
+                            <TextBlock Text="Speakers will appear here as segments arrive."
+                                       IsVisible="{Binding IsDiarizerAvailable}"
+                                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" Margin="10,8" />
+
+                            <!-- ── Merge Suggestions section ────────────────────── -->
+                            <StackPanel IsVisible="{Binding HasMergeSuggestions}" Spacing="0">
+                                <Border Background="{StaticResource BgWindowBrush}"
+                                        BorderBrush="{StaticResource BorderLightBrush}"
+                                        BorderThickness="0,1,0,1" Padding="10,4">
+                                    <TextBlock Text="Similar voices detected"
+                                               FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextSecondaryBrush}" />
                                 </Border>
-                            </DataTemplate>
-                        </ItemsControl.DataTemplates>
-                    </ItemsControl>
 
-                    <!-- Hint when empty -->
-                    <TextBlock Text="Speakers will appear here as segments arrive."
-                               IsVisible="{Binding IsDiarizerAvailable}"
-                               FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap" Margin="10,12" />
+                                <ItemsControl x:Name="SuggestionList"
+                                              ItemsSource="{Binding MergeSuggestions}">
+                                    <ItemsControl.DataTemplates>
+                                        <DataTemplate x:DataType="vm:MergeSuggestion">
+                                            <Border BorderBrush="{StaticResource BorderLightBrush}"
+                                                    BorderThickness="0,0,0,1" Padding="10,6">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding Label}"
+                                                               FontSize="10"
+                                                               TextWrapping="Wrap"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Button x:Name="AcceptSuggestionBtn"
+                                                                Content="Merge"
+                                                                FontSize="10" Padding="8,2"
+                                                                Classes="PrimaryBtn" CornerRadius="3"
+                                                                Tag="{Binding}" />
+                                                        <Button x:Name="DismissSuggestionBtn"
+                                                                Content="Dismiss"
+                                                                FontSize="10" Padding="8,2"
+                                                                Classes="SecondaryBtn" CornerRadius="3"
+                                                                Tag="{Binding}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.DataTemplates>
+                                </ItemsControl>
+                            </StackPanel>
 
-                </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Merge target picker popup (shown programmatically) -->
+                    <Border Grid.Row="2" x:Name="MergePickerPanel" IsVisible="False"
+                            Background="{StaticResource BgCardBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"
+                            Padding="10,8">
+                        <StackPanel Spacing="6">
+                            <TextBlock x:Name="MergePickerTitle" Text="Merge into:"
+                                       FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                            <ItemsControl x:Name="MergeTargetList"
+                                          ItemsSource="{Binding Speakers}">
+                                <ItemsControl.DataTemplates>
+                                    <DataTemplate x:DataType="vm:SpeakerAnnotation">
+                                        <Button Content="{Binding DisplayName}"
+                                                x:Name="MergeTargetBtn"
+                                                FontSize="11" Padding="6,3"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Left"
+                                                Classes="NavTabBtn"
+                                                Tag="{Binding SpeakerKey}" />
+                                    </DataTemplate>
+                                </ItemsControl.DataTemplates>
+                            </ItemsControl>
+                            <Button x:Name="CancelMergeBtn" Content="Cancel"
+                                    FontSize="10" Padding="6,3"
+                                    Classes="SecondaryBtn" CornerRadius="3" />
+                        </StackPanel>
+                    </Border>
+
+                </Grid>
 
                 <!-- ══ STATE 2: Find & Replace ════════════════════════════════ -->
                 <StackPanel IsVisible="{Binding ShowFindReplace}" Spacing="0">
@@ -197,6 +309,18 @@
                                      Watermark="Replacement text..." />
                         </StackPanel>
 
+                        <!-- Replace Scope field -->
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Scope" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <ComboBox x:Name="ScopeComboBox"
+                                      SelectedIndex="{Binding FindReplace.ReplaceScope}"
+                                      FontSize="11" Height="28" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="All Segments (Both)" />
+                                <ComboBoxItem Content="Machine Segments Only" />
+                                <ComboBoxItem Content="Human Segments Only" />
+                            </ComboBox>
+                        </StackPanel>
+
                         <!-- Action buttons -->
                         <Grid ColumnDefinitions="*, 8, *">
                             <Button Grid.Column="0" x:Name="FindNextBtn"
@@ -222,10 +346,10 @@
                 </StackPanel>
 
                 <!-- ══ STATE 3: AI Summary ════════════════════════════════════ -->
-                <StackPanel IsVisible="{Binding ShowAiSummary}" Spacing="0">
+                <Grid IsVisible="{Binding ShowAiSummary}" RowDefinitions="Auto, *">
 
                     <!-- Header -->
-                    <Border Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
+                    <Border Grid.Row="0" Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
                             BorderThickness="0,0,0,1" Padding="10,6">
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBlock Grid.Column="0" Text="AI Summary"
@@ -237,7 +361,8 @@
                         </Grid>
                     </Border>
 
-                    <StackPanel Spacing="8" Margin="10">
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Spacing="8" Margin="10">
 
                         <!-- Generate button -->
                         <Button x:Name="GenerateSummaryBtn"
@@ -248,6 +373,48 @@
                                 Padding="0,6"
                                 Classes="PrimaryBtn" CornerRadius="3"
                                 IsEnabled="{Binding !AiPane.IsBusy}" />
+
+                        <!-- Configuration expander -->
+                        <Expander x:Name="AiConfigExpander" Header="Configuration (Auto-Trigger)" FontSize="10" 
+                                  Padding="5,0" Margin="0" MinHeight="24"
+                                  BorderThickness="1" BorderBrush="{StaticResource BorderLightBrush}" 
+                                  Background="{StaticResource BgWindowBrush}" CornerRadius="3">
+                            <StackPanel Spacing="6" Margin="0,5,0,0">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="Gemini API Key" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" />
+                                    <TextBox Text="{Binding AiPane.GeminiApiKey}" PasswordChar="•" FontSize="10" Height="24" Watermark="Enter API key..." />
+                                </StackPanel>
+
+                                <TextBlock Text="Auto-trigger rule:" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0" />
+                                
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <RadioButton Grid.Column="0" Content="By Segments" GroupName="TriggerMode" 
+                                                 IsChecked="{Binding AiPane.IsModeSegments}" FontSize="10" />
+                                    <NumericUpDown Grid.Column="1" Value="{Binding AiPane.SummaryTriggerSegments}" 
+                                                   Minimum="0" Maximum="1000" FormatString="0" 
+                                                   IsEnabled="{Binding AiPane.IsModeSegments}"
+                                                   Height="24" FontSize="10" Margin="10,0,0,0" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <RadioButton Grid.Column="0" Content="By Words" GroupName="TriggerMode" 
+                                                 IsChecked="{Binding AiPane.IsModeWords}" FontSize="10" />
+                                    <NumericUpDown Grid.Column="1" Value="{Binding AiPane.SummaryTriggerWords}" 
+                                                   Minimum="0" Maximum="10000" FormatString="0" 
+                                                   IsEnabled="{Binding AiPane.IsModeWords}"
+                                                   Height="24" FontSize="10" Margin="10,0,0,0" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <RadioButton Grid.Column="0" Content="By Time (s)" GroupName="TriggerMode" 
+                                                 IsChecked="{Binding AiPane.IsModeTime}" FontSize="10" />
+                                    <NumericUpDown Grid.Column="1" Value="{Binding AiPane.SummaryTriggerTimeSeconds}" 
+                                                   Minimum="0" Maximum="3600" FormatString="0" 
+                                                   IsEnabled="{Binding AiPane.IsModeTime}"
+                                                   Height="24" FontSize="10" Margin="10,0,0,0" />
+                                </Grid>
+                            </StackPanel>
+                        </Expander>
 
                         <!-- Busy indicator -->
                         <ProgressBar IsVisible="{Binding AiPane.IsBusy}"
@@ -262,6 +429,7 @@
                                 Padding="8,6"
                                 MinHeight="120">
                             <TextBlock Text="{Binding AiPane.SummaryText}"
+                                       MaxWidth="{Binding Bounds.Width, ElementName=AiConfigExpander}"
                                        FontSize="11"
                                        TextWrapping="Wrap"
                                        Foreground="{StaticResource TextPrimaryBrush}"
@@ -269,7 +437,8 @@
                         </Border>
 
                     </StackPanel>
-                </StackPanel>
+                    </ScrollViewer>
+                </Grid>
 
                 <!-- ══ STATE 4: AI Auto-Correct ═══════════════════════════════ -->
                 <StackPanel IsVisible="{Binding ShowAiAutoCorrect}" Spacing="0">
@@ -313,6 +482,7 @@
 
                         <!-- Result text -->
                         <TextBlock Text="{Binding AiPane.CorrectResultMessage}"
+                                   MaxWidth="{Binding Bounds.Width, ElementName=RunCorrectBtn}"
                                    FontSize="10" Foreground="{StaticResource StatusActiveBrush}"
                                    TextWrapping="Wrap" />
 
@@ -323,7 +493,7 @@
                 <Grid IsVisible="{Binding ShowGlossary}" RowDefinitions="Auto, *, Auto">
 
                     <!-- Header -->
-                    <Border Grid.Row="0"
+                    <Border Grid.Row="0" x:Name="GlossaryHeader"
                             Background="{StaticResource BgWindowBrush}" BorderBrush="{StaticResource BorderLightBrush}"
                             BorderThickness="0,0,0,1" Padding="10,6">
                         <Grid ColumnDefinitions="*, Auto">
@@ -349,6 +519,7 @@
                                                        FontSize="11" FontWeight="Bold"
                                                        Foreground="{StaticResource PrimaryBrush}" />
                                             <TextBlock Text="{Binding Definition}"
+                                                       MaxWidth="{Binding Bounds.Width, ElementName=GlossaryHeader}"
                                                        FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
