@@ -36,7 +36,7 @@ public class PdfExporter : IExporter
                 {
                     foreach (var seg in segments)
                     {
-                        var time = System.TimeSpan.FromMilliseconds(seg.BaseSegment.TsStartMs).ToString(@"hh\:mm\:ss");
+                        var time = System.TimeSpan.FromMilliseconds(seg.BaseSegment.GetMediaStartMs()).ToString(@"hh\:mm\:ss");
                         col.Item().Text($"[{time}] [{seg.BaseSegment.SpeakerId}]").Bold();
                         col.Item().Text(seg.TextSrc);
                         if (!string.IsNullOrEmpty(seg.TextTrs))

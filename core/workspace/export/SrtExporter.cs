@@ -9,6 +9,8 @@ public class SrtExporter : IExporter
 {
     public string ContentMode { get; set; } = "Song ngữ (EN + VI)";
 
+    public long TimeOffsetMs { get; set; }
+
     public string Export(IEnumerable<MergedSegment> segments, IEnumerable<FreeformBlock>? blocks = null)
     {
         var sb = new StringBuilder();
@@ -22,8 +24,11 @@ public class SrtExporter : IExporter
         {
             foreach (var seg in segments)
             {
-                TimeSpan start = TimeSpan.FromMilliseconds(seg.BaseSegment.TsStartMs);
-                TimeSpan end = TimeSpan.FromMilliseconds(seg.BaseSegment.TsEndMs);
+                long startMs = ApplyOffset(seg.BaseSegment.GetMediaStartMs());
+                long endMs = ApplyOffset(seg.BaseSegment.GetMediaEndMs());
+                if (endMs < startMs) endMs = startMs;
+                TimeSpan start = TimeSpan.FromMilliseconds(startMs);
+                TimeSpan end = TimeSpan.FromMilliseconds(endMs);
 
                 sb.AppendLine(index.ToString());
                 sb.AppendLine($"{FormatTime(start)} --> {FormatTime(end)}");
@@ -62,6 +67,9 @@ public class SrtExporter : IExporter
 
         return sb.ToString();
     }
+
+    private long ApplyOffset(long ms)
+        => Math.Max(0, ms + TimeOffsetMs);
 
     private string FormatTime(TimeSpan ts)
     {

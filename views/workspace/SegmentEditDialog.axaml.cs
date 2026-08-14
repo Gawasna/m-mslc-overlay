@@ -19,7 +19,7 @@ public partial class SegmentEditDialog : Window
 
     public SegmentEditDialog(MergedSegment segment) : this()
     {
-        var ts = TimeSpan.FromMilliseconds(segment.BaseSegment.TsStartMs);
+        var ts = TimeSpan.FromMilliseconds(segment.BaseSegment.GetMediaStartMs());
         SegmentInfoLabel.Text = $"[{(int)ts.TotalHours:00}:{ts.Minutes:00}:{ts.Seconds:00}] [{segment.BaseSegment.SpeakerId}]";
 
         TextSrcBox.Text = segment.TextSrc;

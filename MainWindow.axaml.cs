@@ -720,11 +720,16 @@ namespace m_mslc_overlay
                     return;
                 }
 
-                bool enableSub   = root.TryGetProperty("enableSubtitle", out var subToggle)   && subToggle.GetBoolean();
-                bool enableAudio = root.TryGetProperty("enableAudio",    out var audioToggle) && audioToggle.GetBoolean();
+                bool enableSub      = root.TryGetProperty("enableSubtitle",      out var subToggle)   && subToggle.GetBoolean();
+                bool enableAudio    = root.TryGetProperty("enableAudio",          out var audioToggle) && audioToggle.GetBoolean();
+                bool enableVideoSub = root.TryGetProperty("enableVideoSubtitle", out var videoToggle)  && videoToggle.GetBoolean();
 
-                var errors = new System.Text.StringBuilder();
-                var notes  = new System.Text.StringBuilder();
+                var errors    = new System.Text.StringBuilder();
+                var notes     = new System.Text.StringBuilder();
+                var successes = new System.Text.StringBuilder();
+
+                if (enableSub || enableVideoSub)
+                    await _workspaceVm.FlushPendingAsync();
 
                 // ── Text / Subtitle export ────────────────────────────
                 if (enableSub && root.TryGetProperty("subtitleConfig", out var subConfig))
@@ -738,6 +743,8 @@ namespace m_mslc_overlay
                         string encoding = subConfig.TryGetProperty("encoding", out var encProp)
                             ? encProp.GetString() ?? "UTF-8" : "UTF-8";
                         bool includeStyles = !subConfig.TryGetProperty("includeStyles", out var stylesProp) || stylesProp.GetBoolean();
+                        string colorPreset = subConfig.TryGetProperty("colorPreset", out var colorProp)
+                            ? colorProp.GetString() ?? "Trắng (White)" : "Trắng (White)";
 
                         MMslcOverlay.Core.Workspace.Export.IExporter exporter = format.ToUpperInvariant() switch
                         {
@@ -745,14 +752,15 @@ namespace m_mslc_overlay
                             ".MD"   => new MMslcOverlay.Core.Workspace.Export.MarkdownExporter(),
                             ".JSON" => new MMslcOverlay.Core.Workspace.Export.JsonExporter(),
                             ".PDF"  => new MMslcOverlay.Core.Workspace.Export.PdfExporter(),
-                            ".ASS"  => new MMslcOverlay.Core.Workspace.Export.AssExporter { IncludeStyles = includeStyles },
+                            ".ASS"  => new MMslcOverlay.Core.Workspace.Export.AssExporter
+                            {
+                                IncludeStyles = includeStyles,
+                                ColorPreset = colorPreset
+                            },
                             ".VTT"  => new MMslcOverlay.Core.Workspace.Export.VttExporter(),
                             _       => new MMslcOverlay.Core.Workspace.Export.SrtExporter()
                         };
                         exporter.ContentMode = contentMode;
-
-                        // Flush pending freeform edits before reading segments
-                        await _workspaceVm.FlushPendingAsync();
 
                         var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
                         string exportedContent = engine.RunExport(exporter);
@@ -791,6 +799,7 @@ namespace m_mslc_overlay
                                     : System.Text.Encoding.UTF8;
                                 await System.IO.File.WriteAllTextAsync(destFile, exportedContent, enc);
                             }
+                            successes.AppendLine(destFile);
                             services.LoggerService.Log($"[Export] Subtitle exported: {destFile}");
                         }
                     }
@@ -880,6 +889,7 @@ namespace m_mslc_overlay
                             );
 
                             await MMslcOverlay.Services.Workspace.AudioExportService.ExportAsync(req, progress);
+                            successes.AppendLine(outputPath);
                             services.LoggerService.Log($"[Export] Audio exported to: {outputPath}");
 
                             // FLAC uses WAV container internally (NAudio limitation)
@@ -894,6 +904,119 @@ namespace m_mslc_overlay
                     }
                 }
 
+                if (enableVideoSub && root.TryGetProperty("videoSubtitleConfig", out var videoConfig))
+                {
+                    string? tempSubPath = null;
+                    try
+                    {
+                        string videoPath = videoConfig.TryGetProperty("videoPath", out var vp)
+                            ? vp.GetString() ?? "" : "";
+                        string container = videoConfig.TryGetProperty("container", out var ctProp)
+                            ? ctProp.GetString() ?? "MKV" : "MKV";
+                        string subFmt = videoConfig.TryGetProperty("subtitleFormat", out var sfProp)
+                            ? sfProp.GetString() ?? "SRT" : "SRT";
+                        string contentMode = videoConfig.TryGetProperty("contentMode", out var cmProp)
+                            ? cmProp.GetString() ?? "Chỉ Tiếng Việt (VI)" : "Chỉ Tiếng Việt (VI)";
+                        bool setDefault = !videoConfig.TryGetProperty("setAsDefault", out var defProp) || defProp.GetBoolean();
+                        long timeOffsetMs = 0;
+                        if (videoConfig.TryGetProperty("timeOffsetMs", out var offProp))
+                        {
+                            if (offProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                timeOffsetMs = offProp.GetInt64();
+                            else if (offProp.ValueKind == System.Text.Json.JsonValueKind.String
+                                     && long.TryParse(offProp.GetString(), out var parsedOff))
+                                timeOffsetMs = parsedOff;
+                        }
+                        string colorPreset = videoConfig.TryGetProperty("colorPreset", out var vColorProp)
+                            ? vColorProp.GetString() ?? "Trắng (White)" : "Trắng (White)";
+
+                        if (string.IsNullOrWhiteSpace(videoPath) || !System.IO.File.Exists(videoPath))
+                        {
+                            errors.AppendLine("Không tìm thấy file video để ghép phụ đề.");
+                        }
+                        else
+                        {
+                            var ensure = await m_mslc_overlay.views.dialogs.ToolDownloadDialog.EnsureWithUiAsync(this);
+                            if (!ensure.Success || string.IsNullOrEmpty(ensure.FfmpegPath))
+                            {
+                                errors.AppendLine(ensure.ErrorMessage
+                                    ?? "Không chuẩn bị được công cụ xử lý video.");
+                            }
+                            else
+                            {
+                                bool useAss = container.Equals("MKV", StringComparison.OrdinalIgnoreCase);
+                                if (!useAss && subFmt.Contains("ASS", StringComparison.OrdinalIgnoreCase)
+                                    && !container.Equals("MP4", StringComparison.OrdinalIgnoreCase))
+                                    useAss = true;
+
+                                MMslcOverlay.Core.Workspace.Export.IExporter subExporter = useAss
+                                    ? new MMslcOverlay.Core.Workspace.Export.AssExporter
+                                    {
+                                        IncludeStyles = true,
+                                        TimeOffsetMs = timeOffsetMs,
+                                        ColorPreset = colorPreset
+                                    }
+                                    : new MMslcOverlay.Core.Workspace.Export.SrtExporter
+                                    {
+                                        TimeOffsetMs = timeOffsetMs
+                                    };
+                                subExporter.ContentMode = contentMode;
+
+                                var engine = new MMslcOverlay.Core.Workspace.Export.ExportEngine(_workspaceVm.Service.SegmentRepo);
+                                string subContent = engine.RunExport(subExporter);
+                                services.LoggerService.Log(
+                                    $"[Export] Video mux offset={timeOffsetMs}ms color={colorPreset} ass={useAss}");
+
+                                string tempExt = useAss ? ".ass" : ".srt";
+                                tempSubPath = System.IO.Path.Combine(
+                                    System.IO.Path.GetTempPath(),
+                                    $"mslc_mux_{System.Guid.NewGuid():N}{tempExt}");
+                                await System.IO.File.WriteAllTextAsync(tempSubPath, subContent, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+                                string outExt = container.Equals("MP4", StringComparison.OrdinalIgnoreCase) ? ".mp4" : ".mkv";
+                                string destVideo = System.IO.Path.Combine(outputPath, filenamePattern + outExt);
+
+                                var muxReq = new MMslcOverlay.Services.Workspace.VideoSubtitleMuxRequest(
+                                    VideoPath: videoPath,
+                                    SubtitlePath: tempSubPath,
+                                    OutputPath: destVideo,
+                                    Container: container,
+                                    SubtitleCodecHint: useAss ? "ASS" : "SRT",
+                                    LanguageCode: MMslcOverlay.Services.Workspace.VideoSubtitleMuxService.LanguageCodeFromContentMode(contentMode),
+                                    TrackTitle: MMslcOverlay.Services.Workspace.VideoSubtitleMuxService.TrackTitleFromContentMode(contentMode),
+                                    SetAsDefault: setDefault,
+                                    Overwrite: overwrite
+                                );
+
+                                var muxResult = await MMslcOverlay.Services.Workspace.VideoSubtitleMuxService.MuxAsync(
+                                    muxReq, ffmpegPath: ensure.FfmpegPath);
+                                if (muxResult.Success)
+                                {
+                                    successes.AppendLine(muxResult.OutputPath);
+                                    services.LoggerService.Log($"[Export] Video+subtitle muxed: {muxResult.OutputPath}");
+                                }
+                                else
+                                {
+                                    errors.AppendLine($"Lỗi ghép phụ đề vào video: {muxResult.ErrorMessage}");
+                                    services.LoggerService.Log($"[Export] Video mux error: {muxResult.ErrorMessage}");
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.AppendLine($"Lỗi ghép phụ đề vào video: {ex.Message}");
+                        services.LoggerService.Log($"[Export] Video subtitle mux error: {ex.Message}");
+                    }
+                    finally
+                    {
+                        if (tempSubPath != null)
+                        {
+                            try { System.IO.File.Delete(tempSubPath); } catch { /* ignore */ }
+                        }
+                    }
+                }
+
                 // ── Post-export ────────────────────────────────────────
                 _workspaceVm.RefreshSessionFiles();
 
@@ -902,16 +1025,21 @@ namespace m_mslc_overlay
                 if (errors.Length > 0)
                 {
                     string detail = errors.ToString().Trim();
+                    if (successes.Length > 0)
+                        detail = "Một phần thành công:\n" + successes.ToString().Trim() + "\n\nCảnh báo:\n" + detail;
                     if (notes.Length > 0) detail += "\n\n[Ghi chú] " + notes.ToString().Trim();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
                         this, "Xuất file hoàn tất (có cảnh báo)", detail);
                 }
                 else
                 {
-                    string successMsg = $"Đã lưu vào:\n{outputPath}";
+                    string successMsg = successes.Length > 0
+                        ? successes.ToString().Trim()
+                        : outputPath;
                     if (notes.Length > 0) successMsg += "\n\n[Ghi chú] " + notes.ToString().Trim();
                     await m_mslc_overlay.views.dialogs.MessageDialog.ShowAsync(
-                        this, "Xuất file thành công", successMsg);
+                        this, "Xuất file thành công",
+                        $"Dữ liệu đã được lưu:\n{successMsg}");
                 }
             }
             catch (Exception ex)

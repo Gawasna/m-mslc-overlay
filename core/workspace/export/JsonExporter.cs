@@ -15,13 +15,15 @@ public class JsonExporter : IExporter
 
         foreach (var seg in segments)
         {
-            TimeSpan start = TimeSpan.FromMilliseconds(seg.BaseSegment.TsStartMs);
-            TimeSpan end = TimeSpan.FromMilliseconds(seg.BaseSegment.TsEndMs);
+            long startMs = seg.BaseSegment.GetMediaStartMs();
+            long endMs = seg.BaseSegment.GetMediaEndMs();
+            TimeSpan start = TimeSpan.FromMilliseconds(startMs);
+            TimeSpan end = TimeSpan.FromMilliseconds(endMs);
 
             list.Add(new
             {
-                startMs = seg.BaseSegment.TsStartMs,
-                endMs = seg.BaseSegment.TsEndMs,
+                startMs,
+                endMs,
                 startTime = $"{(int)start.TotalHours:00}:{start.Minutes:00}:{start.Seconds:00}.{start.Milliseconds:03}",
                 endTime = $"{(int)end.TotalHours:00}:{end.Minutes:00}:{end.Seconds:00}.{end.Milliseconds:03}",
                 speaker = seg.BaseSegment.SpeakerId,
